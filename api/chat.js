@@ -1,11 +1,11 @@
 // VANT → NVIDIA NIM
-// Vercel serverless function.
-// NVIDIA API key stays server-side and never reaches the browser.
+// Vercel serverless function
+// NVIDIA API key remains server-side.
 
 export default async function handler(req, res) {
-  // --------------------------------------------------
-  // 1. Only allow POST
-  // --------------------------------------------------
+  // -----------------------------------------
+  // METHOD
+  // -----------------------------------------
   if (req.method !== "POST") {
     return res.status(405).json({
       error: "method_not_allowed",
@@ -13,35 +13,35 @@ export default async function handler(req, res) {
     });
   }
 
-  // --------------------------------------------------
-  // 2. Check NVIDIA API key
-  // --------------------------------------------------
+  // -----------------------------------------
+  // API KEY
+  // -----------------------------------------
   const apiKey = process.env.NVIDIA_API_KEY;
 
   if (!apiKey) {
-    console.error("VANT: NVIDIA_API_KEY is missing.");
+    console.error("NVIDIA_API_KEY is missing.");
 
     return res.status(500).json({
       error: "missing_api_key",
-      message: "NVIDIA_API_KEY is not configured on the server.",
+      message: "NVIDIA_API_KEY is not configured.",
     });
   }
 
-  // --------------------------------------------------
-  // 3. Read request body
-  // --------------------------------------------------
+  // -----------------------------------------
+  // REQUEST BODY
+  // -----------------------------------------
   const { system, messages } = req.body || {};
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({
       error: "missing_messages",
-      message: "No chat messages were provided.",
+      message: "No messages were provided.",
     });
   }
 
-  // --------------------------------------------------
-  // 4. Build NVIDIA message list
-  // --------------------------------------------------
+  // -----------------------------------------
+  // BUILD MESSAGES
+  // -----------------------------------------
   const nimMessages = system
     ? [
         {
@@ -52,11 +52,11 @@ export default async function handler(req, res) {
       ]
     : messages;
 
-  // --------------------------------------------------
-  // 5. Call NVIDIA NIM
-  // --------------------------------------------------
+  // -----------------------------------------
+  // NVIDIA REQUEST
+  // -----------------------------------------
   try {
-    const upstream = await fetch(
+    const response = await fetch(
       "https://integrate.api.nvidia.com/v1/chat/completions",
       {
         method: "POST",
@@ -72,52 +72,49 @@ export default async function handler(req, res) {
 
           messages: nimMessages,
 
-          temperature: 0.4,
+          temperature: 1.0,
           top_p: 0.95,
-          max_tokens: 4096,
+
+          max_tokens: 2048,
 
           stream: false,
-
-          extra_body: {
-            chat_template_kwargs: {
-              enable_thinking: false,
-            },
-          },
         }),
       }
     );
 
-    // --------------------------------------------------
-    // 6. Safely read NVIDIA response
-    // --------------------------------------------------
-    const rawText = await upstream.text();
+    // -----------------------------------------
+    // READ RESPONSE
+    // -----------------------------------------
+    const raw = await response.text();
 
     let data;
 
     try {
-      data = rawText ? JSON.parse(rawText) : {};
+      data = raw ? JSON.parse(raw) : {};
     } catch {
       data = {
-        raw: rawText,
+        raw,
       };
     }
 
-    // --------------------------------------------------
-    // 7. Handle NVIDIA errors
-    // --------------------------------------------------
-    if (!upstream.ok) {
-      console.error("VANT → NVIDIA ERROR", {
-        status: upstream.status,
-        statusText: upstream.statusText,
-        response: data,
+    // -----------------------------------------
+    // NVIDIA ERROR
+    // -----------------------------------------
+    if (!response.ok) {
+      console.error("NVIDIA NIM ERROR:", {
+        status: response.status,
+        statusText: response.statusText,
+        data,
       });
 
-      let detail = "NVIDIA NIM request failed.";
+      let detail = "NVIDIA request failed.";
 
-      if (typeof data?.detail === "string") {
-        detail = data.detail;
+      if (typeof data === "string") {
+        detail = data;
       } else if (typeof data?.message === "string") {
         detail = data.message;
+      } else if (typeof data?.detail === "string") {
+        detail = data.detail;
       } else if (typeof data?.error === "string") {
         detail = data.error;
       } else if (data?.error) {
@@ -128,36 +125,35 @@ export default async function handler(req, res) {
         detail = data.raw;
       }
 
-      return res.status(upstream.status).json({
+      return res.status(response.status).json({
         error: "nvidia_api_error",
         message: detail,
-        status: upstream.status,
+        status: response.status,
       });
     }
 
-    // --------------------------------------------------
-    // 8. Extract assistant response
-    // --------------------------------------------------
+    // -----------------------------------------
+    // EXTRACT MODEL RESPONSE
+    // -----------------------------------------
     const text =
-      data?.choices?.[0]?.message?.content ??
-      "";
+      data?.choices?.[0]?.message?.content || "";
 
-    // --------------------------------------------------
-    // 9. Make sure NVIDIA actually returned content
-    // --------------------------------------------------
     if (!text) {
-      console.error("VANT: NVIDIA returned no assistant content.", data);
+      console.error(
+        "NVIDIA returned no assistant content:",
+        data
+      );
 
       return res.status(502).json({
         error: "empty_nvidia_response",
-        message: "NVIDIA returned a successful response but no text content.",
-        model: data?.model,
+        message:
+          "NVIDIA returned a response, but no assistant text was found.",
       });
     }
 
-    // --------------------------------------------------
-    // 10. Return the format expected by VANT
-    // --------------------------------------------------
+    // -----------------------------------------
+    // RETURN TO VANT
+    // -----------------------------------------
     return res.status(200).json({
       content: [
         {
@@ -170,16 +166,16 @@ export default async function handler(req, res) {
 
       usage: data?.usage,
     });
-  } catch (err) {
-    // --------------------------------------------------
-    // 11. Network / fetch / unexpected errors
-    // --------------------------------------------------
-    console.error("VANT → NVIDIA REQUEST FAILED:", err);
+  } catch (error) {
+    console.error(
+      "VANT → NVIDIA connection failed:",
+      error
+    );
 
     return res.status(502).json({
       error: "upstream_request_failed",
       message:
-        err?.message ||
+        error?.message ||
         "Unable to connect to NVIDIA NIM.",
     });
   }
