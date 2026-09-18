@@ -4,7 +4,7 @@
 
 export default async function handler(req, res) {
   // -----------------------------------------
-  // METHOD
+  // 1. METHOD
   // -----------------------------------------
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -14,12 +14,12 @@ export default async function handler(req, res) {
   }
 
   // -----------------------------------------
-  // API KEY
+  // 2. NVIDIA API KEY
   // -----------------------------------------
   const apiKey = process.env.NVIDIA_API_KEY;
 
   if (!apiKey) {
-    console.error("NVIDIA_API_KEY is missing.");
+    console.error("VANT ERROR: NVIDIA_API_KEY is missing.");
 
     return res.status(500).json({
       error: "missing_api_key",
@@ -28,19 +28,19 @@ export default async function handler(req, res) {
   }
 
   // -----------------------------------------
-  // REQUEST BODY
+  // 3. REQUEST BODY
   // -----------------------------------------
   const { system, messages } = req.body || {};
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({
       error: "missing_messages",
-      message: "No messages were provided.",
+      message: "No chat messages were provided.",
     });
   }
 
   // -----------------------------------------
-  // BUILD MESSAGES
+  // 4. BUILD MESSAGE ARRAY
   // -----------------------------------------
   const nimMessages = system
     ? [
@@ -53,9 +53,20 @@ export default async function handler(req, res) {
     : messages;
 
   // -----------------------------------------
-  // NVIDIA REQUEST
+  // 5. NVIDIA REQUEST WITH TIMEOUT
   // -----------------------------------------
+  const controller = new AbortController();
+
+  // Give NVIDIA 15 seconds.
+  // This is intentionally shorter than VANT's
+  // 20-second browser timeout.
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 15000);
+
   try {
+    console.log("VANT: Sending request to NVIDIA NIM...");
+
     const response = await fetch(
       "https://integrate.api.nvidia.com/v1/chat/completions",
       {
@@ -67,27 +78,43 @@ export default async function handler(req, res) {
           Authorization: `Bearer ${apiKey}`,
         },
 
+        signal: controller.signal,
+
         body: JSON.stringify({
           model: "nvidia/nemotron-3.5-lightning-30b-a3b",
 
           messages: nimMessages,
 
-          temperature: 1.0,
+          temperature: 0.4,
           top_p: 0.95,
 
-          max_tokens: 2048,
+          // Keep this small for our first test.
+          max_tokens: 256,
 
           stream: false,
+
+          // IMPORTANT:
+          // For raw fetch(), this goes directly
+          // in the request body.
+          chat_template_kwargs: {
+            enable_thinking: false,
+          },
         }),
       }
     );
 
+    clearTimeout(timeout);
+
+    console.log(
+      `VANT: NVIDIA responded with HTTP ${response.status}`
+    );
+
     // -----------------------------------------
-    // READ RESPONSE
+    // 6. READ NVIDIA RESPONSE
     // -----------------------------------------
     const raw = await response.text();
 
-    let data;
+    let data = {};
 
     try {
       data = raw ? JSON.parse(raw) : {};
@@ -98,16 +125,16 @@ export default async function handler(req, res) {
     }
 
     // -----------------------------------------
-    // NVIDIA ERROR
+    // 7. NVIDIA ERROR
     // -----------------------------------------
     if (!response.ok) {
-      console.error("NVIDIA NIM ERROR:", {
+      console.error("VANT: NVIDIA API ERROR", {
         status: response.status,
         statusText: response.statusText,
         data,
       });
 
-      let detail = "NVIDIA request failed.";
+      let detail = "NVIDIA NIM request failed.";
 
       if (typeof data === "string") {
         detail = data;
@@ -133,27 +160,29 @@ export default async function handler(req, res) {
     }
 
     // -----------------------------------------
-    // EXTRACT MODEL RESPONSE
+    // 8. EXTRACT RESPONSE
     // -----------------------------------------
     const text =
       data?.choices?.[0]?.message?.content || "";
 
     if (!text) {
       console.error(
-        "NVIDIA returned no assistant content:",
+        "VANT: NVIDIA returned no assistant content.",
         data
       );
 
       return res.status(502).json({
         error: "empty_nvidia_response",
         message:
-          "NVIDIA returned a response, but no assistant text was found.",
+          "NVIDIA returned a response but no assistant text.",
       });
     }
 
     // -----------------------------------------
-    // RETURN TO VANT
+    // 9. RETURN TO VANT
     // -----------------------------------------
+    console.log("VANT: NVIDIA response received successfully.");
+
     return res.status(200).json({
       content: [
         {
@@ -166,9 +195,30 @@ export default async function handler(req, res) {
 
       usage: data?.usage,
     });
+
   } catch (error) {
+    clearTimeout(timeout);
+
+    // -----------------------------------------
+    // 10. NVIDIA TIMEOUT
+    // -----------------------------------------
+    if (error?.name === "AbortError") {
+      console.error(
+        "VANT: NVIDIA request timed out after 15 seconds."
+      );
+
+      return res.status(504).json({
+        error: "nvidia_timeout",
+        message:
+          "NVIDIA did not respond within 15 seconds.",
+      });
+    }
+
+    // -----------------------------------------
+    // 11. OTHER CONNECTION ERROR
+    // -----------------------------------------
     console.error(
-      "VANT → NVIDIA connection failed:",
+      "VANT: NVIDIA connection failed:",
       error
     );
 
