@@ -170,8 +170,8 @@ function ChatPage({ theme, isDark }) {
     return (
       <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
         <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, marginBottom: 14 }}>AI CHAT · LIVE</p>
-        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>Good evening, Aldrich.</h1>
-        <p style={{ color: theme.textMuted, fontSize: 16, margin: "0 0 28px" }}>What should we work on?</p>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>What should we work on?</h1>
+        <p style={{ color: theme.textMuted, fontSize: 16, margin: "0 0 28px" }}>Vant Ai - Created by Karl Aldrich Uy</p>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 480 }}>
           {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 18px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14, cursor: "pointer" }}>{s}</button>)}
         </div>
@@ -484,8 +484,8 @@ function DashboardPage({ theme, isDark, connected, onGoToIntegrations }) {
   return (
     <div style={{ padding: 28, height: "100%", overflowY: "auto" }}>
       <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, margin: "0 0 6px" }}>DASHBOARD</p>
-      <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 26, fontWeight: 500, margin: "0 0 4px", color: theme.text }}>Good evening, Aldrich.</h1>
-      <p style={{ color: theme.textMuted, fontSize: 15, margin: "0 0 26px" }}>Here's what needs your attention. Click a tile for details.</p>
+      <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 26, fontWeight: 500, margin: "0 0 4px", color: theme.text }}>Here's what needs your attention</h1>
+      <p style={{ color: theme.textMuted, fontSize: 15, margin: "0 0 26px" }}>Click a tile for details.</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: openPanel ? 16 : 20 }}>
         {kpis.map((k) => (
