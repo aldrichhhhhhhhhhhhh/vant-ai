@@ -5,7 +5,7 @@ import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Tr
 // ---------------------------------------------------------------------------
 // Real browser storage (replaces the Claude-sandbox-only window.storage API).
 // Same {value} / null shape, so every existing call site works unchanged.
-// Per-browser only \u2014 not shared across devices or users. Good enough for a
+// Per-browser only — not shared across devices or users. Good enough for a
 // single-tester prototype; a real multi-user product needs a real database.
 // ---------------------------------------------------------------------------
 const storage = {
@@ -90,16 +90,16 @@ async function askClaude(systemPrompt, messages, timeoutMs = 20000) {
     const data = await response.json();
     if (!response.ok) {
       return data?.error === "missing_api_key"
-        ? "The server isn't configured with an NVIDIA API key yet \u2014 set NVIDIA_API_KEY in your deployment's environment variables."
+        ? "The server isn't configured with an NVIDIA API key yet — set NVIDIA_API_KEY in your deployment's environment variables."
         : data?.detail
           ? `NVIDIA NIM error: ${data.detail}`
           : "The server had trouble reaching the model. Try again in a moment.";
     }
     const text = (data.content || []).map((b) => (b.type === "text" ? b.text : "")).filter(Boolean).join("\n");
-    return text || "I couldn't generate a response \u2014 try rephrasing.";
+    return text || "I couldn't generate a response — try rephrasing.";
   } catch (err) {
     clearTimeout(timer);
-    if (err && err.name === "AbortError") return "No response after 20 seconds \u2014 check your deployment's function logs.";
+    if (err && err.name === "AbortError") return "No response after 20 seconds — check your deployment's function logs.";
     return "Something went wrong reaching the server. Try again in a moment.";
   }
 }
@@ -150,7 +150,7 @@ function ChatPage({ theme, isDark }) {
     setInput("");
     setLoading(true);
     const reply = await askClaude(
-      "You are VANT, an AI work assistant. Be direct, concise, and genuinely useful \u2014 like a sharp colleague, not a customer service bot. Use plain formatting suited to a chat bubble, not long markdown documents.",
+      "You are VANT, an AI work assistant. Be direct, concise, and genuinely useful — like a sharp colleague, not a customer service bot. Use plain formatting suited to a chat bubble, not long markdown documents.",
       next.map((m) => ({ role: m.role, content: m.content }))
     );
     setLoading(false);
@@ -164,14 +164,14 @@ function ChatPage({ theme, isDark }) {
   if (!started) {
     return (
       <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, marginBottom: 14 }}>AI CHAT \u00b7 LIVE</p>
+        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, marginBottom: 14 }}>AI CHAT · LIVE</p>
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>Good evening, Aldrich.</h1>
         <p style={{ color: theme.textMuted, fontSize: 16, margin: "0 0 28px" }}>What should we work on?</p>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 480 }}>
           {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 18px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14, cursor: "pointer" }}>{s}</button>)}
         </div>
         <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 620, marginTop: 40 }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask anything, or tell me what you need done\u2026" style={{ ...inputStyle, width: "100%", padding: "14px 20px", fontSize: 15, boxSizing: "border-box" }} />
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask anything, or tell me what you need done…" style={{ ...inputStyle, width: "100%", padding: "14px 20px", fontSize: 15, boxSizing: "border-box" }} />
         </form>
       </div>
     );
@@ -180,7 +180,7 @@ function ChatPage({ theme, isDark }) {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 24px", borderBottom: `1px solid ${theme.border}` }}>
-        <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT \u00b7 AI Chat</span>
+        <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · AI Chat</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
       </div>
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -192,7 +192,7 @@ function ChatPage({ theme, isDark }) {
         {loading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div></div>}
       </div>
       <form onSubmit={handleSubmit} style={{ display: "flex", gap: 10, padding: 18, borderTop: `1px solid ${theme.border}` }}>
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask anything\u2026" disabled={loading} style={{ ...inputStyle, flex: 1 }} />
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask anything…" disabled={loading} style={{ ...inputStyle, flex: 1 }} />
         <button type="submit" disabled={loading || !input.trim()} style={{ width: 44, height: 44, borderRadius: 999, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.5 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
       </form>
     </div>
@@ -227,7 +227,7 @@ function BackBar({ title, accentKey, isDark, theme, onBack }) {
 }
 
 const OPS_SYSTEM_PROMPT = `You are VANT's Ops Assistant, built for people running logistics, supply chain, and day-to-day operations.
-You've been given a dataset and a question. Answer directly using real numbers from the data. Proactively flag risks or anomalies (delays, shortages, cost spikes, missed deadlines) even if not asked. Be concise \u2014 lead with the answer. If the data can't answer the question, say so. Never invent numbers not in the data.`;
+You've been given a dataset and a question. Answer directly using real numbers from the data. Proactively flag risks or anomalies (delays, shortages, cost spikes, missed deadlines) even if not asked. Be concise — lead with the answer. If the data can't answer the question, say so. Never invent numbers not in the data.`;
 
 function OpsAssistantTool({ onBack, theme, isDark }) {
   const [fileName, setFileName] = useState("");
@@ -276,11 +276,11 @@ function OpsAssistantTool({ onBack, theme, isDark }) {
     <div style={{ padding: 28, height: "100%", overflowY: "auto" }}>
       <BackBar title="Ops Assistant" accentKey="red" isDark={isDark} theme={theme} onBack={onBack} />
       <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, fontWeight: 500, margin: "0 0 6px", color: theme.text }}>Upload real operational data.</h1>
-      <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 20px" }}>A shipment log, inventory sheet, delivery schedule \u2014 then ask it directly.</p>
+      <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 20px" }}>A shipment log, inventory sheet, delivery schedule — then ask it directly.</p>
 
       <div onClick={() => fileInputRef.current?.click()} style={{ border: `1.5px dashed ${fileName ? successColor : theme.borderStrong}`, borderRadius: 14, padding: "18px 20px", textAlign: "center", cursor: "pointer", background: fileName ? acBg("green") : theme.surface, marginBottom: 16 }}>
         <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFile} style={{ display: "none" }} />
-        {fileName ? <p style={{ color: successColor, fontSize: 14, margin: 0 }}>\u2713 {fileName} \u2014 {rows.length} rows \u00b7 click to replace</p> : <p style={{ color: theme.text, fontSize: 14, margin: 0 }}>Click to upload a .csv file</p>}
+        {fileName ? <p style={{ color: successColor, fontSize: 14, margin: 0 }}>✓ {fileName} — {rows.length} rows · click to replace</p> : <p style={{ color: theme.text, fontSize: 14, margin: 0 }}>Click to upload a .csv file</p>}
       </div>
       {error && <p style={{ color: ac("red", isDark), fontSize: 13, marginBottom: 14 }}>{error}</p>}
 
@@ -309,10 +309,10 @@ function OpsAssistantTool({ onBack, theme, isDark }) {
               <div style={{ maxWidth: "85%", padding: "10px 14px", borderRadius: 12, fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap", background: m.role === "user" ? theme.surfaceStrong : acBg("red"), color: m.role === "user" ? theme.text : (isDark ? "#fecaca" : "#7f1d1d") }}>{m.content}</div>
             </div>
           ))}
-          {loading && <p style={{ color: ac("red", isDark), fontSize: 12.5, fontFamily: "JetBrains Mono, monospace" }}>Analyzing\u2026</p>}
+          {loading && <p style={{ color: ac("red", isDark), fontSize: 12.5, fontFamily: "JetBrains Mono, monospace" }}>Analyzing…</p>}
         </div>
         <form onSubmit={handleSend} style={{ display: "flex", gap: 8, padding: 12, borderTop: `1px solid ${theme.border}` }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={rawCsv ? "Ask anything about this data\u2026" : "Upload a file first\u2026"} disabled={!rawCsv || loading}
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={rawCsv ? "Ask anything about this data…" : "Upload a file first…"} disabled={!rawCsv || loading}
             style={{ flex: 1, padding: "9px 14px", borderRadius: 999, background: theme.inputBg, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, outline: "none" }} />
           <button type="submit" disabled={!rawCsv || loading || !input.trim()} style={{ padding: "9px 18px", borderRadius: 999, background: "#fff", color: "#07090f", fontWeight: 500, fontSize: 13.5, border: "none", cursor: "pointer", opacity: !rawCsv || loading || !input.trim() ? 0.5 : 1 }}>Ask</button>
         </form>
@@ -322,9 +322,9 @@ function OpsAssistantTool({ onBack, theme, isDark }) {
 }
 
 const DIVISORS = [
-  { label: "Air \u2014 5000 (cm\u00b3/kg)", value: 5000 },
-  { label: "Air \u2014 6000 (cm\u00b3/kg)", value: 6000 },
-  { label: "Courier \u2014 4000 (cm\u00b3/kg)", value: 4000 },
+  { label: "Air — 5000 (cm³/kg)", value: 5000 },
+  { label: "Air — 6000 (cm³/kg)", value: 6000 },
+  { label: "Courier — 4000 (cm³/kg)", value: 4000 },
   { label: "Custom", value: "custom" },
 ];
 
@@ -352,7 +352,7 @@ function ChargeableWeightTool({ onBack, theme, isDark }) {
     <div style={{ padding: 28, height: "100%", overflowY: "auto" }}>
       <BackBar title="Chargeable Weight Calculator" accentKey="amber" isDark={isDark} theme={theme} onBack={onBack} />
       <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, fontWeight: 500, margin: "0 0 6px", color: theme.text }}>Actual vs. volumetric weight.</h1>
-      <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 24px" }}>Chargeable weight is whichever is higher \u2014 this is standard freight billing math.</p>
+      <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 24px" }}>Chargeable weight is whichever is higher — this is standard freight billing math.</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
         <div><label style={labelStyle}>Length (cm)</label><input value={length} onChange={(e) => setLength(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
@@ -388,12 +388,12 @@ function ChargeableWeightTool({ onBack, theme, isDark }) {
               <p style={{ fontSize: 30, fontWeight: 600, margin: 0, color: amber }}>{chargeable.toFixed(2)} kg</p>
             </div>
             <p style={{ fontSize: 12.5, color: theme.textFaint, maxWidth: 200, textAlign: "right" }}>
-              {volumetricWeight > totalActual ? "Billed on volume \u2014 it's bulkier than it is heavy." : "Billed on actual weight \u2014 it's heavier than it is bulky."}
+              {volumetricWeight > totalActual ? "Billed on volume — it's bulkier than it is heavy." : "Billed on actual weight — it's heavier than it is bulky."}
             </p>
           </div>
         )}
       </div>
-      <p style={{ color: theme.textFaint, fontSize: 12, marginTop: 14 }}>Formula: volumetric weight = (L \u00d7 W \u00d7 H \u00d7 pieces) \u00f7 divisor. Chargeable weight = the higher of that and total actual weight.</p>
+      <p style={{ color: theme.textFaint, fontSize: 12, marginTop: 14 }}>Formula: volumetric weight = (L × W × H × pieces) ÷ divisor. Chargeable weight = the higher of that and total actual weight.</p>
     </div>
   );
 }
@@ -411,7 +411,7 @@ function ToolsPage({ theme, isDark }) {
         <ToolCard icon={FileSpreadsheet} accentKey="red" isDark={isDark} theme={theme} title="Ops Assistant" desc="Upload a shipment log, inventory sheet, or delivery schedule and ask real questions about it." onClick={() => setView("ops")} />
         <ToolCard icon={Calculator} accentKey="amber" isDark={isDark} theme={theme} title="Chargeable Weight Calculator" desc="Compare actual vs. volumetric weight to get the real billable freight weight." onClick={() => setView("weight")} />
       </div>
-      <p style={{ color: theme.textFaint, fontSize: 12.5, marginTop: 20 }}>More tools land here as we build them \u2014 this hub is built to grow.</p>
+      <p style={{ color: theme.textFaint, fontSize: 12.5, marginTop: 20 }}>More tools land here as we build them — this hub is built to grow.</p>
     </div>
   );
 }
@@ -431,13 +431,13 @@ function CountUp({ to, duration = 900 }) {
 }
 
 const MOCK_EMAILS = [
-  { from: "logistics@vendor-freightco.com", subject: "Delay notice \u2014 shipment #4471", snippet: "Customs hold expected to clear by Thursday...", time: "22m ago" },
+  { from: "logistics@vendor-freightco.com", subject: "Delay notice — shipment #4471", snippet: "Customs hold expected to clear by Thursday...", time: "22m ago" },
   { from: "ops@warehouse-north.com", subject: "Weekly inventory reconciliation", snippet: "3 SKUs show variance against last count...", time: "1h ago" },
   { from: "accounts@carrier-express.com", subject: "Invoice #88213 overdue", snippet: "Payment was due on the 12th, please advise...", time: "3h ago" },
   { from: "hr@company.com", subject: "Reminder: Q3 review forms due Friday", snippet: "Please submit your self-assessment by end of week...", time: "5h ago" },
 ];
 const MOCK_MEETINGS = [
-  { title: "Ops sync \u2014 weekly review", time: "Today, 3:00 PM", withWho: "5 attendees", type: "Google Meet" },
+  { title: "Ops sync — weekly review", time: "Today, 3:00 PM", withWho: "5 attendees", type: "Google Meet" },
   { title: "Vendor call: FreightCo delay", time: "Today, 4:30 PM", withWho: "2 attendees", type: "Google Meet" },
   { title: "Warehouse walkthrough", time: "Tomorrow, 9:00 AM", withWho: "In-person", type: "Calendar" },
   { title: "Monthly ops report review", time: "Fri, 11:00 AM", withWho: "3 attendees", type: "Google Meet" },
@@ -509,7 +509,7 @@ function DashboardPage({ theme, isDark, connected, onGoToIntegrations }) {
                   <p style={{ fontSize: 12.5, color: theme.textFaint, margin: 0 }}>{e.snippet}</p>
                 </div>
               ))}
-              <p style={noteStyle}>Illustrative sample \u2014 will show your real inbox once Gmail's OAuth is fully wired up.</p>
+              <p style={noteStyle}>Illustrative sample — will show your real inbox once Gmail's OAuth is fully wired up.</p>
             </>
           ) : (
             <div style={{ textAlign: "center", padding: "12px 0" }}>
@@ -522,8 +522,8 @@ function DashboardPage({ theme, isDark, connected, onGoToIntegrations }) {
 
       {openPanel === "tasks" && (
         <div style={panelStyle}>
-          <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textMuted, margin: "0 0 14px" }}>PENDING TASKS \u00b7 BY PRIORITY</p>
-          {sortedPending.length === 0 && <p style={{ color: theme.textFaint, fontSize: 13.5 }}>No pending tasks \u2014 add some in Cowork.</p>}
+          <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textMuted, margin: "0 0 14px" }}>PENDING TASKS · BY PRIORITY</p>
+          {sortedPending.length === 0 && <p style={{ color: theme.textFaint, fontSize: 13.5 }}>No pending tasks — add some in Cowork.</p>}
           {sortedPending.map((t, i) => (
             <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: i > 0 ? `1px solid ${theme.border}` : "none" }}>
               <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: priorityColor[t.priority || "moderate"], minWidth: 62 }}>{(t.priority || "moderate").toUpperCase()}</span>
@@ -531,7 +531,7 @@ function DashboardPage({ theme, isDark, connected, onGoToIntegrations }) {
               <span style={{ fontSize: 11.5, color: theme.textFaint }}>{t.status}</span>
             </div>
           ))}
-          <p style={noteStyle}>Live from Cowork \u2014 this is your real task list, not mock data.</p>
+          <p style={noteStyle}>Live from Cowork — this is your real task list, not mock data.</p>
         </div>
       )}
 
@@ -544,12 +544,12 @@ function DashboardPage({ theme, isDark, connected, onGoToIntegrations }) {
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: i > 0 ? `1px solid ${theme.border}` : "none" }}>
                   <div>
                     <p style={{ fontSize: 13.5, color: theme.text, margin: "0 0 2px" }}>{m.title}</p>
-                    <p style={{ fontSize: 12, color: theme.textFaint, margin: 0 }}>{m.withWho} \u00b7 {m.type}</p>
+                    <p style={{ fontSize: 12, color: theme.textFaint, margin: 0 }}>{m.withWho} · {m.type}</p>
                   </div>
                   <span style={{ fontSize: 12, color: theme.textMuted }}>{m.time}</span>
                 </div>
               ))}
-              <p style={noteStyle}>Illustrative sample \u2014 will sync with your real Calendar once its OAuth is fully wired up.</p>
+              <p style={noteStyle}>Illustrative sample — will sync with your real Calendar once its OAuth is fully wired up.</p>
             </>
           ) : (
             <div style={{ textAlign: "center", padding: "12px 0" }}>
@@ -570,12 +570,12 @@ function DashboardPage({ theme, isDark, connected, onGoToIntegrations }) {
               <span style={{ fontSize: 11.5, color: theme.textFaint }}>{a.when}</span>
             </div>
           ))}
-          <p style={noteStyle}>Illustrative \u2014 will reflect real Chat &amp; Cowork activity once that logging is wired up.</p>
+          <p style={noteStyle}>Illustrative — will reflect real Chat &amp; Cowork activity once that logging is wired up.</p>
         </div>
       )}
 
       <div style={{ background: theme.surface, borderRadius: 14, padding: 20, marginBottom: 20 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textMuted, margin: "0 0 16px" }}>PRODUCTIVITY \u00b7 SEPT</p>
+        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textMuted, margin: "0 0 16px" }}>PRODUCTIVITY · SEPT</p>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 14, height: 110 }}>
           {bars.map((h, i) => (
             <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
@@ -584,7 +584,7 @@ function DashboardPage({ theme, isDark, connected, onGoToIntegrations }) {
             </div>
           ))}
         </div>
-        <p style={noteStyle}>Illustrative \u2014 will record real daily activity once connected.</p>
+        <p style={noteStyle}>Illustrative — will record real daily activity once connected.</p>
       </div>
     </div>
   );
@@ -597,10 +597,10 @@ const STATUS_ORDER = ["queued", "running", "done"];
 const PRIORITY_ORDER = ["light", "moderate", "high"];
 
 const COWORK_PLANNER_PROMPT = `You are VANT Cowork's planner. Given a goal from an operations/logistics manager, break it into 3 to 5 concrete, concise subtasks needed to accomplish it. Respond with ONLY the subtasks, one per line, each starting with "- ". No preamble, no explanation, no extra numbering.`;
-const COWORK_DELIVERY_PROMPT = `You are VANT Cowork reporting back after completing a delegated goal for a busy operations manager. Given the goal and the subtasks that were completed, write a concise 2 to 3 sentence summary of the finished result \u2014 concrete and specific, as if handing back real, finished work.`;
+const COWORK_DELIVERY_PROMPT = `You are VANT Cowork reporting back after completing a delegated goal for a busy operations manager. Given the goal and the subtasks that were completed, write a concise 2 to 3 sentence summary of the finished result — concrete and specific, as if handing back real, finished work.`;
 
 function parsePlanSteps(text) {
-  const lines = text.split("\n").map((l) => l.replace(/^[-*\u2022]\s*/, "").replace(/^\d+\.\s*/, "").trim()).filter(Boolean);
+  const lines = text.split("\n").map((l) => l.replace(/^[-*•]\s*/, "").replace(/^\d+\.\s*/, "").trim()).filter(Boolean);
   return lines.length ? lines : [text.trim()].filter(Boolean);
 }
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -697,7 +697,7 @@ function CoworkPage({ theme, isDark }) {
                 style={{ flex: 1, padding: "12px 18px", borderRadius: 999, background: theme.inputBg, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14.5, outline: "none" }} />
               <button type="submit" disabled={planning || !!activeGoalText || !goalInput.trim()}
                 style={{ padding: "0 20px", borderRadius: 999, background: acBg("green"), border: "none", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: ac("green", isDark), fontSize: 13.5, fontWeight: 500, opacity: planning || !!activeGoalText || !goalInput.trim() ? 0.5 : 1 }}>
-                <Sparkles size={15} /> {planning ? "Planning\u2026" : "Delegate"}
+                <Sparkles size={15} /> {planning ? "Planning…" : "Delegate"}
               </button>
             </div>
             {!activeGoalText && !planning && (
@@ -707,14 +707,14 @@ function CoworkPage({ theme, isDark }) {
             )}
             {activeGoalText && (
               <p style={{ fontSize: 12.5, color: ac("cyan", isDark), margin: 0 }}>
-                <span className="v-pulse">\u25CF</span> Working on: {activeGoalText}
+                <span className="v-pulse">●</span> Working on: {activeGoalText}
               </p>
             )}
           </form>
-          <p style={{ color: theme.textFaint, fontSize: 11.5, marginBottom: 18, fontStyle: "italic" }}>VANT's plan and final summary are real AI output \u2014 step execution is simulated for this prototype so you can see the flow.</p>
+          <p style={{ color: theme.textFaint, fontSize: 11.5, marginBottom: 18, fontStyle: "italic" }}>VANT's plan and final summary are real AI output — step execution is simulated for this prototype so you can see the flow.</p>
 
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
-            {tasks.length === 0 && <p style={{ color: theme.textFaint, fontSize: 14 }}>No active tasks \u2014 delegate a goal above, or add one manually below.</p>}
+            {tasks.length === 0 && <p style={{ color: theme.textFaint, fontSize: 14 }}>No active tasks — delegate a goal above, or add one manually below.</p>}
             {tasks.map((task) => {
               const s = STATUS_STYLE[task.status];
               const isEditing = editingId === task.id;
@@ -752,7 +752,7 @@ function CoworkPage({ theme, isDark }) {
           <div style={{ marginTop: 14 }}>
             {manualOpen ? (
               <form onSubmit={addTask} style={{ display: "flex", gap: 8 }}>
-                <input autoFocus value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="One-off task name\u2026"
+                <input autoFocus value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="One-off task name…"
                   style={{ flex: 1, padding: "9px 14px", borderRadius: 999, background: theme.inputBg, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, outline: "none" }} />
                 <button type="submit" style={{ padding: "9px 16px", borderRadius: 999, background: theme.surfaceStrong, border: "none", color: theme.text, fontSize: 13, cursor: "pointer" }}>Add</button>
                 <button type="button" onClick={() => setManualOpen(false)} style={{ padding: "9px 12px", borderRadius: 999, background: "none", border: "none", color: theme.textFaint, fontSize: 13, cursor: "pointer" }}>Cancel</button>
@@ -764,7 +764,7 @@ function CoworkPage({ theme, isDark }) {
         </>
       ) : (
         <div style={{ flex: 1, overflowY: "auto" }}>
-          {history.length === 0 && <p style={{ color: theme.textFaint, fontSize: 14 }}>No completed goals yet \u2014 delegate something in the Active tab.</p>}
+          {history.length === 0 && <p style={{ color: theme.textFaint, fontSize: 14 }}>No completed goals yet — delegate something in the Active tab.</p>}
           {history.map((h) => (
             <div key={h.id} className="v-fade" style={{ padding: 16, borderRadius: 14, background: theme.surface, marginBottom: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
@@ -800,7 +800,7 @@ function IntegrationsPage({ theme, isDark, connected, onToggle }) {
           );
         })}
       </div>
-      <p style={{ color: theme.textFaint, fontSize: 12, marginTop: 18 }}>Toggling here has real effects elsewhere \u2014 try disconnecting Gmail or Calendar, then check Dashboard. Actually pulling your real data still needs the OAuth setup we discussed earlier.</p>
+      <p style={{ color: theme.textFaint, fontSize: 12, marginTop: 18 }}>Toggling here has real effects elsewhere — try disconnecting Gmail or Calendar, then check Dashboard. Actually pulling your real data still needs the OAuth setup we discussed earlier.</p>
     </div>
   );
 }
@@ -873,7 +873,7 @@ function AuthModal({ mode, setMode, theme, isDark, onClose, onAuth }) {
         {error && <p style={{ color: ac("red", isDark), fontSize: 12.5, margin: "0 0 10px" }}>{error}</p>}
         <button type="submit" style={{ width: "100%", padding: "11px 0", borderRadius: 999, background: "#fff", color: "#07090f", fontWeight: 500, fontSize: 14, border: "none", cursor: "pointer" }}>{mode === "signup" ? "Sign up" : "Log in"}</button>
       </form>
-      <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 12, lineHeight: 1.5 }}>Prototype account only \u2014 saved locally on this device. No real password security or server yet.</p>
+      <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 12, lineHeight: 1.5 }}>Prototype account only — saved locally on this device. No real password security or server yet.</p>
     </Overlay>
   );
 }
