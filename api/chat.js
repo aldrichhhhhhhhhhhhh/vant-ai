@@ -28,6 +28,33 @@ export default async function handler(req, res) {
   }
 
   // -----------------------------------------
+  // 2b. ACCESS CODE
+  // Fails CLOSED: if no code is configured on the
+  // server, nobody gets through until you set one.
+  // -----------------------------------------
+  const requiredCode = process.env.APP_ACCESS_CODE;
+
+  if (!requiredCode) {
+    console.error("VANT ERROR: APP_ACCESS_CODE is not configured.");
+
+    return res.status(500).json({
+      error: "access_not_configured",
+      message: "APP_ACCESS_CODE is not configured on the server.",
+    });
+  }
+
+  const providedCode = req.headers["x-access-code"];
+
+  if (providedCode !== requiredCode) {
+    console.warn("VANT: rejected request with invalid access code.");
+
+    return res.status(401).json({
+      error: "invalid_access_code",
+      message: "Missing or incorrect access code.",
+    });
+  }
+
+  // -----------------------------------------
   // 3. REQUEST BODY
   // -----------------------------------------
   const { system, messages } = req.body || {};
@@ -36,6 +63,24 @@ export default async function handler(req, res) {
     return res.status(400).json({
       error: "missing_messages",
       message: "No chat messages were provided.",
+    });
+  }
+
+  // -----------------------------------------
+  // 3b. PAYLOAD SIZE GUARD
+  // Blunt but effective: caps the total characters
+  // sent per request, regardless of source (chat
+  // message, uploaded CSV, planner goal, etc).
+  // -----------------------------------------
+  const MAX_CHARS = 20000;
+  const totalChars = (system || "").length + JSON.stringify(messages).length;
+
+  if (totalChars > MAX_CHARS) {
+    console.warn(`VANT: rejected oversized request (${totalChars} chars).`);
+
+    return res.status(413).json({
+      error: "payload_too_large",
+      message: `Request too large (${totalChars} characters, limit ${MAX_CHARS}).`,
     });
   }
 
