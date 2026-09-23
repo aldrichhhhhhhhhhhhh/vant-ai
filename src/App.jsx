@@ -1,27 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Papa from "papaparse";
+import { supabase } from "./supabase";
 import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings } from "lucide-react";
-
-// ---------------------------------------------------------------------------
-// Real browser storage (replaces the Claude-sandbox-only window.storage API).
-// Same {value} / null shape, so every existing call site works unchanged.
-// Per-browser only — not shared across devices or users. Good enough for a
-// single-tester prototype; a real multi-user product needs a real database.
-// ---------------------------------------------------------------------------
-const storage = {
-  async get(key) {
-    try {
-      const value = localStorage.getItem(key);
-      return value !== null ? { value } : null;
-    } catch { return null; }
-  },
-  async set(key, value) {
-    try { localStorage.setItem(key, value); } catch { /* storage full or blocked */ }
-  },
-  async delete(key) {
-    try { localStorage.removeItem(key); } catch { /* nothing to remove */ }
-  },
-};
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -454,15 +434,12 @@ const MOCK_AI_ACTIVITY = [
   { kind: "Tools", desc: "Calculated chargeable weight for 3 shipments", when: "Yesterday" },
 ];
 
-function DashboardPage({ theme, isDark, connected, onGoToIntegrations }) {
+function DashboardPage({ theme, isDark, connected, coworkTasks = [], onGoToIntegrations }) {
   const bars = [65, 82, 71, 90, 68, 85, 78];
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const [grown, setGrown] = useState(false);
   const [openPanel, setOpenPanel] = useState(null);
-  const [coworkTasks, setCoworkTasks] = useState([]);
-
   useEffect(() => { const t = setTimeout(() => setGrown(true), 80); return () => clearTimeout(t); }, []);
-  useEffect(() => { (async () => { try { const result = await storage.get("vant_cowork_tasks"); setCoworkTasks(result ? JSON.parse(result.value) : []); } catch { setCoworkTasks([]); } })(); }, []);
 
   const upColor = ac("green", isDark), downColor = ac("red", isDark);
   const pendingTasks = coworkTasks.filter((t) => t.status !== "done");
@@ -616,10 +593,11 @@ const COWORK_SUGGESTIONS = [
   "Organize this month's shipment invoices",
 ];
 
-function CoworkPage({ theme, isDark }) {
+function CoworkPage({ theme, isDark, initialTasks = [], initialHistory = [], stateReady = false, onPersist }) {
   const [view, setView] = useState("active");
-  const [tasks, setTasks] = useState([]);
-  const [history, setHistory] = useState([]);
+  const [tasks, setTasks] = useState(initialTasks);
+  const [history, setHistory] = useState(initialHistory);
+  const hydratedRef = useRef(false);
   const [goalInput, setGoalInput] = useState("");
   const [planning, setPlanning] = useState(false);
   const [activeGoalText, setActiveGoalText] = useState("");
@@ -629,11 +607,21 @@ function CoworkPage({ theme, isDark }) {
   const [editValue, setEditValue] = useState("");
 
   useEffect(() => {
-    (async () => { try { const r = await storage.get("vant_cowork_tasks"); if (r) setTasks(JSON.parse(r.value)); } catch { /* start empty */ } })();
-    (async () => { try { const r = await storage.get("vant_cowork_history"); if (r) setHistory(JSON.parse(r.value)); } catch { /* start empty */ } })();
-  }, []);
-  useEffect(() => { storage.set("vant_cowork_tasks", JSON.stringify(tasks)).catch(() => {}); }, [tasks]);
-  useEffect(() => { storage.set("vant_cowork_history", JSON.stringify(history)).catch(() => {}); }, [history]);
+    if (!stateReady) return;
+    setTasks(Array.isArray(initialTasks) ? initialTasks : []);
+    setHistory(Array.isArray(initialHistory) ? initialHistory : []);
+    hydratedRef.current = true;
+  }, [stateReady]);
+
+  useEffect(() => {
+    if (!stateReady || !hydratedRef.current) return;
+    onPersist?.({ cowork_tasks: tasks });
+  }, [tasks, stateReady]);
+
+  useEffect(() => {
+    if (!stateReady || !hydratedRef.current) return;
+    onPersist?.({ cowork_history: history });
+  }, [history, stateReady]);
 
   function addTask(e) { e.preventDefault(); const name = newTask.trim(); if (!name) return; setTasks((t) => [...t, { id: Date.now(), name, status: "queued", priority: "moderate", goalId: null, goalText: null, createdAt: new Date().toISOString() }]); setNewTask(""); }
   function cycleStatus(id) { setTasks((t) => t.map((task) => { if (task.id !== id) return task; const idx = STATUS_ORDER.indexOf(task.status); return { ...task, status: STATUS_ORDER[(idx + 1) % STATUS_ORDER.length] }; })); }
@@ -851,34 +839,67 @@ function AuthModal({ mode, setMode, theme, isDark, onClose, onAuth }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
-    if (mode === "signup") {
-      if (!name.trim() || !email.trim() || !password) { setError("Fill in all fields."); return; }
-      onAuth({ name: name.trim(), email: email.trim() });
-    } else {
-      if (!email.trim()) { setError("Enter the email you signed up with."); return; }
-      onAuth({ name: email.split("@")[0], email: email.trim() });
+    setError("");
+    setMessage("");
+
+    if (mode === "signup" && !name.trim()) {
+      setError("Enter your name.");
+      return;
     }
+    if (!email.trim() || !password) {
+      setError("Enter your email and password.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    setBusy(true);
+    const result = await onAuth({
+      mode,
+      name: name.trim(),
+      email: email.trim(),
+      password,
+    });
+    setBusy(false);
+
+    if (result?.error) {
+      setError(result.error);
+      return;
+    }
+
+    if (result?.message) {
+      setMessage(result.message);
+      return;
+    }
+
+    onClose();
   }
+
   const fieldStyle = { width: "100%", padding: "10px 14px", borderRadius: 10, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, color: theme.text, fontSize: 14, outline: "none", marginBottom: 10, boxSizing: "border-box" };
 
   return (
     <Overlay onClose={onClose} theme={theme}>
       <div style={{ display: "flex", gap: 4, marginBottom: 18, padding: 4, borderRadius: 999, background: theme.surface, width: "fit-content" }}>
-        <button onClick={() => setMode("signup")} style={{ padding: "7px 14px", borderRadius: 999, border: "none", cursor: "pointer", background: mode === "signup" ? theme.surfaceStrong : "transparent", color: theme.text, fontSize: 13 }}>Sign up</button>
-        <button onClick={() => setMode("login")} style={{ padding: "7px 14px", borderRadius: 999, border: "none", cursor: "pointer", background: mode === "login" ? theme.surfaceStrong : "transparent", color: theme.text, fontSize: 13 }}>Log in</button>
+        <button type="button" onClick={() => { setMode("signup"); setError(""); setMessage(""); }} style={{ padding: "7px 14px", borderRadius: 999, border: "none", cursor: "pointer", background: mode === "signup" ? theme.surfaceStrong : "transparent", color: theme.text, fontSize: 13 }}>Sign up</button>
+        <button type="button" onClick={() => { setMode("login"); setError(""); setMessage(""); }} style={{ padding: "7px 14px", borderRadius: 999, border: "none", cursor: "pointer", background: mode === "login" ? theme.surfaceStrong : "transparent", color: theme.text, fontSize: 13 }}>Log in</button>
       </div>
       <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 21, fontWeight: 500, margin: "0 0 14px", color: theme.text }}>{mode === "signup" ? "Create your account" : "Welcome back"}</h2>
       <form onSubmit={submit}>
-        {mode === "signup" && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" style={fieldStyle} />}
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" style={fieldStyle} />
-        <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" style={fieldStyle} />
-        {error && <p style={{ color: ac("red", isDark), fontSize: 12.5, margin: "0 0 10px" }}>{error}</p>}
-        <button type="submit" style={{ width: "100%", padding: "11px 0", borderRadius: 999, background: "#fff", color: "#07090f", fontWeight: 500, fontSize: 14, border: "none", cursor: "pointer" }}>{mode === "signup" ? "Sign up" : "Log in"}</button>
+        {mode === "signup" && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" autoComplete="name" style={fieldStyle} />}
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" autoComplete="email" style={fieldStyle} />
+        <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} style={fieldStyle} />
+        {error && <p style={{ color: ac("red", isDark), fontSize: 12.5, margin: "0 0 10px", lineHeight: 1.45 }}>{error}</p>}
+        {message && <p style={{ color: ac("green", isDark), fontSize: 12.5, margin: "0 0 10px", lineHeight: 1.45 }}>{message}</p>}
+        <button type="submit" disabled={busy} style={{ width: "100%", padding: "11px 0", borderRadius: 999, background: "#fff", color: "#07090f", fontWeight: 500, fontSize: 14, border: "none", cursor: busy ? "wait" : "pointer", opacity: busy ? 0.6 : 1 }}>{busy ? "Please wait…" : mode === "signup" ? "Sign up" : "Log in"}</button>
       </form>
-      <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 12, lineHeight: 1.5 }}>Prototype account only — saved locally on this device. No real password security or server yet.</p>
+      <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 12, lineHeight: 1.5 }}>Secure account powered by Supabase Auth. Your VANT state is stored per account.</p>
     </Overlay>
   );
 }
@@ -908,7 +929,7 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
 
       <div style={{ marginBottom: 22 }}>
         <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>SECURITY</p>
-        <p style={{ fontSize: 12.5, color: theme.textMuted, margin: "0 0 8px", lineHeight: 1.5 }}>AI features need an access code to work \u2014 ask whoever's running this deployment for it.</p>
+        <p style={{ fontSize: 12.5, color: theme.textMuted, margin: "0 0 8px", lineHeight: 1.5 }}>AI features need an access code to work — ask whoever's running this deployment for it.</p>
         <input
           value={accessCode}
           onChange={(e) => onAccessCodeChange(e.target.value)}
@@ -921,9 +942,9 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
       <div>
         <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>DATA</p>
         <button onClick={onClearData} style={{ padding: "9px 16px", borderRadius: 999, background: acBg("red"), border: "none", color: ac("red", isDark), fontSize: 13.5, cursor: "pointer" }}>
-          Clear all local data
+          Reset my VANT data
         </button>
-        <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 8 }}>Removes saved tasks, history, integrations, and account from this device, then reloads.</p>
+        <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 8 }}>Resets this account's saved theme, tasks, and Cowork history.</p>
       </div>
     </Overlay>
   );
@@ -938,52 +959,195 @@ export default function VantWorkingPrototype() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [connected, setConnected] = useState(() => new Set(INTEGRATIONS.map((i) => i.name)));
   const [accessCode, setAccessCode] = useState(() => { try { return localStorage.getItem("vant_access_code") || ""; } catch { return ""; } });
+  const [appState, setAppState] = useState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
+  const [stateReady, setStateReady] = useState(false);
+  const appStateRef = useRef(appState);
+
+  useEffect(() => {
+    appStateRef.current = appState;
+  }, [appState]);
 
   function handleAccessCodeChange(value) {
     setAccessCode(value);
     try { localStorage.setItem("vant_access_code", value); } catch { /* storage unavailable */ }
   }
 
+  function profileFromUser(authUser) {
+    return {
+      id: authUser.id,
+      name: authUser.user_metadata?.name || authUser.email?.split("@")[0] || "User",
+      email: authUser.email || "",
+    };
+  }
+
+  async function loadUserState(authUser) {
+    if (!authUser) {
+      setUser(null);
+      setStateReady(false);
+      setAppState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
+      setThemeName("dark");
+      return;
+    }
+
+    setUser(profileFromUser(authUser));
+    setStateReady(false);
+
+    const { data, error } = await supabase
+      .from("app_state")
+      .select("user_id, theme, cowork_tasks, cowork_history")
+      .eq("user_id", authUser.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("VANT: failed to load app_state", error);
+      setAppState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
+      setThemeName("dark");
+      setStateReady(true);
+      return;
+    }
+
+    const nextState = {
+      theme: data?.theme === "light" ? "light" : "dark",
+      cowork_tasks: Array.isArray(data?.cowork_tasks) ? data.cowork_tasks : [],
+      cowork_history: Array.isArray(data?.cowork_history) ? data.cowork_history : [],
+    };
+
+    if (!data) {
+      const { error: insertError } = await supabase.from("app_state").upsert({
+        user_id: authUser.id,
+        theme: nextState.theme,
+        cowork_tasks: nextState.cowork_tasks,
+        cowork_history: nextState.cowork_history,
+      }, { onConflict: "user_id" });
+      if (insertError) console.error("VANT: failed to create app_state", insertError);
+    }
+
+    appStateRef.current = nextState;
+    setAppState(nextState);
+    setThemeName(nextState.theme);
+    setStateReady(true);
+  }
+
   useEffect(() => {
+    let activeSubscription = true;
+
     (async () => {
-      try {
-        const result = await storage.get("vant_theme");
-        if (result?.value === "light" || result?.value === "dark") setThemeName(result.value);
-      } catch { /* default stays dark */ }
-      setThemeLoaded(true);
+      const { data } = await supabase.auth.getSession();
+      if (activeSubscription) await loadUserState(data.session?.user || null);
     })();
-    (async () => { try { const r = await storage.get("vant_user"); if (r) setUser(JSON.parse(r.value)); } catch { /* stays logged out */ } })();
-    (async () => { try { const r = await storage.get("vant_integrations"); if (r) setConnected(new Set(JSON.parse(r.value))); } catch { /* keeps default */ } })();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!activeSubscription) return;
+      if (event === "SIGNED_OUT") {
+        loadUserState(null);
+        return;
+      }
+      if (session?.user) setTimeout(() => loadUserState(session.user), 0);
+    });
+
+    return () => {
+      activeSubscription = false;
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
-  useEffect(() => { if (!themeLoaded) return; storage.set("vant_theme", themeName).catch(() => {}); }, [themeName, themeLoaded]);
-  useEffect(() => { if (user) storage.set("vant_user", JSON.stringify(user)).catch(() => {}); }, [user]);
-  useEffect(() => { storage.set("vant_integrations", JSON.stringify([...connected])).catch(() => {}); }, [connected]);
+  useEffect(() => {
+    if (!themeLoaded || !stateReady || !user?.id) return;
+    if (themeName !== appStateRef.current.theme) {
+      appStateRef.current = { ...appStateRef.current, theme: themeName };
+      setAppState(appStateRef.current);
+      supabase.from("app_state").upsert({
+        user_id: user.id,
+        theme: themeName,
+        cowork_tasks: appStateRef.current.cowork_tasks,
+        cowork_history: appStateRef.current.cowork_history,
+      }, { onConflict: "user_id" }).then(({ error }) => {
+        if (error) console.error("VANT: failed to save theme", error);
+      });
+    }
+  }, [themeName, themeLoaded, stateReady, user?.id]);
+
+  useEffect(() => {
+    if (!themeLoaded) setThemeLoaded(true);
+  }, [themeLoaded]);
+
+  async function persistAppState(patch) {
+    if (!user?.id || !stateReady) return;
+    const next = { ...appStateRef.current, ...patch };
+    appStateRef.current = next;
+    setAppState(next);
+
+    const { error } = await supabase.from("app_state").upsert({
+      user_id: user.id,
+      theme: next.theme,
+      cowork_tasks: next.cowork_tasks,
+      cowork_history: next.cowork_history,
+    }, { onConflict: "user_id" });
+
+    if (error) console.error("VANT: failed to save app_state", error);
+  }
 
   const isDark = themeName === "dark";
   const theme = THEMES[themeName];
-  const toggleTheme = () => setThemeName((t) => (t === "dark" ? "light" : "dark"));
-  function toggleIntegration(name) { setConnected((prev) => { const next = new Set(prev); next.has(name) ? next.delete(name) : next.add(name); return next; }); }
 
-  function handleAuth(profile) { setUser(profile); setAuthMode(null); }
-  function handleLogout() { setUser(null); storage.delete("vant_user").catch(() => {}); setSettingsOpen(false); }
-  async function handleClearData() {
-    for (const key of ["vant_theme", "vant_user", "vant_integrations", "vant_cowork_tasks", "vant_cowork_history", "vant_access_code"]) {
-      try { await storage.delete(key); } catch { /* key may not exist */ }
+  async function handleAuth({ mode, name, email, password }) {
+    if (mode === "signup") {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
+      });
+
+      if (error) return { error: error.message };
+
+      if (!data.session) {
+        return { message: "Account created. Check your email to confirm your account, then log in." };
+      }
+
+      return {};
     }
-    window.location.reload();
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+    return {};
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setSettingsOpen(false);
+  }
+
+  async function handleClearData() {
+    if (!user?.id) return;
+    await persistAppState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
+    setThemeName("dark");
+    setSettingsOpen(false);
+  }
+
+  const toggleTheme = () => setThemeName((t) => (t === "dark" ? "light" : "dark"));
+
+  function toggleIntegration(name) {
+    setConnected((prev) => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
   }
 
   function renderPage() {
     const props = { theme, isDark };
     if (active === "chat") return <ChatPage {...props} />;
     if (active === "tools") return <ToolsPage {...props} />;
-    if (active === "dashboard") return <DashboardPage {...props} connected={connected} onGoToIntegrations={() => setActive("integrations")} />;
-    if (active === "cowork") return <CoworkPage {...props} />;
+    if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
+    if (active === "cowork") return <CoworkPage {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
     return <IntegrationsPage {...props} connected={connected} onToggle={toggleIntegration} />;
   }
 
   const pageLabel = (NAV.find((n) => n.id === active) || {}).label || "";
+
+  if (!stateReady && user) {
+    // Keep the existing shell visible while account state is loading.
+  }
 
   return (
     <div style={{ height: "100vh", minHeight: 640, display: "flex", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif", overflow: "hidden" }}>
