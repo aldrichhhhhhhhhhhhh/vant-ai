@@ -72,7 +72,7 @@ async function askClaude(systemPrompt, messages, timeoutMs = 20000) {
     const data = await response.json();
     if (!response.ok) {
       if (data?.error === "access_not_configured") return "This deployment hasn't set an access code yet \u2014 set APP_ACCESS_CODE in your environment variables.";
-      if (data?.error === "invalid_access_code") return "AI access is not authorized. Contact the deployment administrator.";
+      if (data?.error === "invalid_access_code") return "Wrong or missing access code. Enter the correct one in Settings.";
       if (data?.error === "payload_too_large") return "That request was too large \u2014 try a shorter message or a smaller file.";
       return data?.error === "missing_api_key"
         ? "The server isn't configured with an NVIDIA API key yet — set NVIDIA_API_KEY in your deployment's environment variables."
@@ -89,7 +89,7 @@ async function askClaude(systemPrompt, messages, timeoutMs = 20000) {
   }
 }
 
-function Sidebar({ active, onSelect, theme, isDark, onToggleTheme }) {
+function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSettings }) {
   return (
     <div style={{ width: 84, flexShrink: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", gap: 8 }}>
       <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(124,58,237,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
@@ -106,9 +106,16 @@ function Sidebar({ active, onSelect, theme, isDark, onToggleTheme }) {
         );
       })}
       <button
+        onClick={onOpenSettings}
+        title="Settings"
+        style={{ marginTop: "auto", width: 44, height: 44, borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+      >
+        <Settings size={17} color={theme.textMuted} />
+      </button>
+      <button
         onClick={onToggleTheme}
         title={isDark ? "Switch to Day theme" : "Switch to Dark theme"}
-        style={{ marginTop: "auto", width: 44, height: 44, borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+        style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
       >
         {isDark ? <Sun size={17} color={theme.textMuted} /> : <Moon size={17} color={theme.textMuted} />}
       </button>
@@ -927,6 +934,18 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
         </button>
       </div>
 
+      <div style={{ marginBottom: 22 }}>
+        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>SECURITY</p>
+        <p style={{ fontSize: 12.5, color: theme.textMuted, margin: "0 0 8px", lineHeight: 1.5 }}>AI features need an access code to work — ask whoever's running this deployment for it.</p>
+        <input
+          value={accessCode}
+          onChange={(e) => onAccessCodeChange(e.target.value)}
+          placeholder="Access code"
+          type="password"
+          style={{ width: "100%", padding: "9px 14px", borderRadius: 10, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, color: theme.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+        />
+      </div>
+
       <div>
         <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>DATA</p>
         <button onClick={onClearData} style={{ padding: "9px 16px", borderRadius: 999, background: acBg("red"), border: "none", color: ac("red", isDark), fontSize: 13.5, cursor: "pointer" }}>
@@ -1140,7 +1159,7 @@ export default function VantWorkingPrototype() {
   return (
     <div style={{ height: "100vh", minHeight: 640, display: "flex", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif", overflow: "hidden" }}>
       <style>{FONT_IMPORT}</style>
-      <Sidebar active={active} onSelect={setActive} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} />
+      <Sidebar active={active} onSelect={setActive} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} onOpenSettings={() => setSettingsOpen(true)} />
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={() => setAuthMode("signup")} onOpenSettings={() => setSettingsOpen(true)} />
         <div style={{ flex: 1, minHeight: 0 }}>{renderPage()}</div>
