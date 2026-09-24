@@ -72,7 +72,7 @@ async function askClaude(systemPrompt, messages, timeoutMs = 20000) {
     const data = await response.json();
     if (!response.ok) {
       if (data?.error === "access_not_configured") return "This deployment hasn't set an access code yet \u2014 set APP_ACCESS_CODE in your environment variables.";
-      if (data?.error === "invalid_access_code") return "Wrong or missing access code. Enter the correct one in Settings.";
+      if (data?.error === "invalid_access_code") return "AI access is not authorized. Contact the deployment administrator.";
       if (data?.error === "payload_too_large") return "That request was too large \u2014 try a shorter message or a smaller file.";
       return data?.error === "missing_api_key"
         ? "The server isn't configured with an NVIDIA API key yet — set NVIDIA_API_KEY in your deployment's environment variables."
@@ -925,18 +925,6 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
         <button onClick={onToggleTheme} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>
           {isDark ? <Sun size={14} /> : <Moon size={14} />} Switch to {isDark ? "Day" : "Dark"} theme
         </button>
-      </div>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>SECURITY</p>
-        <p style={{ fontSize: 12.5, color: theme.textMuted, margin: "0 0 8px", lineHeight: 1.5 }}>AI features need an access code to work — ask whoever's running this deployment for it.</p>
-        <input
-          value={accessCode}
-          onChange={(e) => onAccessCodeChange(e.target.value)}
-          placeholder="Access code"
-          type="password"
-          style={{ width: "100%", padding: "9px 14px", borderRadius: 10, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, color: theme.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}
-        />
       </div>
 
       <div>
