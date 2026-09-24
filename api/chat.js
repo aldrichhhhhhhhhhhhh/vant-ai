@@ -107,7 +107,7 @@ export default async function handler(req, res) {
   // 20-second browser timeout.
   const timeout = setTimeout(() => {
     controller.abort();
-  }, 15000);
+  }, 60000);
 
   try {
     console.log("VANT: Sending request to NVIDIA NIM...");
@@ -255,7 +255,7 @@ export default async function handler(req, res) {
       return res.status(504).json({
         error: "nvidia_timeout",
         message:
-          "NVIDIA did not respond within 15 seconds.",
+          "NVIDIA did not respond within 60 seconds.",
       });
     }
 
