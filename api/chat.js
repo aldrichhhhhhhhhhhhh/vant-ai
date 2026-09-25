@@ -1,295 +1,327 @@
+const MODEL = "google/gemma-4-31b-it";
+const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+
+const MAX_REQUEST_CHARS = 4_000_000;
+const MAX_MESSAGES = 40;
+
+function json(res, status, body) {
+  return res.status(status).json(body);
+}
+
+function isValidImageUrlItem(item) {
+  return Boolean(
+    item &&
+      item.type === "image_url" &&
+      item.image_url &&
+      typeof item.image_url.url === "string" &&
+      item.image_url.url.startsWith("data:image/")
+  );
+}
+
+function isValidContentPart(item) {
+  if (!item || typeof item !== "object") return false;
+
+  if (item.type === "text") {
+    return typeof item.text === "string";
+  }
+
+  return isValidImageUrlItem(item);
+}
+
+function isValidMessage(message) {
+  if (!message || typeof message !== "object") return false;
+
+  if (!["system", "user", "assistant"].includes(message.role)) {
+    return false;
+  }
+
+  if (typeof message.content === "string") {
+    return true;
+  }
+
+  if (Array.isArray(message.content)) {
+    return (
+      message.content.length > 0 &&
+      message.content.every(isValidContentPart)
+    );
+  }
+
+  return false;
+}
+
+function containsImage(messages) {
+  return messages.some(
+    (message) =>
+      Array.isArray(message.content) &&
+      message.content.some((part) => part?.type === "image_url")
+  );
+}
+
 export default async function handler(req, res) {
-  // ------------------------------------------------------------
-  // VANT AI API
-  // Model: Google Gemma 4 31B IT
-  // Provider: NVIDIA NIM
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
+  // METHOD CHECK
+  // ---------------------------------------------------------
 
-  // Only allow POST requests
   if (req.method !== "POST") {
-    return res.status(405).json({
+    return json(res, 405, {
       error: "method_not_allowed",
-      message: "Only POST requests are allowed.",
     });
   }
 
-  // ------------------------------------------------------------
-  // ENVIRONMENT
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
+  // ACCESS CODE
+  // ---------------------------------------------------------
 
-  const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
-  const APP_ACCESS_CODE = process.env.APP_ACCESS_CODE;
-
-  // ------------------------------------------------------------
-  // ACCESS CONTROL
-  // ------------------------------------------------------------
-
-  if (!APP_ACCESS_CODE) {
-    return res.status(500).json({
-      error: "access_not_configured",
-      message: "APP_ACCESS_CODE is not configured.",
-    });
-  }
-
+  const expectedAccessCode = process.env.APP_ACCESS_CODE;
   const providedAccessCode = req.headers["x-access-code"] || "";
 
-  if (providedAccessCode !== APP_ACCESS_CODE) {
-    return res.status(401).json({
+  if (!expectedAccessCode) {
+    return json(res, 500, {
+      error: "access_not_configured",
+    });
+  }
+
+  if (providedAccessCode !== expectedAccessCode) {
+    return json(res, 401, {
       error: "invalid_access_code",
-      message: "Invalid or missing access code.",
     });
   }
 
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
   // NVIDIA API KEY
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
 
-  if (!NVIDIA_API_KEY) {
-    return res.status(500).json({
+  const apiKey = process.env.NVIDIA_API_KEY;
+
+  if (!apiKey) {
+    return json(res, 500, {
       error: "missing_api_key",
-      message: "NVIDIA_API_KEY is not configured.",
     });
   }
 
-  // ------------------------------------------------------------
-  // REQUEST VALIDATION
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
+  // REQUEST BODY
+  // ---------------------------------------------------------
 
-  const body = req.body || {};
+  const { system, messages } = req.body || {};
 
-  const system =
-    typeof body.system === "string" && body.system.trim()
-      ? body.system.trim()
-      : `
-You are VANT.
+  if (system !== undefined && typeof system !== "string") {
+    return json(res, 400, {
+      error: "invalid_system_prompt",
+    });
+  }
 
-VANT is an AI work platform designed to help users understand,
-analyze, organize, and accomplish real work.
-
-CORE BEHAVIOR:
-
-1. Stay directly relevant to the user's request.
-2. Use the conversation history as context.
-3. Never introduce unrelated topics.
-4. Never invent information that is not available.
-5. If information is missing, ask a focused question.
-6. Be concise, clear, professional, and useful.
-7. Do not repeat words, phrases, or sections unnecessarily.
-8. Do not produce corrupted, repetitive, or nonsensical output.
-9. Treat the user's request as work to accomplish, not merely a question to answer.
-10. When appropriate, provide concrete next steps.
-
-VANT WORKFLOW:
-
-Understand
-→ Analyze
-→ Decide
-→ Act
-→ Report
-
-When handling a complex request:
-
-- Identify the objective.
-- Identify the known information.
-- Identify missing information.
-- Analyze the situation.
-- Determine what should happen next.
-- Give the user an actionable result.
-
-Do not claim to have performed an action that you did not actually perform.
-
-You are VANT.
-`;
-
-  const messages = Array.isArray(body.messages)
-    ? body.messages
-    : null;
-
-  if (!messages) {
-    return res.status(400).json({
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return json(res, 400, {
       error: "invalid_messages",
-      message: "messages must be an array.",
     });
   }
 
-  // ------------------------------------------------------------
-  // BASIC MESSAGE VALIDATION
-  // ------------------------------------------------------------
-
-  const cleanedMessages = messages
-    .filter(
-      (message) =>
-        message &&
-        typeof message === "object" &&
-        typeof message.role === "string" &&
-        typeof message.content !== "undefined"
-    )
-    .map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
-
-  if (cleanedMessages.length === 0) {
-    return res.status(400).json({
-      error: "empty_messages",
-      message: "No valid messages were provided.",
+  if (messages.length > MAX_MESSAGES) {
+    return json(res, 413, {
+      error: "too_many_messages",
     });
   }
 
-  // ------------------------------------------------------------
-  // PAYLOAD PROTECTION
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
+  // MESSAGE VALIDATION
+  // ---------------------------------------------------------
 
-  const approximatePayloadSize =
-    JSON.stringify({
-      system,
-      messages: cleanedMessages,
-    }).length;
+  const validMessages = messages.filter(isValidMessage);
 
-  // Prevent excessively large browser requests from reaching NIM.
-  // This is intentionally generous for VANT's current prototype.
-  const MAX_PAYLOAD_SIZE = 500000;
-
-  if (approximatePayloadSize > MAX_PAYLOAD_SIZE) {
-    return res.status(413).json({
-      error: "payload_too_large",
-      message:
-        "The request is too large. Try a smaller message or fewer attachments.",
+  if (validMessages.length !== messages.length) {
+    return json(res, 400, {
+      error: "invalid_message_format",
     });
   }
 
-  // ------------------------------------------------------------
-  // NVIDIA NIM REQUEST
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
+  // DETECT MULTIMODAL REQUEST
+  // ---------------------------------------------------------
 
-  const payload = {
-    model: "google/gemma-4-31b-it",
+  const hasImage = containsImage(validMessages);
 
-    messages: [
-      {
-        role: "system",
-        content: system,
+  // ---------------------------------------------------------
+  // BUILD NVIDIA REQUEST
+  // ---------------------------------------------------------
+
+  let payload;
+
+  try {
+    payload = {
+      model: MODEL,
+
+      messages: [
+        ...(system
+          ? [
+              {
+                role: "system",
+                content: system,
+              },
+            ]
+          : []),
+
+        ...validMessages,
+      ],
+
+      temperature: 1,
+      top_p: 0.95,
+      top_k: 64,
+
+      // Use a smaller output budget for image requests
+      // to help keep multimodal requests responsive.
+      max_tokens: hasImage ? 2048 : 4096,
+
+      stream: false,
+
+      chat_template_kwargs: {
+        enable_thinking: true,
       },
-      ...cleanedMessages,
-    ],
+    };
+  } catch {
+    return json(res, 400, {
+      error: "invalid_payload",
+    });
+  }
 
-    // Gemma 4 recommended sampling configuration
-    temperature: 1,
-    top_p: 0.95,
-    top_k: 64,
+  // ---------------------------------------------------------
+  // PAYLOAD SIZE PROTECTION
+  // ---------------------------------------------------------
 
-    // Give VANT enough room for useful reasoning and work responses
-    max_tokens: 4096,
+  const serialized = JSON.stringify(payload);
 
-    // VANT currently uses normal request/response mode
-    stream: false,
+  if (serialized.length > MAX_REQUEST_CHARS) {
+    return json(res, 413, {
+      error: "payload_too_large",
+    });
+  }
 
-    // Enable Gemma's thinking mode
-    chat_template_kwargs: {
-      enable_thinking: true,
-    },
-  };
-
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
   // CALL NVIDIA NIM
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
 
   let response;
 
   try {
-    response = await fetch(
-      "https://integrate.api.nvidia.com/v1/chat/completions",
-      {
-        method: "POST",
+    response = await fetch(NVIDIA_URL, {
+      method: "POST",
 
-        headers: {
-          Authorization: `Bearer ${NVIDIA_API_KEY}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
 
-        body: JSON.stringify(payload),
+      body: serialized,
 
-        // Abort the NVIDIA request after 60 seconds
-        signal: AbortSignal.timeout(60000),
-      }
-    );
-  } catch (error) {
-    console.error("VANT NVIDIA request failed:", error);
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch (err) {
+    // -------------------------------------------------------
+    // TIMEOUT
+    // -------------------------------------------------------
 
-    if (error?.name === "TimeoutError") {
-      return res.status(504).json({
-        error: "model_timeout",
-        message: "The model took too long to respond.",
+    if (
+      err?.name === "TimeoutError" ||
+      err?.name === "AbortError"
+    ) {
+      return json(res, 504, {
+        error: "nvidia_timeout",
+        detail:
+          "NVIDIA NIM did not respond within 60 seconds.",
       });
     }
 
-    return res.status(502).json({
+    // -------------------------------------------------------
+    // CONNECTION ERROR
+    // -------------------------------------------------------
+
+    console.error(
+      "VANT NVIDIA connection error:",
+      err
+    );
+
+    return json(res, 502, {
       error: "nvidia_connection_failed",
-      message: "Unable to reach NVIDIA NIM.",
-      detail: error?.message || "Unknown connection error.",
+      detail:
+        "Could not connect to NVIDIA NIM.",
     });
   }
 
-  // ------------------------------------------------------------
-  // READ NVIDIA RESPONSE
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
+  // PARSE NVIDIA RESPONSE
+  // ---------------------------------------------------------
 
   let data;
 
   try {
     data = await response.json();
-  } catch (error) {
-    console.error("VANT could not parse NVIDIA response:", error);
-
-    return res.status(502).json({
-      error: "invalid_model_response",
-      message: "The model returned an invalid response.",
+  } catch {
+    return json(res, 502, {
+      error: "invalid_nvidia_response",
+      detail:
+        "NVIDIA NIM returned a response that could not be parsed as JSON.",
     });
   }
 
-  // ------------------------------------------------------------
-  // NVIDIA ERROR
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
+  // NVIDIA API ERROR
+  // ---------------------------------------------------------
 
   if (!response.ok) {
-    console.error("VANT NVIDIA API error:", data);
+    const detail =
+      data?.error?.message ||
+      data?.detail ||
+      data?.message ||
+      `NVIDIA NIM returned HTTP ${response.status}.`;
 
-    return res.status(response.status).json({
-      error: "nvidia_api_error",
-      detail:
-        data?.detail ||
-        data?.message ||
-        data?.error?.message ||
-        "NVIDIA NIM returned an error.",
-    });
-  }
-
-  // ------------------------------------------------------------
-  // EXTRACT ASSISTANT RESPONSE
-  // ------------------------------------------------------------
-
-  const content =
-    data?.choices?.[0]?.message?.content ??
-    "";
-
-  if (!content) {
     console.error(
-      "VANT received an empty model response:",
-      JSON.stringify(data)
+      "VANT NVIDIA API error:",
+      response.status,
+      data
     );
 
-    return res.status(502).json({
+    return json(
+      res,
+      response.status >= 400 &&
+        response.status < 500
+        ? response.status
+        : 502,
+      {
+        error: "nvidia_api_error",
+        detail,
+      }
+    );
+  }
+
+  // ---------------------------------------------------------
+  // EXTRACT MODEL RESPONSE
+  // ---------------------------------------------------------
+
+  const content =
+    data?.choices?.[0]?.message?.content;
+
+  if (
+    typeof content !== "string" ||
+    !content.trim()
+  ) {
+    console.error(
+      "VANT empty NVIDIA response:",
+      data
+    );
+
+    return json(res, 502, {
       error: "empty_model_response",
-      message: "The model returned no usable content.",
+      detail:
+        "The model returned no text content.",
     });
   }
 
-  // ------------------------------------------------------------
-  // RETURN RESPONSE TO VANT FRONTEND
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
+  // RETURN TO VANT FRONTEND
+  // ---------------------------------------------------------
 
-  return res.status(200).json({
+  return json(res, 200, {
     content: [
       {
         type: "text",
@@ -297,6 +329,6 @@ You are VANT.
       },
     ],
 
-    model: "google/gemma-4-31b-it",
+    model: MODEL,
   });
 }
