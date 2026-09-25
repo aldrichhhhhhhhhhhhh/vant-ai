@@ -182,11 +182,71 @@ function ComposerMenu({
             </button>
           </div>
         )}
-        <input ref={fileInputRef} type="file" multiple accept=".pdf,.csv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,image/*" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+        <input ref={fileInputRef} type="file" multiple accept=".pdf,.csv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,image/*,video/*" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
       </div>
     );
   }
 
+
+
+function AttachmentPreview({ file, theme, isDark, compact = false, removable = false, onRemove }) {
+  const [url, setUrl] = useState("");
+  const isImage = file?.type?.startsWith("image/");
+  const isVideo = file?.type?.startsWith("video/");
+  const isPdf = file?.type === "application/pdf" || /\.pdf$/i.test(file?.name || "");
+  const isSheet = /\.(csv|xlsx?|xls)$/i.test(file?.name || "");
+
+  useEffect(() => {
+    if (!file || (!isImage && !isVideo)) return undefined;
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file, isImage, isVideo]);
+
+  const icon = isImage ? <ImageIcon size={15} color={ac("violet", isDark)} />
+    : isVideo ? <span style={{ fontSize: 13, color: ac("cyan", isDark) }}>▶</span>
+    : isSheet ? <FileSpreadsheet size={15} color={ac("green", isDark)} />
+    : <FileText size={15} color={isPdf ? ac("red", isDark) : theme.textMuted} />;
+
+  const sizeLabel = file?.size ? `${Math.max(1, Math.round(file.size / 1024))} KB` : "";
+
+  if (isImage && url) {
+    return (
+      <div style={{ position: "relative", width: compact ? 260 : 300, maxWidth: "100%", borderRadius: 14, overflow: "hidden", border: `1px solid ${theme.border}`, background: theme.surface }}>
+        <img src={url} alt={file.name} style={{ display: "block", width: "100%", maxHeight: compact ? 220 : 300, objectFit: "contain", background: theme.surfaceCard }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 10px", background: theme.surfaceCard }}>
+          <ImageIcon size={14} color={ac("violet", isDark)} />
+          <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11.5, color: theme.text }}>{file.name}</span>
+          {removable && <button type="button" onClick={onRemove} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>}
+        </div>
+      </div>
+    );
+  }
+
+  if (isVideo && url) {
+    return (
+      <div style={{ position: "relative", width: compact ? 320 : 360, maxWidth: "100%", borderRadius: 14, overflow: "hidden", border: `1px solid ${theme.border}`, background: theme.surface }}>
+        <video src={url} controls preload="metadata" style={{ display: "block", width: "100%", maxHeight: compact ? 240 : 320, background: "#000" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 10px", background: theme.surfaceCard }}>
+          <span style={{ fontSize: 13, color: ac("cyan", isDark) }}>▶</span>
+          <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11.5, color: theme.text }}>{file.name}</span>
+          {removable && <button type="button" onClick={onRemove} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, maxWidth: compact ? 360 : 420, padding: "9px 11px", borderRadius: 12, background: theme.surface, border: `1px solid ${theme.border}` }}>
+      <div style={{ width: 32, height: 32, borderRadius: 9, background: theme.surfaceStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12.5, color: theme.text }}>{file.name}</div>
+        <div style={{ fontSize: 10.5, color: theme.textFaint }}>{sizeLabel}{isPdf ? " · PDF" : isSheet ? " · Spreadsheet" : file?.type ? ` · ${file.type.split("/").pop()?.toUpperCase()}` : ""}</div>
+      </div>
+      {removable && <button type="button" onClick={onRemove} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>}
+    </div>
+  );
+}
 
 function Composer({
   compact = false,
@@ -225,14 +285,17 @@ function Composer({
       <div style={{ width: "100%", maxWidth: compact ? 920 : 720, margin: compact ? "0 auto" : "36px auto 0" }}>
         {attachments.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8, justifyContent: compact ? "flex-start" : "center" }}>
-            {attachments.map((file, i) => {
-              const image = file.type.startsWith("image/");
-              return <div key={`${file.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 9px", borderRadius: 10, background: theme.surface, border: `1px solid ${theme.border}` }}>
-                {image ? <ImageIcon size={14} color={ac("violet", isDark)} /> : <FileText size={14} color={theme.textMuted} />}
-                <span style={{ maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: theme.text }}>{file.name}</span>
-                <button type="button" onClick={() => removeAttachment(i)} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>
-              </div>;
-            })}
+            {attachments.map((file, i) => (
+              <AttachmentPreview
+                key={`${file.name}-${file.size}-${i}`}
+                file={file}
+                theme={theme}
+                isDark={isDark}
+                compact={compact}
+                removable
+                onRemove={() => removeAttachment(i)}
+              />
+            ))}
           </div>
         )}
         {composerNotice && <div style={{ marginBottom: 8, fontSize: 11.5, color: theme.textFaint, textAlign: compact ? "left" : "center" }}>{composerNotice}</div>}
@@ -253,7 +316,7 @@ function Composer({
             addFiles={addFiles}
           />
           <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder="Ask VANT to do something…" disabled={loading} rows={1} style={{ ...inputStyle, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
-          <button type="submit" disabled={loading || !input.trim()} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
+          <button type="submit" disabled={loading || (!input.trim() && attachments.length === 0)} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || (!input.trim() && attachments.length === 0) ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
         </form>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, padding: "0 4px", fontSize: 10.5, color: theme.textFaint }}>
           <span>{webSearch ? "WEB SEARCH MODE" : attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} ready` : "VANT WORK MODE"}</span>
@@ -365,11 +428,11 @@ function ChatPage({ theme, isDark, onGoToIntegrations }) {
     return { dataUrl, width, height };
   }
 
-  async function buildUserContent(text) {
-    const parts = [{ type: "text", text: text.trim() }];
+  async function buildUserContent(text, sourceAttachments = attachments) {
+    const parts = text.trim() ? [{ type: "text", text: text.trim() }] : [];
     let textBudget = 14000;
 
-    for (const file of attachments) {
+    for (const file of sourceAttachments) {
       const meta = `${file.name} (${Math.round(file.size / 1024)} KB)`;
       const isImage = file.type.startsWith("image/");
       const isText = file.type.startsWith("text/") || /\.(csv|txt|md|json)$/i.test(file.name);
@@ -425,16 +488,20 @@ function ChatPage({ theme, isDark, onGoToIntegrations }) {
 
   async function send(text) {
     const cleanText = text.trim();
-    if (!cleanText || loading) return;
+    if ((!cleanText && attachments.length === 0) || loading) return;
+
+    const messageAttachments = [...attachments];
 
     setStarted(true);
     setInput("");
-    setLoading(true);
+    setAttachments([]);
     setComposerNotice("");
+    setComposerOpen(false);
+    setLoading(true);
 
     try {
-      const userContent = await buildUserContent(cleanText);
-      const next = [...messages, { role: "user", content: userContent }];
+      const userContent = await buildUserContent(cleanText, messageAttachments);
+      const next = [...messages, { role: "user", content: userContent, attachments: messageAttachments }];
       setMessages(next);
 
       const reply = await askClaude(
@@ -467,7 +534,6 @@ When the user asks what is visible in an image, describe only what you can actua
       );
 
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
-      setAttachments([]);
     } catch (err) {
       console.error("VANT Chat send error", err);
       setMessages((m) => [...m, { role: "assistant", content: "I couldn't prepare that request. Please try again." }]);
@@ -479,7 +545,7 @@ When the user asks what is visible in an image, describe only what you can actua
   function handleSubmit(e) {
     e.preventDefault();
     const text = input.trim();
-    if (!text || loading) return;
+    if ((!text && attachments.length === 0) || loading) return;
     send(text);
   }
 
@@ -527,10 +593,25 @@ When the user asks what is visible in an image, describe only what you can actua
         <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · Work Session</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
       </div>
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: 24, display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
         {messages.map((m, i) => (
           <div key={i} className="v-fade" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, whiteSpace: "pre-wrap", background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}>{displayText(m.content)}</div>
+            <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b"), overflowWrap: "anywhere" }}>
+              {m.role === "user" && m.attachments?.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: displayText(m.content) ? 10 : 0 }}>
+                  {m.attachments.map((file, attachmentIndex) => (
+                    <AttachmentPreview
+                      key={`${file.name}-${file.size}-${attachmentIndex}`}
+                      file={file}
+                      theme={theme}
+                      isDark={isDark}
+                      compact
+                    />
+                  ))}
+                </div>
+              )}
+              {displayText(m.content) && <div style={{ whiteSpace: "pre-wrap" }}>{displayText(m.content)}</div>}
+            </div>
           </div>
         ))}
         {loading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div></div>}
