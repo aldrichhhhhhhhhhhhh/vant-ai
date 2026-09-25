@@ -164,18 +164,19 @@ export default async function handler(req, res) {
         ...validMessages,
       ],
 
-      temperature: 1,
+      temperature: hasImage ? 0.2 : 1,
       top_p: 0.95,
       top_k: 64,
 
-      // Use a smaller output budget for image requests
-      // to help keep multimodal requests responsive.
-      max_tokens: hasImage ? 2048 : 4096,
+      // Keep multimodal test responses intentionally small.
+      max_tokens: hasImage ? 512 : 4096,
 
       stream: false,
 
+      // Image requests use direct visual understanding rather than
+      // extended reasoning. Normal text requests retain thinking.
       chat_template_kwargs: {
-        enable_thinking: true,
+        enable_thinking: !hasImage,
       },
     };
   } catch {
