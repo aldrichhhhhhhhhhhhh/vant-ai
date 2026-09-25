@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Papa from "papaparse";
 import { supabase } from "./supabase";
-import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2 } from "lucide-react";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -56,7 +56,7 @@ const INTEGRATIONS = [
   { name: "Salesforce", icon: "S", color: "#00A1E0" }, { name: "HubSpot", icon: "H", color: "#FF7A59" },
 ];
 
-async function askClaude(systemPrompt, messages, timeoutMs = 20000) {
+async function askClaude(systemPrompt, messages, timeoutMs = 60000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let accessCode = "";
@@ -71,9 +71,9 @@ async function askClaude(systemPrompt, messages, timeoutMs = 20000) {
     clearTimeout(timer);
     const data = await response.json();
     if (!response.ok) {
-      if (data?.error === "access_not_configured") return "This deployment hasn't set an access code yet \u2014 set APP_ACCESS_CODE in your environment variables.";
+      if (data?.error === "access_not_configured") return "This deployment hasn't set an access code yet — set APP_ACCESS_CODE in your environment variables.";
       if (data?.error === "invalid_access_code") return "Wrong or missing access code. Enter the correct one in Settings.";
-      if (data?.error === "payload_too_large") return "That request was too large \u2014 try a shorter message or a smaller file.";
+      if (data?.error === "payload_too_large") return "That request was too large — try a smaller image or fewer attachments.";
       return data?.error === "missing_api_key"
         ? "The server isn't configured with an NVIDIA API key yet — set NVIDIA_API_KEY in your deployment's environment variables."
         : data?.detail
@@ -84,7 +84,7 @@ async function askClaude(systemPrompt, messages, timeoutMs = 20000) {
     return text || "I couldn't generate a response — try rephrasing.";
   } catch (err) {
     clearTimeout(timer);
-    if (err && err.name === "AbortError") return "No response after 20 seconds — check your deployment's function logs.";
+    if (err && err.name === "AbortError") return "No response after 60 seconds — check your deployment's function logs.";
     return "Something went wrong reaching the server. Try again in a moment.";
   }
 }
@@ -126,45 +126,314 @@ function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSetting
 // ---------------------------------------------------------------------------
 // AI Chat
 // ---------------------------------------------------------------------------
-function ChatPage({ theme, isDark }) {
+function ChatPage({ theme, isDark, onGoToIntegrations }) {
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [webSearch, setWebSearch] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [composerNotice, setComposerNotice] = useState("");
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const composerRef = useRef(null);
 
-  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, loading]);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, loading]);
+
+  useEffect(() => {
+    function close(e) {
+      if (composerRef.current && !composerRef.current.contains(e.target)) setComposerOpen(false);
+    }
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  function addFiles(fileList) {
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length) return;
+    setAttachments((prev) => [...prev, ...incoming].slice(0, 8));
+    setComposerNotice(`${Math.min(incoming.length, 8)} file${incoming.length === 1 ? "" : "s"} added to this work session.`);
+    setComposerOpen(false);
+  }
+
+  async function takeScreenshot() {
+    setComposerOpen(false);
+    setComposerNotice("");
+    try {
+      if (!navigator.mediaDevices?.getDisplayMedia) throw new Error("unsupported");
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const track = stream.getVideoTracks()[0];
+      const settings = track.getSettings();
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.min(settings.width || 1440, 1920);
+      canvas.height = Math.min(settings.height || 900, 1080);
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.muted = true;
+      await video.play();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+      track.stop();
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82));
+      if (!blob) throw new Error("capture_failed");
+      const file = new File([blob], `vant-screenshot-${Date.now()}.jpg`, { type: "image/jpeg" });
+      setAttachments((prev) => [...prev, file].slice(0, 8));
+      setComposerNotice("Screenshot captured and added to this work session.");
+    } catch {
+      setComposerNotice("Screenshot capture was cancelled or isn't available in this browser.");
+    }
+  }
+
+  function removeAttachment(index) {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function composerAction(label) {
+    setComposerNotice(`${label} is being prepared as a VANT capability. The interface is ready; its backend connection will be wired in the next capability layer.`);
+    setComposerOpen(false);
+  }
+
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function prepareImageForModel(file) {
+    const rawUrl = await fileToDataUrl(file);
+    const img = new Image();
+    img.src = rawUrl;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+
+    const maxDimension = 1600;
+    const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+    const width = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+    const height = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+    return { dataUrl, width, height };
+  }
+
+  async function buildUserContent(text) {
+    const parts = [{ type: "text", text: text.trim() }];
+    let textBudget = 14000;
+
+    for (const file of attachments) {
+      const meta = `${file.name} (${Math.round(file.size / 1024)} KB)`;
+      const isImage = file.type.startsWith("image/");
+      const isText = file.type.startsWith("text/") || /\.(csv|txt|md|json)$/i.test(file.name);
+
+      if (isImage) {
+        try {
+          const prepared = await prepareImageForModel(file);
+          parts.push({
+            type: "text",
+            text: `Attachment: ${meta}. Inspect the attached image and use it as evidence for the user's request.`,
+          });
+          parts.push({
+            type: "image_url",
+            image_url: { url: prepared.dataUrl },
+          });
+        } catch {
+          parts.push({ type: "text", text: `Attachment: ${meta}. The image could not be prepared for analysis.` });
+        }
+        continue;
+      }
+
+      if (isText && textBudget > 0) {
+        try {
+          const raw = await file.text();
+          const excerpt = raw.slice(0, textBudget);
+          textBudget -= excerpt.length;
+          parts.push({
+            type: "text",
+            text: `${meta}\nCONTENT:\n${excerpt}${raw.length > excerpt.length ? "\n[content truncated]" : ""}`,
+          });
+        } catch {
+          parts.push({ type: "text", text: `${meta}\n[content could not be read in the browser]` });
+        }
+      } else {
+        parts.push({ type: "text", text: `${meta}\n[attachment metadata only — this file type is not yet parsed by VANT Chat]` });
+      }
+    }
+
+    if (webSearch) {
+      parts.push({ type: "text", text: "WEB SEARCH REQUESTED: Do not invent web results. If live web access is unavailable, state that clearly." });
+    }
+
+    return parts;
+  }
+
+  function displayText(content) {
+    if (typeof content === "string") return content;
+    if (Array.isArray(content)) {
+      return content.filter((p) => p?.type === "text").map((p) => p.text || "").join("\n");
+    }
+    return "";
+  }
 
   async function send(text) {
-    const next = [...messages, { role: "user", content: text }];
-    setMessages(next);
+    const cleanText = text.trim();
+    if (!cleanText || loading) return;
+
     setStarted(true);
     setInput("");
     setLoading(true);
-    const reply = await askClaude(
-      "You are VANT, an AI work assistant. Be direct, concise, and genuinely useful — like a sharp colleague, not a customer service bot. Use plain formatting suited to a chat bubble, not long markdown documents.",
-      next.map((m) => ({ role: m.role, content: m.content }))
-    );
-    setLoading(false);
-    setMessages((m) => [...m, { role: "assistant", content: reply }]);
+    setComposerNotice("");
+
+    try {
+      const userContent = await buildUserContent(cleanText);
+      const next = [...messages, { role: "user", content: userContent }];
+      setMessages(next);
+
+      const reply = await askClaude(
+        `You are VANT, an AI work platform and command interface.
+
+CORE BEHAVIOR:
+- Treat the user's request as work to accomplish, not merely a question to answer.
+- Stay tightly relevant to the latest request and conversation context.
+- Understand the objective, identify useful inputs, reason carefully, and provide an actionable result.
+- You can receive multimodal user messages containing text and images. Inspect the actual image before answering questions about it.
+- Never claim to have seen, read, or analyzed an attachment if the attachment content was not actually provided.
+- Never invent information, tool results, file contents, or web results.
+- If an attachment is unsupported, explain exactly what is and is not available.
+- Prefer concise, professional responses with clear structure.
+- Avoid repetitive, corrupted, or nonsensical output.
+
+WORK LOOP:
+Understand → Analyze → Decide → Act → Report.
+
+VANT CAPABILITIES CURRENTLY INCLUDE:
+- General AI reasoning and conversation
+- Multimodal image understanding through Gemma 4 31B IT
+- Specialized operations and logistics tools
+- Deterministic calculators and trackers
+- Cowork task planning/execution interface
+- Integration layer UI
+
+When the user asks what is visible in an image, describe only what you can actually observe. When the user asks for analysis of an image, use the visual evidence and clearly distinguish observation from inference.`,
+        next.map((m) => ({ role: m.role, content: m.content }))
+      );
+
+      setMessages((m) => [...m, { role: "assistant", content: reply }]);
+      setAttachments([]);
+    } catch (err) {
+      console.error("VANT Chat send error", err);
+      setMessages((m) => [...m, { role: "assistant", content: "I couldn't prepare that request. Please try again." }]);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function handleSubmit(e) { e.preventDefault(); const text = input.trim(); if (!text || loading) return; send(text); }
-  const suggestions = ["Draft a follow-up email to a vendor", "Summarize a wall of text I paste in", "Help me think through a decision"];
+  function handleSubmit(e) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || loading) return;
+    send(text);
+  }
+
+  const suggestions = ["Analyze this shipment problem", "Draft a follow-up email to a vendor", "Help me think through a decision", "Turn this into an action plan"];
   const inputStyle = { padding: "12px 18px", borderRadius: 999, background: theme.inputBg, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14.5, outline: "none" };
+
+  function ComposerMenu() {
+    const itemStyle = { width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "none", background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left", borderRadius: 10 };
+    const iconBox = (color) => ({ width: 28, height: 28, borderRadius: 8, background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 });
+    const sub = { marginLeft: "auto", color: theme.textFaint };
+    return (
+      <div ref={composerRef} style={{ position: "relative" }}>
+        <button type="button" onClick={() => { setComposerOpen((v) => !v); setComposerNotice(""); }} title="Add to VANT" style={{ width: 42, height: 42, borderRadius: 12, border: `1px solid ${composerOpen ? theme.borderStrong : theme.border}`, background: composerOpen ? theme.surfaceStrong : theme.surface, color: theme.textMuted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <Plus size={19} />
+        </button>
+        {composerOpen && (
+          <div className="v-fade" style={{ position: "absolute", bottom: 50, left: 0, width: 286, padding: 8, borderRadius: 16, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 18px 50px rgba(0,0,0,.45)" : "0 18px 50px rgba(15,15,35,.16)", zIndex: 30 }}>
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={itemStyle}>
+              <span style={iconBox(acBg("violet"))}><Paperclip size={17} color={ac("violet", isDark)} /></span>
+              <span><strong style={{ display: "block", fontSize: 13.5, fontWeight: 500 }}>Add files or photos</strong><span style={{ display: "block", fontSize: 11.5, color: theme.textFaint }}>PDF, Excel, CSV, Word, images</span></span>
+              <span style={sub}>Ctrl+U</span>
+            </button>
+            <button type="button" onClick={takeScreenshot} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Camera size={17} color={ac("cyan", isDark)} /></span>
+              <span style={{ fontSize: 13.5 }}>Take a screenshot</span>
+            </button>
+            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
+            <button type="button" onClick={() => composerAction("Projects")} style={itemStyle}>
+              <span style={iconBox(acBg("green"))}><FolderPlus size={17} color={ac("green", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add to project</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Skills")} style={itemStyle}>
+              <span style={iconBox(acBg("violet"))}><Sparkles size={17} color={ac("violet", isDark)} /></span><span style={{ fontSize: 13.5 }}>Skills</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => onGoToIntegrations?.()} style={itemStyle}>
+              <span style={iconBox(acBg("amber"))}><Link2 size={17} color={ac("amber", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add connector</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Design system")} style={itemStyle}>
+              <span style={iconBox(acBg("red"))}><Palette size={17} color={ac("red", isDark)} /></span><span style={{ fontSize: 13.5 }}>Design system</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Plugins")} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Puzzle size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add plugins</span><ChevronRight size={16} style={sub} />
+            </button>
+            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
+            <button type="button" onClick={() => { setWebSearch((v) => !v); setComposerOpen(false); setComposerNotice(!webSearch ? "Web search mode selected. Live search wiring will be connected in the web/integration layer." : "Web search mode turned off."); }} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Globe size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Web search</span><span style={{ ...sub, color: webSearch ? ac("cyan", isDark) : theme.textFaint }}>{webSearch ? "✓" : ""}</span>
+            </button>
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" multiple accept=".pdf,.csv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,image/*" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+      </div>
+    );
+  }
+
+  function Composer({ compact = false }) {
+    return (
+      <div style={{ width: "100%", maxWidth: compact ? 920 : 720, margin: compact ? "0 auto" : "36px auto 0" }}>
+        {attachments.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8, justifyContent: compact ? "flex-start" : "center" }}>
+            {attachments.map((file, i) => {
+              const image = file.type.startsWith("image/");
+              return <div key={`${file.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 9px", borderRadius: 10, background: theme.surface, border: `1px solid ${theme.border}` }}>
+                {image ? <ImageIcon size={14} color={ac("violet", isDark)} /> : <FileText size={14} color={theme.textMuted} />}
+                <span style={{ maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: theme.text }}>{file.name}</span>
+                <button type="button" onClick={() => removeAttachment(i)} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>
+              </div>;
+            })}
+          </div>
+        )}
+        {composerNotice && <div style={{ marginBottom: 8, fontSize: 11.5, color: theme.textFaint, textAlign: compact ? "left" : "center" }}>{composerNotice}</div>}
+        <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 7, borderRadius: 18, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 8px 30px rgba(0,0,0,.16)" : "0 8px 30px rgba(15,15,35,.06)" }}>
+          <ComposerMenu />
+          <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder="Ask VANT to do something…" disabled={loading} rows={1} style={{ ...inputStyle, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
+          <button type="submit" disabled={loading || !input.trim()} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
+        </form>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, padding: "0 4px", fontSize: 10.5, color: theme.textFaint }}>
+          <span>{webSearch ? "WEB SEARCH MODE" : attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} ready` : "VANT WORK MODE"}</span>
+          <span>Enter to send · Shift+Enter for new line</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!started) {
     return (
       <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, marginBottom: 14 }}>AI CHAT · LIVE</p>
-        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>What should we work on?</h1>
-        <p style={{ color: theme.textMuted, fontSize: 16, margin: "0 0 28px" }}>Vant Ai - Created by Karl Aldrich Uy</p>
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 480 }}>
-          {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 18px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14, cursor: "pointer" }}>{s}</button>)}
+        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, marginBottom: 14 }}>VANT · WORK MODE</p>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 34, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>What are we working on?</h1>
+        <p style={{ color: theme.textMuted, fontSize: 15.5, margin: "0 0 26px", maxWidth: 560 }}>Give VANT a task, a question, a file, or a problem. It will help you understand it, analyze it, and move the work forward.</p>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 9, maxWidth: 650 }}>
+          {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>{s}</button>)}
         </div>
-        <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 620, marginTop: 40 }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask anything, or tell me what you need done…" style={{ ...inputStyle, width: "100%", padding: "14px 20px", fontSize: 15, boxSizing: "border-box" }} />
-        </form>
+        <Composer />
       </div>
     );
   }
@@ -172,21 +441,18 @@ function ChatPage({ theme, isDark }) {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 24px", borderBottom: `1px solid ${theme.border}` }}>
-        <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · AI Chat</span>
+        <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · Work Session</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
       </div>
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
         {messages.map((m, i) => (
           <div key={i} className="v-fade" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{ maxWidth: "75%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, whiteSpace: "pre-wrap", background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}>{m.content}</div>
+            <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, whiteSpace: "pre-wrap", background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}>{displayText(m.content)}</div>
           </div>
         ))}
         {loading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div></div>}
       </div>
-      <form onSubmit={handleSubmit} style={{ display: "flex", gap: 10, padding: 18, borderTop: `1px solid ${theme.border}` }}>
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask anything…" disabled={loading} style={{ ...inputStyle, flex: 1 }} />
-        <button type="submit" disabled={loading || !input.trim()} style={{ width: 44, height: 44, borderRadius: 999, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.5 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
-      </form>
+      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact /></div>
     </div>
   );
 }
@@ -390,10 +656,464 @@ function ChargeableWeightTool({ onBack, theme, isDark }) {
   );
 }
 
+const FREIGHT_ZONES = [
+  { label: "Local", rate: 0.8 },
+  { label: "Regional", rate: 1.4 },
+  { label: "National", rate: 2.2 },
+  { label: "International", rate: 4.5 },
+];
+
+function FreightCostTool({ onBack, theme, isDark }) {
+  const [weight, setWeight] = useState("");
+  const [zoneIdx, setZoneIdx] = useState(0);
+  const [fuelSurcharge, setFuelSurcharge] = useState("12");
+  const [handlingFee, setHandlingFee] = useState("0");
+  const cyan = ac("cyan", isDark);
+
+  const fieldStyle = { width: "100%", padding: "10px 14px", borderRadius: 10, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, color: theme.text, fontSize: 14.5, outline: "none", boxSizing: "border-box" };
+  const labelStyle = { fontSize: 12.5, color: theme.textMuted, marginBottom: 6, display: "block" };
+
+  const W = parseFloat(weight) || 0;
+  const zone = FREIGHT_ZONES[zoneIdx];
+  const surchargePct = parseFloat(fuelSurcharge) || 0;
+  const handling = parseFloat(handlingFee) || 0;
+  const base = W * zone.rate;
+  const surcharge = base * (surchargePct / 100);
+  const total = base + surcharge + handling;
+  const hasInputs = W > 0;
+
+  return (
+    <div style={{ padding: 28, height: "100%", overflowY: "auto" }}>
+      <BackBar title="Freight Cost Calculator" accentKey="cyan" isDark={isDark} theme={theme} onBack={onBack} />
+      <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, fontWeight: 500, margin: "0 0 6px", color: theme.text }}>Estimate the shipping cost.</h1>
+      <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 24px" }}>A rough estimate using zone rate, fuel surcharge, and handling fee. Swap in your real carrier rates when you have them.</p>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={labelStyle}>Chargeable weight (kg)</label>
+        <input value={weight} onChange={(e) => setWeight(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" />
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <label style={labelStyle}>Zone</label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {FREIGHT_ZONES.map((z, i) => (
+            <button key={z.label} onClick={() => setZoneIdx(i)}
+              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${zoneIdx === i ? cyan : theme.borderStrong}`, background: zoneIdx === i ? acBg("cyan") : theme.surface, color: zoneIdx === i ? cyan : theme.textMuted }}>
+              {z.label} (${z.rate.toFixed(2)}/kg)
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+        <div><label style={labelStyle}>Fuel surcharge (%)</label><input value={fuelSurcharge} onChange={(e) => setFuelSurcharge(e.target.value)} type="number" min="0" style={fieldStyle} /></div>
+        <div><label style={labelStyle}>Handling fee ($)</label><input value={handlingFee} onChange={(e) => setHandlingFee(e.target.value)} type="number" min="0" style={fieldStyle} /></div>
+      </div>
+
+      <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard, padding: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: hasInputs ? 18 : 0 }}>
+          <div><p style={{ fontSize: 12, color: theme.textMuted, margin: "0 0 4px" }}>Base cost</p><p style={{ fontSize: 22, fontWeight: 600, margin: 0, color: theme.text }}>${base.toFixed(2)}</p></div>
+          <div><p style={{ fontSize: 12, color: theme.textMuted, margin: "0 0 4px" }}>Fuel surcharge</p><p style={{ fontSize: 22, fontWeight: 600, margin: 0, color: theme.text }}>${surcharge.toFixed(2)}</p></div>
+        </div>
+        {hasInputs && (
+          <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 18 }}>
+            <p style={{ fontSize: 12, color: cyan, margin: "0 0 4px", fontFamily: "JetBrains Mono, monospace", letterSpacing: 1 }}>ESTIMATED TOTAL</p>
+            <p style={{ fontSize: 30, fontWeight: 600, margin: 0, color: cyan }}>${total.toFixed(2)}</p>
+          </div>
+        )}
+      </div>
+      <p style={{ color: theme.textFaint, fontSize: 12, marginTop: 14 }}>Formula: total = (weight × zone rate) + fuel surcharge + handling fee. Zone rates here are placeholders, not real carrier pricing.</p>
+    </div>
+  );
+}
+
+const LOAD_UNITS = [
+  { label: "20ft Container", volumeM3: 33.2 },
+  { label: "40ft Container", volumeM3: 67.7 },
+  { label: "40ft High Cube", volumeM3: 76.3 },
+  { label: "Standard Pallet", volumeM3: 2.16 },
+];
+
+function LoadOptimizerTool({ onBack, theme, isDark }) {
+  const [unitIdx, setUnitIdx] = useState(0);
+  const [itemL, setItemL] = useState("");
+  const [itemW, setItemW] = useState("");
+  const [itemH, setItemH] = useState("");
+  const [qty, setQty] = useState("");
+  const [efficiency, setEfficiency] = useState("75");
+  const violet = ac("violet", isDark);
+
+  const fieldStyle = { width: "100%", padding: "10px 14px", borderRadius: 10, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, color: theme.text, fontSize: 14.5, outline: "none", boxSizing: "border-box" };
+  const labelStyle = { fontSize: 12.5, color: theme.textMuted, marginBottom: 6, display: "block" };
+
+  const unit = LOAD_UNITS[unitIdx];
+  const L = parseFloat(itemL) || 0, W = parseFloat(itemW) || 0, H = parseFloat(itemH) || 0, Q = parseFloat(qty) || 0;
+  const eff = Math.min(100, Math.max(1, parseFloat(efficiency) || 75)) / 100;
+
+  const itemVolumeM3 = (L * W * H) / 1000000;
+  const usableVolume = unit.volumeM3 * eff;
+  const itemsPerUnit = itemVolumeM3 > 0 ? Math.floor(usableVolume / itemVolumeM3) : 0;
+  const unitsNeeded = Q > 0 && itemsPerUnit > 0 ? Math.ceil(Q / itemsPerUnit) : 0;
+  const hasInputs = L > 0 && W > 0 && H > 0 && Q > 0;
+
+  return (
+    <div style={{ padding: 28, height: "100%", overflowY: "auto" }}>
+      <BackBar title="Load Optimizer" accentKey="violet" isDark={isDark} theme={theme} onBack={onBack} />
+      <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, fontWeight: 500, margin: "0 0 6px", color: theme.text }}>How much fits?</h1>
+      <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 24px" }}>Estimate how many units fit per container or pallet, and how many you'll need for a full shipment.</p>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={labelStyle}>Container / pallet type</label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {LOAD_UNITS.map((u, i) => (
+            <button key={u.label} onClick={() => setUnitIdx(i)}
+              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${unitIdx === i ? violet : theme.borderStrong}`, background: unitIdx === i ? acBg("violet") : theme.surface, color: unitIdx === i ? violet : theme.textMuted }}>
+              {u.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
+        <div><label style={labelStyle}>Item length (cm)</label><input value={itemL} onChange={(e) => setItemL(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
+        <div><label style={labelStyle}>Item width (cm)</label><input value={itemW} onChange={(e) => setItemW(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
+        <div><label style={labelStyle}>Item height (cm)</label><input value={itemH} onChange={(e) => setItemH(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+        <div><label style={labelStyle}>Total quantity to ship</label><input value={qty} onChange={(e) => setQty(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
+        <div><label style={labelStyle}>Assumed packing efficiency (%)</label><input value={efficiency} onChange={(e) => setEfficiency(e.target.value)} type="number" min="1" max="100" style={fieldStyle} /></div>
+      </div>
+
+      <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard, padding: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: hasInputs ? 18 : 0 }}>
+          <div><p style={{ fontSize: 12, color: theme.textMuted, margin: "0 0 4px" }}>Items per {unit.label}</p><p style={{ fontSize: 22, fontWeight: 600, margin: 0, color: theme.text }}>{itemsPerUnit}</p></div>
+          <div><p style={{ fontSize: 12, color: theme.textMuted, margin: "0 0 4px" }}>Item volume</p><p style={{ fontSize: 22, fontWeight: 600, margin: 0, color: theme.text }}>{itemVolumeM3.toFixed(4)} m³</p></div>
+        </div>
+        {hasInputs && (
+          <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 18 }}>
+            <p style={{ fontSize: 12, color: violet, margin: "0 0 4px", fontFamily: "JetBrains Mono, monospace", letterSpacing: 1 }}>UNITS NEEDED</p>
+            <p style={{ fontSize: 30, fontWeight: 600, margin: 0, color: violet }}>{unitsNeeded} × {unit.label}</p>
+          </div>
+        )}
+      </div>
+      <p style={{ color: theme.textFaint, fontSize: 12, marginTop: 14 }}>Volume-based math only — it doesn't account for weight limits, stacking rules, or irregular shapes. Treat it as a starting estimate.</p>
+    </div>
+  );
+}
+
+const CONVERSION_GROUPS = [
+  { label: "Weight", units: [{ label: "kg", toBase: 1 }, { label: "lb", toBase: 0.453592 }, { label: "g", toBase: 0.001 }, { label: "oz", toBase: 0.0283495 }] },
+  { label: "Length", units: [{ label: "cm", toBase: 1 }, { label: "in", toBase: 2.54 }, { label: "m", toBase: 100 }, { label: "ft", toBase: 30.48 }] },
+  { label: "Volume", units: [{ label: "CBM (m³)", toBase: 1 }, { label: "cubic ft", toBase: 0.0283168 }, { label: "liters", toBase: 0.001 }] },
+];
+
+function UnitConverterTool({ onBack, theme, isDark }) {
+  const [groupIdx, setGroupIdx] = useState(0);
+  const [fromIdx, setFromIdx] = useState(0);
+  const [toIdx, setToIdx] = useState(1);
+  const [value, setValue] = useState("1");
+  const green = ac("green", isDark);
+
+  const fieldStyle = { width: "100%", padding: "10px 14px", borderRadius: 10, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, color: theme.text, fontSize: 14.5, outline: "none", boxSizing: "border-box" };
+  const labelStyle = { fontSize: 12.5, color: theme.textMuted, marginBottom: 6, display: "block" };
+
+  const group = CONVERSION_GROUPS[groupIdx];
+  const fromUnit = group.units[fromIdx] || group.units[0];
+  const toUnit = group.units[toIdx] || group.units[0];
+  const V = parseFloat(value) || 0;
+  const result = (V * fromUnit.toBase) / toUnit.toBase;
+
+  function selectGroup(i) { setGroupIdx(i); setFromIdx(0); setToIdx(CONVERSION_GROUPS[i].units.length > 1 ? 1 : 0); }
+
+  return (
+    <div style={{ padding: 28, height: "100%", overflowY: "auto" }}>
+      <BackBar title="Unit Converter" accentKey="green" isDark={isDark} theme={theme} onBack={onBack} />
+      <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, fontWeight: 500, margin: "0 0 6px", color: theme.text }}>Convert on the fly.</h1>
+      <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 24px" }}>Weight, length, and volume conversions for everyday freight math.</p>
+
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {CONVERSION_GROUPS.map((g, i) => (
+            <button key={g.label} onClick={() => selectGroup(i)}
+              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${groupIdx === i ? green : theme.borderStrong}`, background: groupIdx === i ? acBg("green") : theme.surface, color: groupIdx === i ? green : theme.textMuted }}>
+              {g.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, alignItems: "end", marginBottom: 24 }}>
+        <div><label style={labelStyle}>Value</label><input value={value} onChange={(e) => setValue(e.target.value)} type="number" style={fieldStyle} /></div>
+        <div><label style={labelStyle}>From</label>
+          <select value={fromIdx} onChange={(e) => setFromIdx(Number(e.target.value))} style={fieldStyle}>
+            {group.units.map((u, i) => <option key={u.label} value={i}>{u.label}</option>)}
+          </select>
+        </div>
+        <div><label style={labelStyle}>To</label>
+          <select value={toIdx} onChange={(e) => setToIdx(Number(e.target.value))} style={fieldStyle}>
+            {group.units.map((u, i) => <option key={u.label} value={i}>{u.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard, padding: 20 }}>
+        <p style={{ fontSize: 12, color: green, margin: "0 0 4px", fontFamily: "JetBrains Mono, monospace", letterSpacing: 1 }}>RESULT</p>
+        <p style={{ fontSize: 30, fontWeight: 600, margin: 0, color: green }}>{result.toFixed(4)} {toUnit.label}</p>
+        <p style={{ fontSize: 13, color: theme.textMuted, margin: "8px 0 0" }}>{V} {fromUnit.label} = {result.toFixed(4)} {toUnit.label}</p>
+      </div>
+    </div>
+  );
+}
+
+function ReorderPointTool({ onBack, theme, isDark }) {
+  const [avgDailyUsage, setAvgDailyUsage] = useState("");
+  const [avgLeadTime, setAvgLeadTime] = useState("");
+  const [maxDailyUsage, setMaxDailyUsage] = useState("");
+  const [maxLeadTime, setMaxLeadTime] = useState("");
+  const red = ac("red", isDark);
+
+  const fieldStyle = { width: "100%", padding: "10px 14px", borderRadius: 10, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, color: theme.text, fontSize: 14.5, outline: "none", boxSizing: "border-box" };
+  const labelStyle = { fontSize: 12.5, color: theme.textMuted, marginBottom: 6, display: "block" };
+
+  const avgU = parseFloat(avgDailyUsage) || 0, avgL = parseFloat(avgLeadTime) || 0, maxU = parseFloat(maxDailyUsage) || 0, maxL = parseFloat(maxLeadTime) || 0;
+  const baseDemand = avgU * avgL;
+  const safetyStock = Math.max(0, (maxU * maxL) - baseDemand);
+  const reorderPoint = baseDemand + safetyStock;
+  const hasInputs = avgU > 0 && avgL > 0;
+
+  return (
+    <div style={{ padding: 28, height: "100%", overflowY: "auto" }}>
+      <BackBar title="Reorder Point Calculator" accentKey="red" isDark={isDark} theme={theme} onBack={onBack} />
+      <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, fontWeight: 500, margin: "0 0 6px", color: theme.text }}>When to reorder.</h1>
+      <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 24px" }}>Uses average and worst-case usage/lead time to set a safety-stock-backed reorder trigger.</p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+        <div><label style={labelStyle}>Average daily usage (units)</label><input value={avgDailyUsage} onChange={(e) => setAvgDailyUsage(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
+        <div><label style={labelStyle}>Average lead time (days)</label><input value={avgLeadTime} onChange={(e) => setAvgLeadTime(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+        <div><label style={labelStyle}>Max daily usage (units)</label><input value={maxDailyUsage} onChange={(e) => setMaxDailyUsage(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="optional" /></div>
+        <div><label style={labelStyle}>Max lead time (days)</label><input value={maxLeadTime} onChange={(e) => setMaxLeadTime(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="optional" /></div>
+      </div>
+
+      <div style={{ border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard, padding: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: hasInputs ? 18 : 0 }}>
+          <div><p style={{ fontSize: 12, color: theme.textMuted, margin: "0 0 4px" }}>Safety stock</p><p style={{ fontSize: 22, fontWeight: 600, margin: 0, color: theme.text }}>{safetyStock.toFixed(1)} units</p></div>
+          <div><p style={{ fontSize: 12, color: theme.textMuted, margin: "0 0 4px" }}>Base demand during lead time</p><p style={{ fontSize: 22, fontWeight: 600, margin: 0, color: theme.text }}>{baseDemand.toFixed(1)} units</p></div>
+        </div>
+        {hasInputs && (
+          <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 18 }}>
+            <p style={{ fontSize: 12, color: red, margin: "0 0 4px", fontFamily: "JetBrains Mono, monospace", letterSpacing: 1 }}>REORDER POINT</p>
+            <p style={{ fontSize: 30, fontWeight: 600, margin: 0, color: red }}>{reorderPoint.toFixed(1)} units</p>
+          </div>
+        )}
+      </div>
+      <p style={{ color: theme.textFaint, fontSize: 12, marginTop: 14 }}>Formula: reorder point = (avg daily usage × avg lead time) + safety stock, where safety stock = (max daily usage × max lead time) minus that same base demand. Leave the max fields blank to skip safety stock.</p>
+    </div>
+  );
+}
+
+function findColumn(headers, candidates) {
+  const lower = headers.map((h) => h.toLowerCase().trim());
+  for (const c of candidates) {
+    const idx = lower.indexOf(c);
+    if (idx !== -1) return headers[idx];
+  }
+  return null;
+}
+
+function VendorScorecardTool({ onBack, theme, isDark }) {
+  const [fileName, setFileName] = useState("");
+  const [scorecard, setScorecard] = useState([]);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
+  const amber = ac("amber", isDark);
+  const green = ac("green", isDark);
+  const red = ac("red", isDark);
+
+  function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(""); setScorecard([]);
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      complete: (results) => {
+        if (!results.data.length) { setError("That file parsed but had no rows."); return; }
+        const headers = results.meta.fields || Object.keys(results.data[0]);
+        const vendorCol = findColumn(headers, ["vendor", "supplier", "carrier", "vendor name"]);
+        const statusCol = findColumn(headers, ["status", "delivery status", "on time", "ontime", "on_time"]);
+        const delayCol = findColumn(headers, ["delay days", "delaydays", "delay_days", "days late", "delay (days)"]);
+        if (!vendorCol) { setError("Couldn't find a vendor/supplier/carrier column in this file."); return; }
+        if (!statusCol && !delayCol) { setError("Couldn't find a status or delay-days column in this file."); return; }
+
+        const map = {};
+        results.data.forEach((row) => {
+          const vendor = String(row[vendorCol] || "Unknown").trim() || "Unknown";
+          if (!map[vendor]) map[vendor] = { vendor, total: 0, onTime: 0, delaySum: 0, delayCount: 0 };
+          map[vendor].total += 1;
+          let isOnTime = null;
+          if (delayCol) {
+            const d = parseFloat(row[delayCol]);
+            if (!isNaN(d)) { map[vendor].delaySum += d; map[vendor].delayCount += 1; isOnTime = d <= 0; }
+          }
+          if (isOnTime === null && statusCol) {
+            const s = String(row[statusCol] || "").toLowerCase();
+            isOnTime = s.includes("on time") || s.includes("ontime") || s === "yes" || s === "true";
+          }
+          if (isOnTime) map[vendor].onTime += 1;
+        });
+        const scored = Object.values(map).map((v) => ({
+          ...v,
+          onTimePct: v.total > 0 ? (v.onTime / v.total) * 100 : 0,
+          avgDelay: v.delayCount > 0 ? v.delaySum / v.delayCount : null,
+        })).sort((a, b) => b.onTimePct - a.onTimePct);
+
+        setFileName(file.name);
+        setScorecard(scored);
+      },
+      error: (err) => setError("Couldn't read that file: " + err.message),
+    });
+  }
+
+  return (
+    <div style={{ padding: 28, height: "100%", overflowY: "auto" }}>
+      <BackBar title="Vendor Scorecard" accentKey="amber" isDark={isDark} theme={theme} onBack={onBack} />
+      <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, fontWeight: 500, margin: "0 0 6px", color: theme.text }}>Rank vendors by reliability.</h1>
+      <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 20px" }}>Upload a shipment log with a vendor/supplier column and either a status column or a delay-days column.</p>
+
+      <div onClick={() => fileInputRef.current?.click()} style={{ border: `1.5px dashed ${fileName ? amber : theme.borderStrong}`, borderRadius: 14, padding: "18px 20px", textAlign: "center", cursor: "pointer", background: fileName ? acBg("amber") : theme.surface, marginBottom: 16 }}>
+        <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFile} style={{ display: "none" }} />
+        {fileName ? <p style={{ color: amber, fontSize: 14, margin: 0 }}>{fileName} loaded — click to replace</p> : <p style={{ color: theme.text, fontSize: 14, margin: 0 }}>Click to upload a .csv file</p>}
+      </div>
+      {error && <p style={{ color: red, fontSize: 13, marginBottom: 14 }}>{error}</p>}
+
+      {scorecard.length > 0 && (
+        <div style={{ border: `1px solid ${theme.border}`, borderRadius: 12, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
+            <thead>
+              <tr style={{ background: theme.surface }}>
+                <th style={{ textAlign: "left", padding: "10px 14px", color: theme.textMuted, fontFamily: "JetBrains Mono, monospace", fontWeight: 500 }}>Rank</th>
+                <th style={{ textAlign: "left", padding: "10px 14px", color: theme.textMuted, fontFamily: "JetBrains Mono, monospace", fontWeight: 500 }}>Vendor</th>
+                <th style={{ textAlign: "left", padding: "10px 14px", color: theme.textMuted, fontFamily: "JetBrains Mono, monospace", fontWeight: 500 }}>Shipments</th>
+                <th style={{ textAlign: "left", padding: "10px 14px", color: theme.textMuted, fontFamily: "JetBrains Mono, monospace", fontWeight: 500 }}>On-time %</th>
+                <th style={{ textAlign: "left", padding: "10px 14px", color: theme.textMuted, fontFamily: "JetBrains Mono, monospace", fontWeight: 500 }}>Avg delay</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scorecard.map((v, i) => (
+                <tr key={v.vendor} style={{ borderTop: `1px solid ${theme.border}` }}>
+                  <td style={{ padding: "10px 14px", color: theme.textFaint }}>{i + 1}</td>
+                  <td style={{ padding: "10px 14px", color: theme.text }}>{v.vendor}</td>
+                  <td style={{ padding: "10px 14px", color: theme.text }}>{v.total}</td>
+                  <td style={{ padding: "10px 14px", color: v.onTimePct >= 90 ? green : v.onTimePct >= 70 ? amber : red }}>{v.onTimePct.toFixed(1)}%</td>
+                  <td style={{ padding: "10px 14px", color: theme.textMuted }}>{v.avgDelay !== null ? `${v.avgDelay.toFixed(1)} days` : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p style={{ color: theme.textFaint, fontSize: 12, marginTop: 14 }}>On-time is read from a delay-days column (0 or less = on time) when present, otherwise from the status column's text.</p>
+    </div>
+  );
+}
+
+const PO_STATUSES = ["Ordered", "In Transit", "Delayed", "Received"];
+const PO_STATUS_KEYS = { Ordered: null, "In Transit": "cyan", Delayed: "red", Received: "green" };
+
+function PoTrackerTool({ onBack, theme, isDark }) {
+  const [pos, setPos] = useState(null);
+  const [newPoName, setNewPoName] = useState("");
+  const [newVendor, setNewVendor] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState("");
+  const cyan = ac("cyan", isDark);
+
+  useEffect(() => {
+    try { const stored = localStorage.getItem("vant_po_tracker"); setPos(stored ? JSON.parse(stored) : []); } catch { setPos([]); }
+  }, []);
+  useEffect(() => {
+    if (pos === null) return;
+    try { localStorage.setItem("vant_po_tracker", JSON.stringify(pos)); } catch { /* no storage access */ }
+  }, [pos]);
+
+  function addPo(e) {
+    e.preventDefault();
+    const name = newPoName.trim();
+    if (!name) return;
+    setPos((p) => [...p, { id: Date.now(), name, vendor: newVendor.trim() || "Unspecified", status: "Ordered", createdAt: new Date().toISOString() }]);
+    setNewPoName(""); setNewVendor("");
+  }
+  function setStatus(id, status) { setPos((p) => p.map((po) => (po.id === id ? { ...po, status } : po))); }
+  function startEdit(po) { setEditingId(po.id); setEditValue(po.name); }
+  function saveEdit(id) { const trimmed = editValue.trim(); if (trimmed) setPos((p) => p.map((po) => (po.id === id ? { ...po, name: trimmed } : po))); setEditingId(null); }
+  function deletePo(id) { setPos((p) => p.filter((po) => po.id !== id)); }
+
+  if (pos === null) return <div style={{ padding: 28, color: theme.textFaint, fontSize: 14 }}>Loading purchase orders…</div>;
+
+  const fieldStyle = { padding: "9px 14px", borderRadius: 999, background: theme.inputBg, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14, outline: "none" };
+
+  function statusStyle(po, s) {
+    const active = po.status === s;
+    const key = PO_STATUS_KEYS[s];
+    const color = key ? ac(key, isDark) : theme.textFaint;
+    return { padding: "4px 10px", borderRadius: 999, border: `1px solid ${active ? color : theme.border}`, background: active ? (key ? acBg(key) : theme.surfaceStrong) : "transparent", color: active ? color : theme.textFaint, fontSize: 11, fontFamily: "JetBrains Mono, monospace", cursor: "pointer" };
+  }
+
+  return (
+    <div style={{ padding: 28, height: "100%", display: "flex", flexDirection: "column" }}>
+      <BackBar title="PO Status Tracker" accentKey="cyan" isDark={isDark} theme={theme} onBack={onBack} />
+      <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, fontWeight: 500, margin: "0 0 6px", color: theme.text }}>Track purchase orders.</h1>
+      <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 20px" }}>Add a PO, then click its status pill to move it forward.</p>
+
+      <form onSubmit={addPo} style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+        <input value={newPoName} onChange={(e) => setNewPoName(e.target.value)} placeholder="PO number or name…" style={{ ...fieldStyle, flex: 2, minWidth: 160 }} />
+        <input value={newVendor} onChange={(e) => setNewVendor(e.target.value)} placeholder="Vendor" style={{ ...fieldStyle, flex: 1, minWidth: 120 }} />
+        <button type="submit" style={{ width: 42, height: 42, borderRadius: 999, background: acBg("cyan"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Plus size={18} color={cyan} /></button>
+      </form>
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
+        {pos.length === 0 && <p style={{ color: theme.textFaint, fontSize: 14 }}>No purchase orders yet — add one above.</p>}
+        {pos.map((po) => {
+          const isEditing = editingId === po.id;
+          return (
+            <div key={po.id} className="v-fade" style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 12, background: theme.surface, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {PO_STATUSES.map((s) => (
+                  <button key={s} onClick={() => setStatus(po.id, s)} style={statusStyle(po, s)}>{s}</button>
+                ))}
+              </div>
+              {isEditing ? (
+                <>
+                  <input autoFocus value={editValue} onChange={(e) => setEditValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveEdit(po.id); if (e.key === "Escape") setEditingId(null); }}
+                    style={{ flex: 1, minWidth: 120, padding: "6px 10px", borderRadius: 8, background: theme.surfaceStrong, border: `1px solid ${ac("violet", isDark)}`, color: theme.text, fontSize: 14, outline: "none" }} />
+                  <button onClick={() => saveEdit(po.id)} style={{ background: "none", border: "none", cursor: "pointer" }}><Check size={16} color={ac("green", isDark)} /></button>
+                  <button onClick={() => setEditingId(null)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={16} color={theme.textMuted} /></button>
+                </>
+              ) : (
+                <>
+                  <span style={{ flex: 1, minWidth: 100, fontSize: 14.5, color: theme.text }}>{po.name}</span>
+                  <span style={{ fontSize: 12.5, color: theme.textFaint }}>{po.vendor}</span>
+                  <button onClick={() => startEdit(po)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Pencil size={14} color={theme.textFaint} /></button>
+                  <button onClick={() => deletePo(po.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><Trash2 size={14} color={theme.textFaint} /></button>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p style={{ color: theme.textFaint, fontSize: 12, marginTop: 14 }}>Saved locally in this browser — not yet synced to your account across devices.</p>
+    </div>
+  );
+}
+
 function ToolsPage({ theme, isDark }) {
   const [view, setView] = useState("hub");
   if (view === "ops") return <OpsAssistantTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "weight") return <ChargeableWeightTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (view === "freight") return <FreightCostTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (view === "load") return <LoadOptimizerTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (view === "convert") return <UnitConverterTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (view === "reorder") return <ReorderPointTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (view === "scorecard") return <VendorScorecardTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (view === "po") return <PoTrackerTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
 
   return (
     <div style={{ padding: 28, height: "100%", overflowY: "auto" }}>
@@ -402,6 +1122,12 @@ function ToolsPage({ theme, isDark }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
         <ToolCard icon={FileSpreadsheet} accentKey="red" isDark={isDark} theme={theme} title="Ops Assistant" desc="Upload a shipment log, inventory sheet, or delivery schedule and ask real questions about it." onClick={() => setView("ops")} />
         <ToolCard icon={Calculator} accentKey="amber" isDark={isDark} theme={theme} title="Chargeable Weight Calculator" desc="Compare actual vs. volumetric weight to get the real billable freight weight." onClick={() => setView("weight")} />
+        <ToolCard icon={Truck} accentKey="cyan" isDark={isDark} theme={theme} title="Freight Cost Calculator" desc="Estimate shipping cost from weight, zone, fuel surcharge, and handling fee." onClick={() => setView("freight")} />
+        <ToolCard icon={Boxes} accentKey="violet" isDark={isDark} theme={theme} title="Load Optimizer" desc="Estimate how many items fit per container or pallet, and how many you'll need." onClick={() => setView("load")} />
+        <ToolCard icon={RefreshCw} accentKey="green" isDark={isDark} theme={theme} title="Unit Converter" desc="Convert weight, length, and volume units used in everyday freight math." onClick={() => setView("convert")} />
+        <ToolCard icon={Package} accentKey="red" isDark={isDark} theme={theme} title="Reorder Point Calculator" desc="Find the inventory level that should trigger a new order, with safety stock built in." onClick={() => setView("reorder")} />
+        <ToolCard icon={ClipboardList} accentKey="amber" isDark={isDark} theme={theme} title="Vendor Scorecard" desc="Upload a shipment log and rank vendors by on-time delivery rate." onClick={() => setView("scorecard")} />
+        <ToolCard icon={ListChecks} accentKey="cyan" isDark={isDark} theme={theme} title="PO Status Tracker" desc="Track purchase orders from ordered through received, saved locally." onClick={() => setView("po")} />
       </div>
       <p style={{ color: theme.textFaint, fontSize: 12.5, marginTop: 20 }}>More tools land here as we build them — this hub is built to grow.</p>
     </div>
@@ -1143,7 +1869,7 @@ export default function VantWorkingPrototype() {
 
   function renderPage() {
     const props = { theme, isDark };
-    if (active === "chat") return <ChatPage {...props} />;
+    if (active === "chat") return <ChatPage {...props} onGoToIntegrations={() => setActive("integrations")} />;
     if (active === "tools") return <ToolsPage {...props} />;
     if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
     if (active === "cowork") return <CoworkPage {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
