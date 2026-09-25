@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Papa from "papaparse";
 import { supabase } from "./supabase";
-import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2 } from "lucide-react";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -126,23 +126,108 @@ function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSetting
 // ---------------------------------------------------------------------------
 // AI Chat
 // ---------------------------------------------------------------------------
-function ChatPage({ theme, isDark }) {
+function ChatPage({ theme, isDark, onGoToIntegrations }) {
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [webSearch, setWebSearch] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [composerNotice, setComposerNotice] = useState("");
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const composerRef = useRef(null);
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, loading]);
+  useEffect(() => {
+    function close(e) {
+      if (composerRef.current && !composerRef.current.contains(e.target)) setComposerOpen(false);
+    }
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  function addFiles(fileList) {
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length) return;
+    setAttachments((prev) => [...prev, ...incoming].slice(0, 8));
+    setComposerNotice(`${Math.min(incoming.length, 8)} file${incoming.length === 1 ? "" : "s"} added to this work session.`);
+    setComposerOpen(false);
+  }
+
+  async function takeScreenshot() {
+    setComposerOpen(false);
+    setComposerNotice("");
+    try {
+      if (!navigator.mediaDevices?.getDisplayMedia) throw new Error("unsupported");
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const track = stream.getVideoTracks()[0];
+      const settings = track.getSettings();
+      const canvas = document.createElement("canvas");
+      canvas.width = settings.width || 1440;
+      canvas.height = settings.height || 900;
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.muted = true;
+      await video.play();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+      track.stop();
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("capture_failed");
+      const file = new File([blob], `vant-screenshot-${Date.now()}.png`, { type: "image/png" });
+      setAttachments((prev) => [...prev, file].slice(0, 8));
+      setComposerNotice("Screenshot captured and added to this work session.");
+    } catch {
+      setComposerNotice("Screenshot capture was cancelled or isn't available in this browser.");
+    }
+  }
+
+  function removeAttachment(index) {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function composerAction(label) {
+    setComposerNotice(`${label} is being prepared as a VANT capability. The interface is ready; its backend connection will be wired in the next capability layer.`);
+    setComposerOpen(false);
+  }
 
   async function send(text) {
-    const next = [...messages, { role: "user", content: text }];
+    const cleanText = text.trim();
+    if (!cleanText || loading) return;
+    let attachmentContext = "";
+    if (attachments.length) {
+      const parts = [];
+      let textBudget = 14000;
+      for (const file of attachments) {
+        const meta = `${file.name} (${Math.round(file.size / 1024)} KB)`;
+        const isText = file.type.startsWith("text/") || /\.(csv|txt|md|json)$/i.test(file.name);
+        if (isText && textBudget > 0) {
+          try {
+            const raw = await file.text();
+            const excerpt = raw.slice(0, textBudget);
+            textBudget -= excerpt.length;
+            parts.push(`${meta}\nCONTENT:\n${excerpt}${raw.length > excerpt.length ? "\n[content truncated]" : ""}`);
+          } catch {
+            parts.push(`${meta}\n[content could not be read in the browser]`);
+          }
+        } else {
+          parts.push(`${meta}\n[attachment metadata only — this file type is not yet parsed by VANT Chat]`);
+        }
+      }
+      attachmentContext = `\n\nATTACHMENTS:\n${parts.join("\n\n")}`;
+    }
+    const searchContext = webSearch ? "\n\nWEB SEARCH REQUESTED: Do not invent web results. If live web access is unavailable, state that clearly." : "";
+    const userContent = cleanText + attachmentContext + searchContext;
+    const next = [...messages, { role: "user", content: userContent }];
     setMessages(next);
     setStarted(true);
     setInput("");
     setLoading(true);
+    setComposerNotice("");
     const reply = await askClaude(
-      "You are VANT, an AI work assistant. Be direct, concise, and genuinely useful — like a sharp colleague, not a customer service bot. Use plain formatting suited to a chat bubble, not long markdown documents.",
+      `You are VANT, an AI work platform and command interface.\n\nCORE BEHAVIOR:\n- Treat the user's request as work to accomplish, not merely a question to answer.\n- Stay tightly relevant to the latest request and conversation context.\n- Understand the objective, identify useful inputs, reason carefully, and provide an actionable result.\n- Never invent information, tool results, file contents, or web results.\n- If an attachment is listed but its contents are not available to you, say so clearly instead of pretending to have read it.\n- Prefer concise, professional responses with clear structure.\n- Avoid repetitive, corrupted, or nonsensical output.\n- When useful, propose the next concrete action VANT can take.\n\nWORK LOOP:\nUnderstand → Analyze → Decide → Act → Report.\n\nVANT CAPABILITIES CURRENTLY INCLUDE:\n- General AI reasoning and conversation\n- Specialized operations and logistics tools\n- Deterministic calculators and trackers\n- Cowork task planning/execution interface\n- Integration layer UI\n\nWhen the user asks for work, behave like a sharp operations colleague — direct, context-aware, and outcome-focused.`,
       next.map((m) => ({ role: m.role, content: m.content }))
     );
     setLoading(false);
@@ -150,21 +235,95 @@ function ChatPage({ theme, isDark }) {
   }
 
   function handleSubmit(e) { e.preventDefault(); const text = input.trim(); if (!text || loading) return; send(text); }
-  const suggestions = ["Draft a follow-up email to a vendor", "Summarize a wall of text I paste in", "Help me think through a decision"];
+  const suggestions = ["Analyze this shipment problem", "Draft a follow-up email to a vendor", "Help me think through a decision", "Turn this into an action plan"];
   const inputStyle = { padding: "12px 18px", borderRadius: 999, background: theme.inputBg, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14.5, outline: "none" };
+
+  function ComposerMenu() {
+    const itemStyle = { width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "none", background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left", borderRadius: 10 };
+    const iconBox = (color) => ({ width: 28, height: 28, borderRadius: 8, background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 });
+    const sub = { marginLeft: "auto", color: theme.textFaint };
+    return (
+      <div ref={composerRef} style={{ position: "relative" }}>
+        <button type="button" onClick={() => { setComposerOpen((v) => !v); setComposerNotice(""); }} title="Add to VANT" style={{ width: 42, height: 42, borderRadius: 12, border: `1px solid ${composerOpen ? theme.borderStrong : theme.border}`, background: composerOpen ? theme.surfaceStrong : theme.surface, color: theme.textMuted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <Plus size={19} />
+        </button>
+        {composerOpen && (
+          <div className="v-fade" style={{ position: "absolute", bottom: 50, left: 0, width: 286, padding: 8, borderRadius: 16, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 18px 50px rgba(0,0,0,.45)" : "0 18px 50px rgba(15,15,35,.16)", zIndex: 30 }}>
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={itemStyle}>
+              <span style={iconBox(acBg("violet"))}><Paperclip size={17} color={ac("violet", isDark)} /></span>
+              <span><strong style={{ display: "block", fontSize: 13.5, fontWeight: 500 }}>Add files or photos</strong><span style={{ display: "block", fontSize: 11.5, color: theme.textFaint }}>PDF, Excel, CSV, Word, images</span></span>
+              <span style={sub}>Ctrl+U</span>
+            </button>
+            <button type="button" onClick={takeScreenshot} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Camera size={17} color={ac("cyan", isDark)} /></span>
+              <span style={{ fontSize: 13.5 }}>Take a screenshot</span>
+            </button>
+            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
+            <button type="button" onClick={() => composerAction("Projects")} style={itemStyle}>
+              <span style={iconBox(acBg("green"))}><FolderPlus size={17} color={ac("green", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add to project</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Skills")} style={itemStyle}>
+              <span style={iconBox(acBg("violet"))}><Sparkles size={17} color={ac("violet", isDark)} /></span><span style={{ fontSize: 13.5 }}>Skills</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => onGoToIntegrations?.()} style={itemStyle}>
+              <span style={iconBox(acBg("amber"))}><Link2 size={17} color={ac("amber", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add connector</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Design system")} style={itemStyle}>
+              <span style={iconBox(acBg("red"))}><Palette size={17} color={ac("red", isDark)} /></span><span style={{ fontSize: 13.5 }}>Design system</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Plugins")} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Puzzle size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add plugins</span><ChevronRight size={16} style={sub} />
+            </button>
+            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
+            <button type="button" onClick={() => { setWebSearch((v) => !v); setComposerOpen(false); setComposerNotice(!webSearch ? "Web search mode selected. Live search wiring will be connected in the web/integration layer." : "Web search mode turned off."); }} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Globe size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Web search</span><span style={{ ...sub, color: webSearch ? ac("cyan", isDark) : theme.textFaint }}>{webSearch ? "✓" : ""}</span>
+            </button>
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" multiple accept=".pdf,.csv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,image/*" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+      </div>
+    );
+  }
+
+  function Composer({ compact = false }) {
+    return (
+      <div style={{ width: "100%", maxWidth: compact ? 920 : 720, margin: compact ? "0 auto" : "36px auto 0" }}>
+        {attachments.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8, justifyContent: compact ? "flex-start" : "center" }}>
+            {attachments.map((file, i) => {
+              const image = file.type.startsWith("image/");
+              return <div key={`${file.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 9px", borderRadius: 10, background: theme.surface, border: `1px solid ${theme.border}` }}>
+                {image ? <ImageIcon size={14} color={ac("violet", isDark)} /> : <FileText size={14} color={theme.textMuted} />}
+                <span style={{ maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: theme.text }}>{file.name}</span>
+                <button type="button" onClick={() => removeAttachment(i)} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>
+              </div>;
+            })}
+          </div>
+        )}
+        {composerNotice && <div style={{ marginBottom: 8, fontSize: 11.5, color: theme.textFaint, textAlign: compact ? "left" : "center" }}>{composerNotice}</div>}
+        <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 7, borderRadius: 18, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 8px 30px rgba(0,0,0,.16)" : "0 8px 30px rgba(15,15,35,.06)" }}>
+          <ComposerMenu />
+          <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder="Ask VANT to do something…" disabled={loading} rows={1} style={{ ...inputStyle, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
+          <button type="submit" disabled={loading || !input.trim()} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
+        </form>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, padding: "0 4px", fontSize: 10.5, color: theme.textFaint }}>
+          <span>{webSearch ? "WEB SEARCH MODE" : attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} ready` : "VANT WORK MODE"}</span>
+          <span>Enter to send · Shift+Enter for new line</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!started) {
     return (
       <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, marginBottom: 14 }}>AI CHAT · LIVE</p>
-        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>What should we work on?</h1>
-        <p style={{ color: theme.textMuted, fontSize: 16, margin: "0 0 28px" }}>Vant Ai - Created by Karl Aldrich Uy</p>
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 480 }}>
-          {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 18px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14, cursor: "pointer" }}>{s}</button>)}
+        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, marginBottom: 14 }}>VANT · WORK MODE</p>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 34, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>What are we working on?</h1>
+        <p style={{ color: theme.textMuted, fontSize: 15.5, margin: "0 0 26px", maxWidth: 560 }}>Give VANT a task, a question, a file, or a problem. It will help you understand it, analyze it, and move the work forward.</p>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 9, maxWidth: 650 }}>
+          {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>{s}</button>)}
         </div>
-        <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 620, marginTop: 40 }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask anything, or tell me what you need done…" style={{ ...inputStyle, width: "100%", padding: "14px 20px", fontSize: 15, boxSizing: "border-box" }} />
-        </form>
+        <Composer />
       </div>
     );
   }
@@ -172,21 +331,18 @@ function ChatPage({ theme, isDark }) {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 24px", borderBottom: `1px solid ${theme.border}` }}>
-        <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · AI Chat</span>
+        <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · Work Session</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
       </div>
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
         {messages.map((m, i) => (
           <div key={i} className="v-fade" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{ maxWidth: "75%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, whiteSpace: "pre-wrap", background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}>{m.content}</div>
+            <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, whiteSpace: "pre-wrap", background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}>{m.content}</div>
           </div>
         ))}
         {loading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div></div>}
       </div>
-      <form onSubmit={handleSubmit} style={{ display: "flex", gap: 10, padding: 18, borderTop: `1px solid ${theme.border}` }}>
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask anything…" disabled={loading} style={{ ...inputStyle, flex: 1 }} />
-        <button type="submit" disabled={loading || !input.trim()} style={{ width: 44, height: 44, borderRadius: 999, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.5 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
-      </form>
+      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact /></div>
     </div>
   );
 }
@@ -1603,7 +1759,7 @@ export default function VantWorkingPrototype() {
 
   function renderPage() {
     const props = { theme, isDark };
-    if (active === "chat") return <ChatPage {...props} />;
+    if (active === "chat") return <ChatPage {...props} onGoToIntegrations={() => setActive("integrations")} />;
     if (active === "tools") return <ToolsPage {...props} />;
     if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
     if (active === "cowork") return <CoworkPage {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
