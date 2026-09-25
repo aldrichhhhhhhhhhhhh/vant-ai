@@ -126,6 +126,144 @@ function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSetting
 // ---------------------------------------------------------------------------
 // AI Chat
 // ---------------------------------------------------------------------------
+function ComposerMenu({
+  theme,
+  isDark,
+  composerOpen,
+  setComposerOpen,
+  setComposerNotice,
+  composerRef,
+  fileInputRef,
+  takeScreenshot,
+  composerAction,
+  onGoToIntegrations,
+  webSearch,
+  setWebSearch,
+  addFiles,
+}) {
+    const itemStyle = { width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "none", background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left", borderRadius: 10 };
+    const iconBox = (color) => ({ width: 28, height: 28, borderRadius: 8, background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 });
+    const sub = { marginLeft: "auto", color: theme.textFaint };
+    return (
+      <div ref={composerRef} style={{ position: "relative" }}>
+        <button type="button" onClick={() => { setComposerOpen((v) => !v); setComposerNotice(""); }} title="Add to VANT" style={{ width: 42, height: 42, borderRadius: 12, border: `1px solid ${composerOpen ? theme.borderStrong : theme.border}`, background: composerOpen ? theme.surfaceStrong : theme.surface, color: theme.textMuted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <Plus size={19} />
+        </button>
+        {composerOpen && (
+          <div className="v-fade" style={{ position: "absolute", bottom: 50, left: 0, width: 286, padding: 8, borderRadius: 16, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 18px 50px rgba(0,0,0,.45)" : "0 18px 50px rgba(15,15,35,.16)", zIndex: 30 }}>
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={itemStyle}>
+              <span style={iconBox(acBg("violet"))}><Paperclip size={17} color={ac("violet", isDark)} /></span>
+              <span><strong style={{ display: "block", fontSize: 13.5, fontWeight: 500 }}>Add files or photos</strong><span style={{ display: "block", fontSize: 11.5, color: theme.textFaint }}>PDF, Excel, CSV, Word, images</span></span>
+              <span style={sub}>Ctrl+U</span>
+            </button>
+            <button type="button" onClick={takeScreenshot} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Camera size={17} color={ac("cyan", isDark)} /></span>
+              <span style={{ fontSize: 13.5 }}>Take a screenshot</span>
+            </button>
+            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
+            <button type="button" onClick={() => composerAction("Projects")} style={itemStyle}>
+              <span style={iconBox(acBg("green"))}><FolderPlus size={17} color={ac("green", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add to project</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Skills")} style={itemStyle}>
+              <span style={iconBox(acBg("violet"))}><Sparkles size={17} color={ac("violet", isDark)} /></span><span style={{ fontSize: 13.5 }}>Skills</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => onGoToIntegrations?.()} style={itemStyle}>
+              <span style={iconBox(acBg("amber"))}><Link2 size={17} color={ac("amber", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add connector</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Design system")} style={itemStyle}>
+              <span style={iconBox(acBg("red"))}><Palette size={17} color={ac("red", isDark)} /></span><span style={{ fontSize: 13.5 }}>Design system</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Plugins")} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Puzzle size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add plugins</span><ChevronRight size={16} style={sub} />
+            </button>
+            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
+            <button type="button" onClick={() => { setWebSearch((v) => !v); setComposerOpen(false); setComposerNotice(!webSearch ? "Web search mode selected. Live search wiring will be connected in the web/integration layer." : "Web search mode turned off."); }} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Globe size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Web search</span><span style={{ ...sub, color: webSearch ? ac("cyan", isDark) : theme.textFaint }}>{webSearch ? "✓" : ""}</span>
+            </button>
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" multiple accept=".pdf,.csv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,image/*" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+      </div>
+    );
+  }
+
+
+function Composer({
+  compact = false,
+  theme,
+  isDark,
+  attachments,
+  composerNotice,
+  removeAttachment,
+  handleSubmit,
+  input,
+  setInput,
+  loading,
+  webSearch,
+  composerOpen,
+  setComposerOpen,
+  setComposerNotice,
+  composerRef,
+  fileInputRef,
+  takeScreenshot,
+  composerAction,
+  onGoToIntegrations,
+  setWebSearch,
+  addFiles,
+}) {
+    const inputStyle = {
+      padding: "12px 18px",
+      borderRadius: 999,
+      background: theme.inputBg,
+      border: `1px solid ${theme.border}`,
+      color: theme.text,
+      fontSize: 14.5,
+      outline: "none",
+    };
+
+    return (
+      <div style={{ width: "100%", maxWidth: compact ? 920 : 720, margin: compact ? "0 auto" : "36px auto 0" }}>
+        {attachments.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8, justifyContent: compact ? "flex-start" : "center" }}>
+            {attachments.map((file, i) => {
+              const image = file.type.startsWith("image/");
+              return <div key={`${file.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 9px", borderRadius: 10, background: theme.surface, border: `1px solid ${theme.border}` }}>
+                {image ? <ImageIcon size={14} color={ac("violet", isDark)} /> : <FileText size={14} color={theme.textMuted} />}
+                <span style={{ maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: theme.text }}>{file.name}</span>
+                <button type="button" onClick={() => removeAttachment(i)} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>
+              </div>;
+            })}
+          </div>
+        )}
+        {composerNotice && <div style={{ marginBottom: 8, fontSize: 11.5, color: theme.textFaint, textAlign: compact ? "left" : "center" }}>{composerNotice}</div>}
+        <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 7, borderRadius: 18, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 8px 30px rgba(0,0,0,.16)" : "0 8px 30px rgba(15,15,35,.06)" }}>
+          <ComposerMenu
+            theme={theme}
+            isDark={isDark}
+            composerOpen={composerOpen}
+            setComposerOpen={setComposerOpen}
+            setComposerNotice={setComposerNotice}
+            composerRef={composerRef}
+            fileInputRef={fileInputRef}
+            takeScreenshot={takeScreenshot}
+            composerAction={composerAction}
+            onGoToIntegrations={onGoToIntegrations}
+            webSearch={webSearch}
+            setWebSearch={setWebSearch}
+            addFiles={addFiles}
+          />
+          <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder="Ask VANT to do something…" disabled={loading} rows={1} style={{ ...inputStyle, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
+          <button type="submit" disabled={loading || !input.trim()} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
+        </form>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, padding: "0 4px", fontSize: 10.5, color: theme.textFaint }}>
+          <span>{webSearch ? "WEB SEARCH MODE" : attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} ready` : "VANT WORK MODE"}</span>
+          <span>Enter to send · Shift+Enter for new line</span>
+        </div>
+      </div>
+    );
+  }
+
+
 function ChatPage({ theme, isDark, onGoToIntegrations }) {
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -346,83 +484,6 @@ When the user asks what is visible in an image, describe only what you can actua
   }
 
   const suggestions = ["Analyze this shipment problem", "Draft a follow-up email to a vendor", "Help me think through a decision", "Turn this into an action plan"];
-  const inputStyle = { padding: "12px 18px", borderRadius: 999, background: theme.inputBg, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14.5, outline: "none" };
-
-  function ComposerMenu() {
-    const itemStyle = { width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "none", background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left", borderRadius: 10 };
-    const iconBox = (color) => ({ width: 28, height: 28, borderRadius: 8, background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 });
-    const sub = { marginLeft: "auto", color: theme.textFaint };
-    return (
-      <div ref={composerRef} style={{ position: "relative" }}>
-        <button type="button" onClick={() => { setComposerOpen((v) => !v); setComposerNotice(""); }} title="Add to VANT" style={{ width: 42, height: 42, borderRadius: 12, border: `1px solid ${composerOpen ? theme.borderStrong : theme.border}`, background: composerOpen ? theme.surfaceStrong : theme.surface, color: theme.textMuted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-          <Plus size={19} />
-        </button>
-        {composerOpen && (
-          <div className="v-fade" style={{ position: "absolute", bottom: 50, left: 0, width: 286, padding: 8, borderRadius: 16, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 18px 50px rgba(0,0,0,.45)" : "0 18px 50px rgba(15,15,35,.16)", zIndex: 30 }}>
-            <button type="button" onClick={() => fileInputRef.current?.click()} style={itemStyle}>
-              <span style={iconBox(acBg("violet"))}><Paperclip size={17} color={ac("violet", isDark)} /></span>
-              <span><strong style={{ display: "block", fontSize: 13.5, fontWeight: 500 }}>Add files or photos</strong><span style={{ display: "block", fontSize: 11.5, color: theme.textFaint }}>PDF, Excel, CSV, Word, images</span></span>
-              <span style={sub}>Ctrl+U</span>
-            </button>
-            <button type="button" onClick={takeScreenshot} style={itemStyle}>
-              <span style={iconBox(acBg("cyan"))}><Camera size={17} color={ac("cyan", isDark)} /></span>
-              <span style={{ fontSize: 13.5 }}>Take a screenshot</span>
-            </button>
-            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
-            <button type="button" onClick={() => composerAction("Projects")} style={itemStyle}>
-              <span style={iconBox(acBg("green"))}><FolderPlus size={17} color={ac("green", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add to project</span><ChevronRight size={16} style={sub} />
-            </button>
-            <button type="button" onClick={() => composerAction("Skills")} style={itemStyle}>
-              <span style={iconBox(acBg("violet"))}><Sparkles size={17} color={ac("violet", isDark)} /></span><span style={{ fontSize: 13.5 }}>Skills</span><ChevronRight size={16} style={sub} />
-            </button>
-            <button type="button" onClick={() => onGoToIntegrations?.()} style={itemStyle}>
-              <span style={iconBox(acBg("amber"))}><Link2 size={17} color={ac("amber", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add connector</span><ChevronRight size={16} style={sub} />
-            </button>
-            <button type="button" onClick={() => composerAction("Design system")} style={itemStyle}>
-              <span style={iconBox(acBg("red"))}><Palette size={17} color={ac("red", isDark)} /></span><span style={{ fontSize: 13.5 }}>Design system</span><ChevronRight size={16} style={sub} />
-            </button>
-            <button type="button" onClick={() => composerAction("Plugins")} style={itemStyle}>
-              <span style={iconBox(acBg("cyan"))}><Puzzle size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add plugins</span><ChevronRight size={16} style={sub} />
-            </button>
-            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
-            <button type="button" onClick={() => { setWebSearch((v) => !v); setComposerOpen(false); setComposerNotice(!webSearch ? "Web search mode selected. Live search wiring will be connected in the web/integration layer." : "Web search mode turned off."); }} style={itemStyle}>
-              <span style={iconBox(acBg("cyan"))}><Globe size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Web search</span><span style={{ ...sub, color: webSearch ? ac("cyan", isDark) : theme.textFaint }}>{webSearch ? "✓" : ""}</span>
-            </button>
-          </div>
-        )}
-        <input ref={fileInputRef} type="file" multiple accept=".pdf,.csv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,image/*" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
-      </div>
-    );
-  }
-
-  function Composer({ compact = false }) {
-    return (
-      <div style={{ width: "100%", maxWidth: compact ? 920 : 720, margin: compact ? "0 auto" : "36px auto 0" }}>
-        {attachments.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8, justifyContent: compact ? "flex-start" : "center" }}>
-            {attachments.map((file, i) => {
-              const image = file.type.startsWith("image/");
-              return <div key={`${file.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 9px", borderRadius: 10, background: theme.surface, border: `1px solid ${theme.border}` }}>
-                {image ? <ImageIcon size={14} color={ac("violet", isDark)} /> : <FileText size={14} color={theme.textMuted} />}
-                <span style={{ maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: theme.text }}>{file.name}</span>
-                <button type="button" onClick={() => removeAttachment(i)} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>
-              </div>;
-            })}
-          </div>
-        )}
-        {composerNotice && <div style={{ marginBottom: 8, fontSize: 11.5, color: theme.textFaint, textAlign: compact ? "left" : "center" }}>{composerNotice}</div>}
-        <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 7, borderRadius: 18, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 8px 30px rgba(0,0,0,.16)" : "0 8px 30px rgba(15,15,35,.06)" }}>
-          {ComposerMenu()}
-          <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder="Ask VANT to do something…" disabled={loading} rows={1} style={{ ...inputStyle, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
-          <button type="submit" disabled={loading || !input.trim()} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
-        </form>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, padding: "0 4px", fontSize: 10.5, color: theme.textFaint }}>
-          <span>{webSearch ? "WEB SEARCH MODE" : attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} ready` : "VANT WORK MODE"}</span>
-          <span>Enter to send · Shift+Enter for new line</span>
-        </div>
-      </div>
-    );
-  }
 
   if (!started) {
     return (
@@ -433,7 +494,29 @@ When the user asks what is visible in an image, describe only what you can actua
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 9, maxWidth: 650 }}>
           {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>{s}</button>)}
         </div>
-        {Composer()}
+        <Composer
+            compact={false}
+            theme={theme}
+            isDark={isDark}
+            attachments={attachments}
+            composerNotice={composerNotice}
+            removeAttachment={removeAttachment}
+            handleSubmit={handleSubmit}
+            input={input}
+            setInput={setInput}
+            loading={loading}
+            webSearch={webSearch}
+            composerOpen={composerOpen}
+            setComposerOpen={setComposerOpen}
+            setComposerNotice={setComposerNotice}
+            composerRef={composerRef}
+            fileInputRef={fileInputRef}
+            takeScreenshot={takeScreenshot}
+            composerAction={composerAction}
+            onGoToIntegrations={onGoToIntegrations}
+            setWebSearch={setWebSearch}
+            addFiles={addFiles}
+          />
       </div>
     );
   }
@@ -452,7 +535,29 @@ When the user asks what is visible in an image, describe only what you can actua
         ))}
         {loading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div></div>}
       </div>
-      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}>{Composer({ compact: true })}</div>
+      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer
+          compact={true}
+          theme={theme}
+            isDark={isDark}
+            attachments={attachments}
+            composerNotice={composerNotice}
+            removeAttachment={removeAttachment}
+            handleSubmit={handleSubmit}
+            input={input}
+            setInput={setInput}
+            loading={loading}
+            webSearch={webSearch}
+            composerOpen={composerOpen}
+            setComposerOpen={setComposerOpen}
+            setComposerNotice={setComposerNotice}
+            composerRef={composerRef}
+            fileInputRef={fileInputRef}
+            takeScreenshot={takeScreenshot}
+            composerAction={composerAction}
+            onGoToIntegrations={onGoToIntegrations}
+            setWebSearch={setWebSearch}
+            addFiles={addFiles}
+        /></div>
     </div>
   );
 }
