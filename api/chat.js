@@ -1,3 +1,5 @@
+import { createClient } from "@supabase/supabase-js";
+
 const MODEL = "google/gemma-4-31b-it";
 const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
@@ -65,6 +67,51 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     return json(res, 405, {
       error: "method_not_allowed",
+    });
+  }
+
+  // ---------------------------------------------------------
+  // SUPABASE AUTH
+  // ---------------------------------------------------------
+
+  const authHeader = req.headers.authorization || "";
+  const accessToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : "";
+
+  const supabaseUrl =
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL;
+
+  const supabasePublishableKey =
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabasePublishableKey) {
+    return json(res, 500, {
+      error: "supabase_not_configured",
+    });
+  }
+
+  if (!accessToken) {
+    return json(res, 401, {
+      error: "authentication_required",
+    });
+  }
+
+  const supabase = createClient(supabaseUrl, supabasePublishableKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const { data: userData, error: userError } =
+    await supabase.auth.getUser(accessToken);
+
+  if (userError || !userData?.user) {
+    return json(res, 401, {
+      error: "invalid_session",
     });
   }
 
