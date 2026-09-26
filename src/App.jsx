@@ -373,7 +373,21 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
         )}
         {composerNotice && <div style={{ marginBottom: 8, fontSize: 11.5, color: theme.textFaint, textAlign: compact ? "left" : "center" }}>{composerNotice}</div>}
         <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 7, borderRadius: 18, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 8px 30px rgba(0,0,0,.16)" : "0 8px 30px rgba(15,15,35,.06)" }}>
-          <ComposerMenu />
+          <ComposerMenu
+            theme={theme}
+            isDark={isDark}
+            composerRef={composerRef}
+            composerOpen={composerOpen}
+            setComposerOpen={setComposerOpen}
+            setComposerNotice={setComposerNotice}
+            fileInputRef={fileInputRef}
+            addFiles={addFiles}
+            takeScreenshot={takeScreenshot}
+            composerAction={composerAction}
+            onGoToIntegrations={onGoToIntegrations}
+            webSearch={webSearch}
+            setWebSearch={setWebSearch}
+          />
           <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder="Ask VANT to do something…" disabled={loading} autoFocus rows={1} style={{ color: theme.text, fontSize: 14.5, outline: "none", textAlign: "left", direction: "ltr", lineHeight: 1.4, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
           <button type="submit" disabled={loading || !input.trim()} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
         </form>
