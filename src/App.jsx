@@ -57,6 +57,63 @@ const INTEGRATIONS = [
   { name: "Salesforce", icon: "S", color: "#00A1E0" }, { name: "HubSpot", icon: "H", color: "#FF7A59" },
 ];
 
+const CHAT_HISTORY_LIMIT = 50;
+const CHAT_GUEST_KEY = "vant_chat_history_guest";
+
+function newChatId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return `chat_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function chatStorageKey(userId) {
+  return userId ? `vant_chat_history_${userId}` : CHAT_GUEST_KEY;
+}
+
+function deriveChatTitle(messages) {
+  const firstUser = messages.find((m) => m?.role === "user");
+  const raw = typeof firstUser?.content === "string"
+    ? firstUser.content
+    : Array.isArray(firstUser?.content)
+      ? firstUser.content.filter((p) => p?.type === "text").map((p) => p.text || "").join(" ")
+      : "";
+  const cleaned = raw.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "New VANT chat";
+  return cleaned.length > 48 ? `${cleaned.slice(0, 48).trimEnd()}…` : cleaned;
+}
+
+function sanitizeMessagesForPersistence(messages) {
+  return messages.map((message) => {
+    if (typeof message?.content === "string") return { ...message };
+    if (!Array.isArray(message?.content)) return { role: message?.role || "assistant", content: "" };
+    const content = message.content.map((part) => {
+      if (part?.type === "text") return { type: "text", text: String(part.text || "") };
+      if (part?.type === "image_url") return { type: "text", text: "[Image attachment retained for this session; image data is not stored in chat history.]" };
+      return { type: "text", text: "[Unsupported attachment content omitted from saved history.]" };
+    });
+    return { role: message.role, content };
+  });
+}
+
+function normalizeConversation(row) {
+  const messages = Array.isArray(row?.messages) ? row.messages : [];
+  return {
+    id: row.id,
+    title: row.title || deriveChatTitle(messages),
+    pinned: Boolean(row.pinned),
+    projectId: row.project_id || null,
+    messages,
+    createdAt: row.created_at || new Date().toISOString(),
+    updatedAt: row.updated_at || row.created_at || new Date().toISOString(),
+  };
+}
+
+function sortConversations(items) {
+  return [...items].sort((a, b) => {
+    if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+    return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+  }).slice(0, CHAT_HISTORY_LIMIT);
+}
+
 async function askClaude(systemPrompt, messages, timeoutMs = 60000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -220,9 +277,22 @@ function ProjectsPage({ theme, isDark, projects, onProjectsChange, onOpenProject
 // ---------------------------------------------------------------------------
 // AI Chat
 // ---------------------------------------------------------------------------
-function ChatPage({ theme, isDark, onGoToIntegrations }) {
-  const [started, setStarted] = useState(false);
-  const [messages, setMessages] = useState([]);
+function ChatPage({
+  theme,
+  isDark,
+  onGoToIntegrations,
+  conversations,
+  activeConversationId,
+  onNewConversation,
+  onCreateConversation,
+  onSelectConversation,
+  onSaveConversation,
+  onTogglePinConversation,
+  onDeleteConversation,
+}) {
+  const activeConversation = conversations.find((item) => item.id === activeConversationId) || null;
+  const [started, setStarted] = useState(Boolean(activeConversation?.messages?.length));
+  const [messages, setMessages] = useState(activeConversation?.messages || []);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -230,12 +300,31 @@ function ChatPage({ theme, isDark, onGoToIntegrations }) {
   const [attachments, setAttachments] = useState([]);
   const [composerNotice, setComposerNotice] = useState("");
   const scrollRef = useRef(null);
+  const messagesRef = useRef(activeConversation?.messages || []);
+  const sessionConversationIdRef = useRef(activeConversationId);
   const fileInputRef = useRef(null);
   const composerRef = useRef(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    if (sessionConversationIdRef.current === activeConversationId) return;
+    sessionConversationIdRef.current = activeConversationId;
+    const nextMessages = activeConversation?.messages || [];
+    messagesRef.current = nextMessages;
+    setMessages(nextMessages);
+    setStarted(nextMessages.length > 0);
+    setInput("");
+    setAttachments([]);
+    setComposerNotice("");
+    setWebSearch(false);
+  }, [activeConversationId]);
 
   useEffect(() => {
     function close(e) {
@@ -392,6 +481,10 @@ function ChatPage({ theme, isDark, onGoToIntegrations }) {
       const userContent = await buildUserContent(cleanText);
       const next = [...messages, { role: "user", content: userContent }];
       setMessages(next);
+      messagesRef.current = next;
+      const chatId = activeConversationId || onCreateConversation({ messages: next });
+      sessionConversationIdRef.current = chatId;
+      onSaveConversation(chatId, next);
 
       const reply = await askClaude(
         `You are VANT, an AI work platform and command interface.
@@ -422,7 +515,10 @@ When the user asks what is visible in an image, describe only what you can actua
         next.map((m) => ({ role: m.role, content: m.content }))
       );
 
-      setMessages((m) => [...m, { role: "assistant", content: reply }]);
+      const completedMessages = [...next, { role: "assistant", content: reply }];
+      setMessages(completedMessages);
+      messagesRef.current = completedMessages;
+      onSaveConversation(chatId, completedMessages);
       setAttachments([]);
     } catch (err) {
       console.error("VANT Chat send error", err);
@@ -441,6 +537,38 @@ When the user asks what is visible in an image, describe only what you can actua
 
   const suggestions = ["Analyze this shipment problem", "Draft a follow-up email to a vendor", "Help me think through a decision", "Turn this into an action plan"];
   const inputStyle = { padding: "12px 18px", borderRadius: 999, background: theme.inputBg, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14.5, outline: "none" };
+
+  function HistoryPanel() {
+    const pinned = conversations.filter((item) => item.pinned);
+    const recent = conversations.filter((item) => !item.pinned);
+    const renderItem = (item) => (
+      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 6px", borderRadius: 9, background: item.id === activeConversationId ? theme.surfaceStrong : "transparent" }}>
+        <button type="button" onClick={() => onSelectConversation(item.id)} title={item.title} style={{ minWidth: 0, flex: 1, textAlign: "left", border: "none", background: "transparent", color: theme.text, cursor: "pointer", padding: 0, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</button>
+        <button type="button" onClick={() => onTogglePinConversation(item.id)} title={item.pinned ? "Unpin chat" : "Pin chat"} style={{ border: "none", background: "transparent", color: item.pinned ? ac("violet", isDark) : theme.textFaint, cursor: "pointer", padding: 2, fontSize: 12 }}>{item.pinned ? "★" : "☆"}</button>
+        <button type="button" onClick={() => onDeleteConversation(item.id)} title="Delete chat" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 2 }}><Trash2 size={13} /></button>
+      </div>
+    );
+    return (
+      <aside style={{ width: 270, flexShrink: 0, borderRight: `1px solid ${theme.border}`, background: theme.sidebarBg, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <div style={{ padding: "16px 14px 12px", borderBottom: `1px solid ${theme.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div>
+              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10.5, letterSpacing: 1.2, color: theme.textFaint }}>CHAT HISTORY</div>
+              <div style={{ marginTop: 3, fontSize: 15, fontWeight: 600 }}>Your chats</div>
+            </div>
+            <button type="button" onClick={onNewConversation} title="New chat" style={{ width: 34, height: 34, borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Plus size={16} /></button>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px 9px 14px" }}>
+          {pinned.length > 0 && <div style={{ margin: "4px 6px 6px", fontSize: 11, fontWeight: 600, color: theme.textFaint }}>Pinned</div>}
+          {pinned.map(renderItem)}
+          {recent.length > 0 && <div style={{ margin: "16px 6px 6px", fontSize: 11, fontWeight: 600, color: theme.textFaint }}>Recents</div>}
+          {recent.map(renderItem)}
+          {!conversations.length && <div style={{ padding: "28px 12px", color: theme.textFaint, fontSize: 12.5, lineHeight: 1.5 }}>Your completed conversations will appear here automatically.</div>}
+        </div>
+      </aside>
+    );
+  }
 
   function ComposerMenu() {
     const itemStyle = { width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "none", background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left", borderRadius: 10 };
@@ -520,7 +648,9 @@ When the user asks what is visible in an image, describe only what you can actua
 
   if (!started) {
     return (
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
+      <div style={{ height: "100%", display: "flex", minWidth: 0 }}>
+        <HistoryPanel />
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
         <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, marginBottom: 14 }}>VANT · WORK MODE</p>
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 34, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>What are we working on?</h1>
         <p style={{ color: theme.textMuted, fontSize: 15.5, margin: "0 0 26px", maxWidth: 560 }}>Give VANT a task, a question, a file, or a problem. It will help you understand it, analyze it, and move the work forward.</p>
@@ -528,12 +658,15 @@ When the user asks what is visible in an image, describe only what you can actua
           {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>{s}</button>)}
         </div>
         <Composer />
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100%", display: "flex", minWidth: 0 }}>
+      <HistoryPanel />
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 24px", borderBottom: `1px solid ${theme.border}` }}>
         <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · Work Session</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
@@ -547,6 +680,7 @@ When the user asks what is visible in an image, describe only what you can actua
         {loading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div></div>}
       </div>
       <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact /></div>
+      </div>
     </div>
   );
 }
@@ -1771,7 +1905,7 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
         <button onClick={onClearData} style={{ padding: "9px 16px", borderRadius: 999, background: acBg("red"), border: "none", color: ac("red", isDark), fontSize: 13.5, cursor: "pointer" }}>
           Reset my VANT data
         </button>
-        <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 8 }}>Resets this account's saved theme, tasks, and Cowork history.</p>
+        <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 8 }}>Resets this account's saved theme, chats, tasks, and Cowork history.</p>
       </div>
     </Overlay>
   );
@@ -1781,6 +1915,10 @@ export default function VantWorkingPrototype() {
   const [active, setActive] = useState("chat");
   const [projects, setProjects] = useState([]);
   const [projectChat, setProjectChat] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [activeConversationId, setActiveConversationId] = useState(null);
+  const [chatHistoryReady, setChatHistoryReady] = useState(false);
+  const [chatCloudAvailable, setChatCloudAvailable] = useState(false);
   const [themeName, setThemeName] = useState("dark");
   const [themeLoaded, setThemeLoaded] = useState(false);
   const [user, setUser] = useState(null);
@@ -1801,6 +1939,147 @@ export default function VantWorkingPrototype() {
     try { localStorage.setItem("vant_access_code", value); } catch { /* storage unavailable */ }
   }
 
+  function loadLocalChats(userId) {
+    try {
+      const raw = localStorage.getItem(chatStorageKey(userId));
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? sortConversations(parsed.map(normalizeConversation)) : [];
+    } catch (error) {
+      console.error("VANT: failed to load local chat history", error);
+      return [];
+    }
+  }
+
+  function writeLocalChats(userId, items) {
+    try {
+      localStorage.setItem(chatStorageKey(userId), JSON.stringify(sortConversations(items)));
+    } catch (error) {
+      console.error("VANT: failed to save local chat history", error);
+    }
+  }
+
+  async function loadChatHistory(authUser) {
+    setChatHistoryReady(false);
+    setActiveConversationId(null);
+    setChatCloudAvailable(false);
+
+    if (!authUser) {
+      setConversations(loadLocalChats(null));
+      setChatHistoryReady(true);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("chat_conversations")
+      .select("id, user_id, title, pinned, project_id, messages, created_at, updated_at")
+      .eq("user_id", authUser.id)
+      .order("pinned", { ascending: false })
+      .order("updated_at", { ascending: false })
+      .limit(CHAT_HISTORY_LIMIT);
+
+    if (!error) {
+      const cloudChats = sortConversations((data || []).map(normalizeConversation));
+      setConversations(cloudChats);
+      setChatCloudAvailable(true);
+      writeLocalChats(authUser.id, cloudChats);
+    } else {
+      console.error("VANT: cloud chat history unavailable; using local history", error);
+      setConversations(loadLocalChats(authUser.id));
+    }
+
+    setChatHistoryReady(true);
+  }
+
+  function newConversation() {
+    setActiveConversationId(null);
+    setActive("chat");
+  }
+
+  function createConversationDraft({ messages = [] } = {}) {
+    const id = newChatId();
+    const now = new Date().toISOString();
+    const conversation = {
+      id,
+      title: deriveChatTitle(messages),
+      pinned: false,
+      projectId: null,
+      messages: sanitizeMessagesForPersistence(messages),
+      createdAt: now,
+      updatedAt: now,
+    };
+    setConversations((current) => {
+      const next = sortConversations([conversation, ...current]);
+      if (user?.id) writeLocalChats(user.id, next); else writeLocalChats(null, next);
+      return next;
+    });
+    setActiveConversationId(id);
+    return id;
+  }
+
+  function saveConversation(id, messages) {
+    if (!id) return;
+    const now = new Date().toISOString();
+    setConversations((current) => {
+      const existing = current.find((item) => item.id === id);
+      const updated = {
+        ...(existing || { id, pinned: false, projectId: null, createdAt: now }),
+        title: existing?.title && existing.title !== "New VANT chat" ? existing.title : deriveChatTitle(messages),
+        messages: sanitizeMessagesForPersistence(messages),
+        updatedAt: now,
+      };
+      const next = sortConversations([updated, ...current.filter((item) => item.id !== id)]);
+      if (user?.id) writeLocalChats(user.id, next); else writeLocalChats(null, next);
+      return next;
+    });
+    if (chatCloudAvailable && user?.id) {
+      supabase.from("chat_conversations").upsert({
+        id,
+        user_id: user.id,
+        title: deriveChatTitle(messages),
+        pinned: conversations.find((item) => item.id === id)?.pinned || false,
+        project_id: conversations.find((item) => item.id === id)?.projectId || null,
+        messages: sanitizeMessagesForPersistence(messages),
+        updated_at: now,
+      }, { onConflict: "id" }).then(({ error }) => {
+        if (error) console.error("VANT: failed to save cloud conversation", error);
+      });
+    }
+  }
+
+  function togglePinConversation(id) {
+    setConversations((current) => {
+      const next = sortConversations(current.map((item) => item.id === id ? { ...item, pinned: !item.pinned, updatedAt: new Date().toISOString() } : item));
+      if (user?.id) writeLocalChats(user.id, next); else writeLocalChats(null, next);
+      const changed = next.find((item) => item.id === id);
+      if (chatCloudAvailable && user?.id && changed) {
+        supabase.from("chat_conversations").update({ pinned: changed.pinned, updated_at: changed.updatedAt }).eq("id", id).eq("user_id", user.id).then(({ error }) => {
+          if (error) console.error("VANT: failed to update pinned chat", error);
+        });
+      }
+      return next;
+    });
+  }
+
+  function deleteConversation(id) {
+    if (!window.confirm("Delete this chat? This cannot be undone.")) return;
+    setConversations((current) => {
+      const next = current.filter((item) => item.id !== id);
+      if (user?.id) writeLocalChats(user.id, next); else writeLocalChats(null, next);
+      return next;
+    });
+    if (activeConversationId === id) setActiveConversationId(null);
+    if (chatCloudAvailable && user?.id) {
+      supabase.from("chat_conversations").delete().eq("id", id).eq("user_id", user.id).then(({ error }) => {
+        if (error) console.error("VANT: failed to delete cloud conversation", error);
+      });
+    }
+  }
+
+  function selectConversation(id) {
+    setActiveConversationId(id);
+    setActive("chat");
+  }
+
   function profileFromUser(authUser) {
     return {
       id: authUser.id,
@@ -1815,11 +2094,13 @@ export default function VantWorkingPrototype() {
       setStateReady(false);
       setAppState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
       setThemeName("dark");
+      await loadChatHistory(null);
       return;
     }
 
     setUser(profileFromUser(authUser));
     setStateReady(false);
+    await loadChatHistory(authUser);
 
     const { data, error } = await supabase
       .from("app_state")
@@ -1971,6 +2252,13 @@ export default function VantWorkingPrototype() {
   async function handleClearData() {
     if (!user?.id) return;
     await persistAppState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
+    if (chatCloudAvailable) {
+      const { error } = await supabase.from("chat_conversations").delete().eq("user_id", user.id);
+      if (error) console.error("VANT: failed to clear cloud chat history", error);
+    }
+    writeLocalChats(user.id, []);
+    setConversations([]);
+    setActiveConversationId(null);
     setThemeName("dark");
     setSettingsOpen(false);
   }
@@ -1987,7 +2275,18 @@ export default function VantWorkingPrototype() {
 
   function renderPage() {
     const props = { theme, isDark };
-    if (active === "chat") return <ChatPage {...props} onGoToIntegrations={() => setActive("integrations")} />;
+    if (active === "chat") return <ChatPage
+      {...props}
+      onGoToIntegrations={() => setActive("integrations")}
+      conversations={conversations}
+      activeConversationId={activeConversationId}
+      onNewConversation={newConversation}
+      onCreateConversation={createConversationDraft}
+      onSelectConversation={selectConversation}
+      onSaveConversation={saveConversation}
+      onTogglePinConversation={togglePinConversation}
+      onDeleteConversation={deleteConversation}
+    />;
     if (active === "projects") return <ProjectsPage {...props} projects={projects} onProjectsChange={setProjects} onOpenProjectChat={openProjectChat} />;
     if (active === "tools") return <ToolsPage {...props} />;
     if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
