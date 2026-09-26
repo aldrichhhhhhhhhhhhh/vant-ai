@@ -118,11 +118,21 @@ async function askClaude(systemPrompt, messages, timeoutMs = 60000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let accessCode = "";
+  let accessToken = "";
   try { accessCode = localStorage.getItem("vant_access_code") || ""; } catch { /* no storage access */ }
+  try {
+    const { data } = await supabase.auth.getSession();
+    accessToken = data.session?.access_token || "";
+  } catch { /* auth session may be unavailable */ }
+  if (!accessToken) return "Your VANT session has expired. Please log in again.";
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-access-code": accessCode },
+      headers: {
+        "Content-Type": "application/json",
+        "x-access-code": accessCode,
+        "Authorization": `Bearer ${accessToken}`,
+      },
       body: JSON.stringify({ system: systemPrompt, messages }),
       signal: controller.signal,
     });
@@ -146,6 +156,7 @@ async function askClaude(systemPrompt, messages, timeoutMs = 60000) {
     return "Something went wrong reaching the server. Try again in a moment.";
   }
 }
+
 
 function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSettings }) {
   return (
@@ -1937,6 +1948,7 @@ export default function VantWorkingPrototype() {
   const [themeName, setThemeName] = useState("dark");
   const [themeLoaded, setThemeLoaded] = useState(false);
   const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [authMode, setAuthMode] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [connected, setConnected] = useState(() => new Set(INTEGRATIONS.map((i) => i.name)));
@@ -2313,8 +2325,38 @@ export default function VantWorkingPrototype() {
 
   const pageLabel = (NAV.find((n) => n.id === active) || {}).label || "";
 
-  if (!stateReady && user) {
-    // Keep the existing shell visible while account state is loading.
+  if (!authReady) {
+    return (
+      <div style={{ height: "100vh", minHeight: 640, display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        <style>{FONT_IMPORT}</style>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: 48, height: 48, margin: "0 auto 16px", borderRadius: 14, background: "rgba(124,58,237,0.22)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ color: "#c4b5fd", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: 19 }}>V</span>
+          </div>
+          <div className="v-pulse" style={{ color: theme.textMuted, fontSize: 13 }}>Checking your VANT session…</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div style={{ height: "100vh", minHeight: 640, display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif", position: "relative", overflow: "hidden" }}>
+        <style>{FONT_IMPORT}</style>
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 20%, rgba(124,58,237,0.14), transparent 38%)", pointerEvents: "none" }} />
+        <div style={{ width: "100%", maxWidth: 430, padding: 24, position: "relative", zIndex: 1 }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <div style={{ width: 52, height: 52, margin: "0 auto 14px", borderRadius: 16, background: "rgba(124,58,237,0.22)", display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${theme.border}` }}>
+              <span style={{ color: "#c4b5fd", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: 20 }}>V</span>
+            </div>
+            <div style={{ fontFamily: "JetBrains Mono, monospace", letterSpacing: 2, fontSize: 11, color: theme.textFaint }}>VANT</div>
+            <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 29, fontWeight: 500, margin: "8px 0 5px" }}>Your work starts here.</h1>
+            <p style={{ color: theme.textMuted, fontSize: 13.5, margin: 0 }}>Sign in to access your VANT workspace.</p>
+          </div>
+          <AuthModal mode={authMode || "login"} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => {}} onAuth={handleAuth} embedded />
+        </div>
+      </div>
+    );
   }
 
   return (
