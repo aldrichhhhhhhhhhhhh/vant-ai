@@ -42,3 +42,23 @@ NVIDIA currently lists this model as a Free Endpoint and describes it as a 30B A
 ## Production deployment
 
 Deploy the repository to Vercel and add `NVIDIA_API_KEY` as a Vercel environment variable. Never commit `.env.local` or an API key to GitHub.
+
+## Supabase Auth
+
+VANT now requires a signed-in Supabase user before the workspace or `/api/chat` endpoint can be used.
+
+Set these environment variables in the frontend/deployment environment:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+The serverless `/api/chat` function also requires:
+
+- `SUPABASE_URL`
+- `SUPABASE_PUBLISHABLE_KEY`
+- `APP_ACCESS_CODE`
+- `NVIDIA_API_KEY`
+
+Do not put service-role keys or other secrets in `VITE_*` variables. The publishable key is safe for the browser; the NVIDIA key and access code must remain server-side.
+
+Database RLS for `public.app_state` and `public.chat_conversations` is configured to allow only the `authenticated` role and only rows owned by `auth.uid()`.
