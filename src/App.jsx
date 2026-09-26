@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Papa from "papaparse";
 import { supabase } from "./supabase";
-import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2 } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2, FolderKanban } from "lucide-react";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -41,6 +41,7 @@ const acBg = (key) => ACCENTS[key].bg;
 
 const NAV = [
   { id: "chat", label: "AI Chat", icon: MessageSquare, accentKey: "violet" },
+  { id: "projects", label: "Projects", icon: FolderKanban, accentKey: "violet" },
   { id: "tools", label: "Tools", icon: Wrench, accentKey: "red" },
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, accentKey: "cyan" },
   { id: "cowork", label: "Cowork", icon: Briefcase, accentKey: "green" },
@@ -124,209 +125,101 @@ function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSetting
 }
 
 // ---------------------------------------------------------------------------
-// AI Chat
+// Projects
 // ---------------------------------------------------------------------------
-function ComposerMenu({
-  theme,
-  isDark,
-  composerOpen,
-  setComposerOpen,
-  setComposerNotice,
-  composerRef,
-  fileInputRef,
-  takeScreenshot,
-  composerAction,
-  onGoToIntegrations,
-  webSearch,
-  setWebSearch,
-  addFiles,
-}) {
-    const itemStyle = { width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "none", background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left", borderRadius: 10 };
-    const iconBox = (color) => ({ width: 28, height: 28, borderRadius: 8, background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 });
-    const sub = { marginLeft: "auto", color: theme.textFaint };
-    return (
-      <div ref={composerRef} style={{ position: "relative" }}>
-        <button type="button" onClick={() => { setComposerOpen((v) => !v); setComposerNotice(""); }} title="Add to VANT" style={{ width: 42, height: 42, borderRadius: 12, border: `1px solid ${composerOpen ? theme.borderStrong : theme.border}`, background: composerOpen ? theme.surfaceStrong : theme.surface, color: theme.textMuted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-          <Plus size={19} />
-        </button>
-        {composerOpen && (
-          <div className="v-fade" style={{ position: "absolute", bottom: 50, left: 0, width: 286, padding: 8, borderRadius: 16, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 18px 50px rgba(0,0,0,.45)" : "0 18px 50px rgba(15,15,35,.16)", zIndex: 30 }}>
-            <button type="button" onClick={() => fileInputRef.current?.click()} style={itemStyle}>
-              <span style={iconBox(acBg("violet"))}><Paperclip size={17} color={ac("violet", isDark)} /></span>
-              <span><strong style={{ display: "block", fontSize: 13.5, fontWeight: 500 }}>Add files or photos</strong><span style={{ display: "block", fontSize: 11.5, color: theme.textFaint }}>PDF, Excel, CSV, Word, images</span></span>
-              <span style={sub}>Ctrl+U</span>
-            </button>
-            <button type="button" onClick={takeScreenshot} style={itemStyle}>
-              <span style={iconBox(acBg("cyan"))}><Camera size={17} color={ac("cyan", isDark)} /></span>
-              <span style={{ fontSize: 13.5 }}>Take a screenshot</span>
-            </button>
-            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
-            <button type="button" onClick={() => composerAction("Projects")} style={itemStyle}>
-              <span style={iconBox(acBg("green"))}><FolderPlus size={17} color={ac("green", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add to project</span><ChevronRight size={16} style={sub} />
-            </button>
-            <button type="button" onClick={() => composerAction("Skills")} style={itemStyle}>
-              <span style={iconBox(acBg("violet"))}><Sparkles size={17} color={ac("violet", isDark)} /></span><span style={{ fontSize: 13.5 }}>Skills</span><ChevronRight size={16} style={sub} />
-            </button>
-            <button type="button" onClick={() => onGoToIntegrations?.()} style={itemStyle}>
-              <span style={iconBox(acBg("amber"))}><Link2 size={17} color={ac("amber", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add connector</span><ChevronRight size={16} style={sub} />
-            </button>
-            <button type="button" onClick={() => composerAction("Design system")} style={itemStyle}>
-              <span style={iconBox(acBg("red"))}><Palette size={17} color={ac("red", isDark)} /></span><span style={{ fontSize: 13.5 }}>Design system</span><ChevronRight size={16} style={sub} />
-            </button>
-            <button type="button" onClick={() => composerAction("Plugins")} style={itemStyle}>
-              <span style={iconBox(acBg("cyan"))}><Puzzle size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add plugins</span><ChevronRight size={16} style={sub} />
-            </button>
-            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
-            <button type="button" onClick={() => { setWebSearch((v) => !v); setComposerOpen(false); setComposerNotice(!webSearch ? "Web search mode selected. Live search wiring will be connected in the web/integration layer." : "Web search mode turned off."); }} style={itemStyle}>
-              <span style={iconBox(acBg("cyan"))}><Globe size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Web search</span><span style={{ ...sub, color: webSearch ? ac("cyan", isDark) : theme.textFaint }}>{webSearch ? "✓" : ""}</span>
-            </button>
-          </div>
-        )}
-        <input ref={fileInputRef} type="file" multiple accept=".pdf,.csv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,image/*,video/*" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
-      </div>
-    );
+function ProjectsPage({ theme, isDark, projects, onProjectsChange, onOpenProjectChat }) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  function createProject(e) {
+    e?.preventDefault();
+    const cleanName = name.trim();
+    if (!cleanName) return;
+    const project = {
+      id: `project_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name: cleanName,
+      description: description.trim(),
+      chats: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    onProjectsChange([project, ...projects]);
+    setName("");
+    setDescription("");
+    setCreating(false);
   }
 
-
-
-function AttachmentPreview({ file, theme, isDark, compact = false, removable = false, onRemove }) {
-  const [url, setUrl] = useState("");
-  const isImage = file?.type?.startsWith("image/");
-  const isVideo = file?.type?.startsWith("video/");
-  const isPdf = file?.type === "application/pdf" || /\.pdf$/i.test(file?.name || "");
-  const isSheet = /\.(csv|xlsx?|xls)$/i.test(file?.name || "");
-
-  useEffect(() => {
-    if (!file || (!isImage && !isVideo)) return undefined;
-    const objectUrl = URL.createObjectURL(file);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [file, isImage, isVideo]);
-
-  const icon = isImage ? <ImageIcon size={15} color={ac("violet", isDark)} />
-    : isVideo ? <span style={{ fontSize: 13, color: ac("cyan", isDark) }}>▶</span>
-    : isSheet ? <FileSpreadsheet size={15} color={ac("green", isDark)} />
-    : <FileText size={15} color={isPdf ? ac("red", isDark) : theme.textMuted} />;
-
-  const sizeLabel = file?.size ? `${Math.max(1, Math.round(file.size / 1024))} KB` : "";
-
-  if (isImage && url) {
-    return (
-      <div style={{ position: "relative", width: compact ? 260 : 300, maxWidth: "100%", borderRadius: 14, overflow: "hidden", border: `1px solid ${theme.border}`, background: theme.surface }}>
-        <img src={url} alt={file.name} style={{ display: "block", width: "100%", maxHeight: compact ? 220 : 300, objectFit: "contain", background: theme.surfaceCard }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 10px", background: theme.surfaceCard }}>
-          <ImageIcon size={14} color={ac("violet", isDark)} />
-          <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11.5, color: theme.text }}>{file.name}</span>
-          {removable && <button type="button" onClick={onRemove} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>}
-        </div>
-      </div>
-    );
+  function deleteProject(id) {
+    if (!window.confirm("Delete this project and its project chats?")) return;
+    onProjectsChange(projects.filter((project) => project.id !== id));
   }
 
-  if (isVideo && url) {
-    return (
-      <div style={{ position: "relative", width: compact ? 320 : 360, maxWidth: "100%", borderRadius: 14, overflow: "hidden", border: `1px solid ${theme.border}`, background: theme.surface }}>
-        <video src={url} controls preload="metadata" style={{ display: "block", width: "100%", maxHeight: compact ? 240 : 320, background: "#000" }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 10px", background: theme.surfaceCard }}>
-          <span style={{ fontSize: 13, color: ac("cyan", isDark) }}>▶</span>
-          <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11.5, color: theme.text }}>{file.name}</span>
-          {removable && <button type="button" onClick={onRemove} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>}
-        </div>
-      </div>
-    );
-  }
+  const card = {
+    background: theme.surfaceCard,
+    border: `1px solid ${theme.border}`,
+    borderRadius: 16,
+    padding: 18,
+  };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, maxWidth: compact ? 360 : 420, padding: "9px 11px", borderRadius: 12, background: theme.surface, border: `1px solid ${theme.border}` }}>
-      <div style={{ width: 32, height: 32, borderRadius: 9, background: theme.surfaceStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12.5, color: theme.text }}>{file.name}</div>
-        <div style={{ fontSize: 10.5, color: theme.textFaint }}>{sizeLabel}{isPdf ? " · PDF" : isSheet ? " · Spreadsheet" : file?.type ? ` · ${file.type.split("/").pop()?.toUpperCase()}` : ""}</div>
+    <div style={{ height: "100%", overflowY: "auto", padding: "28px 34px 40px" }}>
+      <div style={{ maxWidth: 980, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, marginBottom: 28 }}>
+          <div>
+            <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1.4, color: ac("violet", isDark), marginBottom: 8 }}>VANT · PROJECTS</div>
+            <h1 style={{ margin: 0, fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500 }}>Your workspaces</h1>
+            <p style={{ margin: "8px 0 0", color: theme.textMuted, fontSize: 14.5 }}>Keep related chats together so each piece of work has its own context.</p>
+          </div>
+          <button type="button" onClick={() => setCreating(true)} style={{ display: "flex", alignItems: "center", gap: 8, border: "none", borderRadius: 11, padding: "10px 14px", background: acBg("violet"), color: ac("violet", isDark), cursor: "pointer", fontWeight: 600 }}>
+            <FolderKanban size={16} /> New Project
+          </button>
+        </div>
+
+        {creating && (
+          <form onSubmit={createProject} style={{ ...card, marginBottom: 20 }}>
+            <div style={{ fontWeight: 600, marginBottom: 12 }}>Create a project</div>
+            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name" style={{ width: "100%", boxSizing: "border-box", padding: "11px 12px", borderRadius: 10, border: `1px solid ${theme.borderStrong}`, background: theme.inputBg, color: theme.text, outline: "none", marginBottom: 10 }} />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" rows={3} style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: "11px 12px", borderRadius: 10, border: `1px solid ${theme.borderStrong}`, background: theme.inputBg, color: theme.text, outline: "none" }} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+              <button type="button" onClick={() => { setCreating(false); setName(""); setDescription(""); }} style={{ padding: "9px 13px", borderRadius: 9, border: `1px solid ${theme.border}`, background: "transparent", color: theme.textMuted, cursor: "pointer" }}>Cancel</button>
+              <button type="submit" disabled={!name.trim()} style={{ padding: "9px 13px", borderRadius: 9, border: "none", background: acBg("violet"), color: ac("violet", isDark), cursor: name.trim() ? "pointer" : "not-allowed", opacity: name.trim() ? 1 : 0.5 }}>Create</button>
+            </div>
+          </form>
+        )}
+
+        {!projects.length ? (
+          <div style={{ ...card, textAlign: "center", padding: "58px 24px" }}>
+            <FolderKanban size={30} color={theme.textFaint} />
+            <h3 style={{ margin: "14px 0 6px", fontWeight: 600 }}>No projects yet</h3>
+            <p style={{ margin: 0, color: theme.textMuted, fontSize: 14 }}>Create your first project to organize related VANT work.</p>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 14 }}>
+            {projects.map((project) => (
+              <div key={project.id} style={{ ...card, cursor: "pointer", transition: "border-color .15s ease" }} onClick={() => onOpenProjectChat(project.id)}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 11, background: acBg("violet"), display: "flex", alignItems: "center", justifyContent: "center" }}><FolderKanban size={19} color={ac("violet", isDark)} /></div>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); deleteProject(project.id); }} title="Delete project" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer" }}><Trash2 size={16} /></button>
+                </div>
+                <div style={{ fontWeight: 600, marginTop: 16 }}>{project.name}</div>
+                <div style={{ color: theme.textMuted, fontSize: 13, lineHeight: 1.5, marginTop: 6, minHeight: 39 }}>{project.description || "No description"}</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, color: theme.textFaint, fontSize: 12 }}>
+                  <span>{project.chats?.length || 0} chat{(project.chats?.length || 0) === 1 ? "" : "s"}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, color: ac("violet", isDark) }}>Open <ChevronRight size={14} /></span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      {removable && <button type="button" onClick={onRemove} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>}
     </div>
   );
 }
 
-function Composer({
-  compact = false,
-  theme,
-  isDark,
-  attachments,
-  composerNotice,
-  removeAttachment,
-  handleSubmit,
-  input,
-  setInput,
-  loading,
-  webSearch,
-  composerOpen,
-  setComposerOpen,
-  setComposerNotice,
-  composerRef,
-  fileInputRef,
-  takeScreenshot,
-  composerAction,
-  onGoToIntegrations,
-  setWebSearch,
-  addFiles,
-}) {
-    const inputStyle = {
-      padding: "12px 18px",
-      borderRadius: 999,
-      background: theme.inputBg,
-      border: `1px solid ${theme.border}`,
-      color: theme.text,
-      fontSize: 14.5,
-      outline: "none",
-    };
-
-    return (
-      <div style={{ width: "100%", maxWidth: compact ? 920 : 720, margin: compact ? "0 auto" : "36px auto 0" }}>
-        {attachments.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8, justifyContent: compact ? "flex-start" : "center" }}>
-            {attachments.map((file, i) => (
-              <AttachmentPreview
-                key={`${file.name}-${file.size}-${i}`}
-                file={file}
-                theme={theme}
-                isDark={isDark}
-                compact={compact}
-                removable
-                onRemove={() => removeAttachment(i)}
-              />
-            ))}
-          </div>
-        )}
-        {composerNotice && <div style={{ marginBottom: 8, fontSize: 11.5, color: theme.textFaint, textAlign: compact ? "left" : "center" }}>{composerNotice}</div>}
-        <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 7, borderRadius: 18, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 8px 30px rgba(0,0,0,.16)" : "0 8px 30px rgba(15,15,35,.06)" }}>
-          <ComposerMenu
-            theme={theme}
-            isDark={isDark}
-            composerOpen={composerOpen}
-            setComposerOpen={setComposerOpen}
-            setComposerNotice={setComposerNotice}
-            composerRef={composerRef}
-            fileInputRef={fileInputRef}
-            takeScreenshot={takeScreenshot}
-            composerAction={composerAction}
-            onGoToIntegrations={onGoToIntegrations}
-            webSearch={webSearch}
-            setWebSearch={setWebSearch}
-            addFiles={addFiles}
-          />
-          <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder="Ask VANT to do something…" disabled={loading} rows={1} style={{ ...inputStyle, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
-          <button type="submit" disabled={loading || (!input.trim() && attachments.length === 0)} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || (!input.trim() && attachments.length === 0) ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
-        </form>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, padding: "0 4px", fontSize: 10.5, color: theme.textFaint }}>
-          <span>{webSearch ? "WEB SEARCH MODE" : attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} ready` : "VANT WORK MODE"}</span>
-          <span>Enter to send · Shift+Enter for new line</span>
-        </div>
-      </div>
-    );
-  }
-
-
+// ---------------------------------------------------------------------------
+// AI Chat
+// ---------------------------------------------------------------------------
 function ChatPage({ theme, isDark, onGoToIntegrations }) {
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -428,11 +321,11 @@ function ChatPage({ theme, isDark, onGoToIntegrations }) {
     return { dataUrl, width, height };
   }
 
-  async function buildUserContent(text, sourceAttachments = attachments) {
-    const parts = text.trim() ? [{ type: "text", text: text.trim() }] : [];
+  async function buildUserContent(text) {
+    const parts = [{ type: "text", text: text.trim() }];
     let textBudget = 14000;
 
-    for (const file of sourceAttachments) {
+    for (const file of attachments) {
       const meta = `${file.name} (${Math.round(file.size / 1024)} KB)`;
       const isImage = file.type.startsWith("image/");
       const isText = file.type.startsWith("text/") || /\.(csv|txt|md|json)$/i.test(file.name);
@@ -488,20 +381,16 @@ function ChatPage({ theme, isDark, onGoToIntegrations }) {
 
   async function send(text) {
     const cleanText = text.trim();
-    if ((!cleanText && attachments.length === 0) || loading) return;
-
-    const messageAttachments = [...attachments];
+    if (!cleanText || loading) return;
 
     setStarted(true);
     setInput("");
-    setAttachments([]);
-    setComposerNotice("");
-    setComposerOpen(false);
     setLoading(true);
+    setComposerNotice("");
 
     try {
-      const userContent = await buildUserContent(cleanText, messageAttachments);
-      const next = [...messages, { role: "user", content: userContent, attachments: messageAttachments }];
+      const userContent = await buildUserContent(cleanText);
+      const next = [...messages, { role: "user", content: userContent }];
       setMessages(next);
 
       const reply = await askClaude(
@@ -534,6 +423,7 @@ When the user asks what is visible in an image, describe only what you can actua
       );
 
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
+      setAttachments([]);
     } catch (err) {
       console.error("VANT Chat send error", err);
       setMessages((m) => [...m, { role: "assistant", content: "I couldn't prepare that request. Please try again." }]);
@@ -545,11 +435,88 @@ When the user asks what is visible in an image, describe only what you can actua
   function handleSubmit(e) {
     e.preventDefault();
     const text = input.trim();
-    if ((!text && attachments.length === 0) || loading) return;
+    if (!text || loading) return;
     send(text);
   }
 
   const suggestions = ["Analyze this shipment problem", "Draft a follow-up email to a vendor", "Help me think through a decision", "Turn this into an action plan"];
+  const inputStyle = { padding: "12px 18px", borderRadius: 999, background: theme.inputBg, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14.5, outline: "none" };
+
+  function ComposerMenu() {
+    const itemStyle = { width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "none", background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left", borderRadius: 10 };
+    const iconBox = (color) => ({ width: 28, height: 28, borderRadius: 8, background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 });
+    const sub = { marginLeft: "auto", color: theme.textFaint };
+    return (
+      <div ref={composerRef} style={{ position: "relative" }}>
+        <button type="button" onClick={() => { setComposerOpen((v) => !v); setComposerNotice(""); }} title="Add to VANT" style={{ width: 42, height: 42, borderRadius: 12, border: `1px solid ${composerOpen ? theme.borderStrong : theme.border}`, background: composerOpen ? theme.surfaceStrong : theme.surface, color: theme.textMuted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <Plus size={19} />
+        </button>
+        {composerOpen && (
+          <div className="v-fade" style={{ position: "absolute", bottom: 50, left: 0, width: 286, padding: 8, borderRadius: 16, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 18px 50px rgba(0,0,0,.45)" : "0 18px 50px rgba(15,15,35,.16)", zIndex: 30 }}>
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={itemStyle}>
+              <span style={iconBox(acBg("violet"))}><Paperclip size={17} color={ac("violet", isDark)} /></span>
+              <span><strong style={{ display: "block", fontSize: 13.5, fontWeight: 500 }}>Add files or photos</strong><span style={{ display: "block", fontSize: 11.5, color: theme.textFaint }}>PDF, Excel, CSV, Word, images</span></span>
+              <span style={sub}>Ctrl+U</span>
+            </button>
+            <button type="button" onClick={takeScreenshot} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Camera size={17} color={ac("cyan", isDark)} /></span>
+              <span style={{ fontSize: 13.5 }}>Take a screenshot</span>
+            </button>
+            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
+            <button type="button" onClick={() => composerAction("Projects")} style={itemStyle}>
+              <span style={iconBox(acBg("green"))}><FolderPlus size={17} color={ac("green", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add to project</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Skills")} style={itemStyle}>
+              <span style={iconBox(acBg("violet"))}><Sparkles size={17} color={ac("violet", isDark)} /></span><span style={{ fontSize: 13.5 }}>Skills</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => onGoToIntegrations?.()} style={itemStyle}>
+              <span style={iconBox(acBg("amber"))}><Link2 size={17} color={ac("amber", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add connector</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Design system")} style={itemStyle}>
+              <span style={iconBox(acBg("red"))}><Palette size={17} color={ac("red", isDark)} /></span><span style={{ fontSize: 13.5 }}>Design system</span><ChevronRight size={16} style={sub} />
+            </button>
+            <button type="button" onClick={() => composerAction("Plugins")} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Puzzle size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add plugins</span><ChevronRight size={16} style={sub} />
+            </button>
+            <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
+            <button type="button" onClick={() => { setWebSearch((v) => !v); setComposerOpen(false); setComposerNotice(!webSearch ? "Web search mode selected. Live search wiring will be connected in the web/integration layer." : "Web search mode turned off."); }} style={itemStyle}>
+              <span style={iconBox(acBg("cyan"))}><Globe size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Web search</span><span style={{ ...sub, color: webSearch ? ac("cyan", isDark) : theme.textFaint }}>{webSearch ? "✓" : ""}</span>
+            </button>
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" multiple accept=".pdf,.csv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,image/*" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+      </div>
+    );
+  }
+
+  function Composer({ compact = false }) {
+    return (
+      <div style={{ width: "100%", maxWidth: compact ? 920 : 720, margin: compact ? "0 auto" : "36px auto 0" }}>
+        {attachments.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8, justifyContent: compact ? "flex-start" : "center" }}>
+            {attachments.map((file, i) => {
+              const image = file.type.startsWith("image/");
+              return <div key={`${file.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 9px", borderRadius: 10, background: theme.surface, border: `1px solid ${theme.border}` }}>
+                {image ? <ImageIcon size={14} color={ac("violet", isDark)} /> : <FileText size={14} color={theme.textMuted} />}
+                <span style={{ maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: theme.text }}>{file.name}</span>
+                <button type="button" onClick={() => removeAttachment(i)} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>
+              </div>;
+            })}
+          </div>
+        )}
+        {composerNotice && <div style={{ marginBottom: 8, fontSize: 11.5, color: theme.textFaint, textAlign: compact ? "left" : "center" }}>{composerNotice}</div>}
+        <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 7, borderRadius: 18, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 8px 30px rgba(0,0,0,.16)" : "0 8px 30px rgba(15,15,35,.06)" }}>
+          <ComposerMenu />
+          <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder="Ask VANT to do something…" disabled={loading} rows={1} style={{ ...inputStyle, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
+          <button type="submit" disabled={loading || !input.trim()} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
+        </form>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, padding: "0 4px", fontSize: 10.5, color: theme.textFaint }}>
+          <span>{webSearch ? "WEB SEARCH MODE" : attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} ready` : "VANT WORK MODE"}</span>
+          <span>Enter to send · Shift+Enter for new line</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!started) {
     return (
@@ -560,29 +527,7 @@ When the user asks what is visible in an image, describe only what you can actua
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 9, maxWidth: 650 }}>
           {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>{s}</button>)}
         </div>
-        <Composer
-            compact={false}
-            theme={theme}
-            isDark={isDark}
-            attachments={attachments}
-            composerNotice={composerNotice}
-            removeAttachment={removeAttachment}
-            handleSubmit={handleSubmit}
-            input={input}
-            setInput={setInput}
-            loading={loading}
-            webSearch={webSearch}
-            composerOpen={composerOpen}
-            setComposerOpen={setComposerOpen}
-            setComposerNotice={setComposerNotice}
-            composerRef={composerRef}
-            fileInputRef={fileInputRef}
-            takeScreenshot={takeScreenshot}
-            composerAction={composerAction}
-            onGoToIntegrations={onGoToIntegrations}
-            setWebSearch={setWebSearch}
-            addFiles={addFiles}
-          />
+        <Composer />
       </div>
     );
   }
@@ -593,52 +538,15 @@ When the user asks what is visible in an image, describe only what you can actua
         <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · Work Session</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
       </div>
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: 24, display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
         {messages.map((m, i) => (
           <div key={i} className="v-fade" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b"), overflowWrap: "anywhere" }}>
-              {m.role === "user" && m.attachments?.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: displayText(m.content) ? 10 : 0 }}>
-                  {m.attachments.map((file, attachmentIndex) => (
-                    <AttachmentPreview
-                      key={`${file.name}-${file.size}-${attachmentIndex}`}
-                      file={file}
-                      theme={theme}
-                      isDark={isDark}
-                      compact
-                    />
-                  ))}
-                </div>
-              )}
-              {displayText(m.content) && <div style={{ whiteSpace: "pre-wrap" }}>{displayText(m.content)}</div>}
-            </div>
+            <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, whiteSpace: "pre-wrap", background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}>{displayText(m.content)}</div>
           </div>
         ))}
         {loading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div></div>}
       </div>
-      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer
-          compact={true}
-          theme={theme}
-            isDark={isDark}
-            attachments={attachments}
-            composerNotice={composerNotice}
-            removeAttachment={removeAttachment}
-            handleSubmit={handleSubmit}
-            input={input}
-            setInput={setInput}
-            loading={loading}
-            webSearch={webSearch}
-            composerOpen={composerOpen}
-            setComposerOpen={setComposerOpen}
-            setComposerNotice={setComposerNotice}
-            composerRef={composerRef}
-            fileInputRef={fileInputRef}
-            takeScreenshot={takeScreenshot}
-            composerAction={composerAction}
-            onGoToIntegrations={onGoToIntegrations}
-            setWebSearch={setWebSearch}
-            addFiles={addFiles}
-        /></div>
+      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact /></div>
     </div>
   );
 }
@@ -1871,6 +1779,8 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
 
 export default function VantWorkingPrototype() {
   const [active, setActive] = useState("chat");
+  const [projects, setProjects] = useState([]);
+  const [projectChat, setProjectChat] = useState(null);
   const [themeName, setThemeName] = useState("dark");
   const [themeLoaded, setThemeLoaded] = useState(false);
   const [user, setUser] = useState(null);
@@ -1990,6 +1900,28 @@ export default function VantWorkingPrototype() {
     if (!themeLoaded) setThemeLoaded(true);
   }, [themeLoaded]);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("vant_projects");
+      if (raw) setProjects(JSON.parse(raw));
+    } catch (error) {
+      console.error("VANT: failed to load projects", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("vant_projects", JSON.stringify(projects));
+    } catch (error) {
+      console.error("VANT: failed to save projects", error);
+    }
+  }, [projects]);
+
+  function openProjectChat(projectId) {
+    setProjectChat(projectId);
+    setActive("projects");
+  }
+
   async function persistAppState(patch) {
     if (!user?.id || !stateReady) return;
     const next = { ...appStateRef.current, ...patch };
@@ -2056,6 +1988,7 @@ export default function VantWorkingPrototype() {
   function renderPage() {
     const props = { theme, isDark };
     if (active === "chat") return <ChatPage {...props} onGoToIntegrations={() => setActive("integrations")} />;
+    if (active === "projects") return <ProjectsPage {...props} projects={projects} onProjectsChange={setProjects} onOpenProjectChat={openProjectChat} />;
     if (active === "tools") return <ToolsPage {...props} />;
     if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
     if (active === "cowork") return <CoworkPage {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
