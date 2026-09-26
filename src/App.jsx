@@ -2170,17 +2170,38 @@ export default function VantWorkingPrototype() {
     let activeSubscription = true;
 
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (activeSubscription) await loadUserState(data.session?.user || null);
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (activeSubscription) await loadUserState(data.session?.user || null);
+      } catch (error) {
+        console.error("VANT: failed to initialize auth session", error);
+      } finally {
+        if (activeSubscription) setAuthReady(true);
+      }
     })();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!activeSubscription) return;
+      if (!activeSubscription || event === "INITIAL_SESSION") return;
+
       if (event === "SIGNED_OUT") {
-        loadUserState(null);
+        loadUserState(null).finally(() => {
+          if (activeSubscription) setAuthReady(true);
+        });
         return;
       }
-      if (session?.user) setTimeout(() => loadUserState(session.user), 0);
+
+      if (session?.user) {
+        setTimeout(async () => {
+          if (!activeSubscription) return;
+          try {
+            await loadUserState(session.user);
+          } finally {
+            if (activeSubscription) setAuthReady(true);
+          }
+        }, 0);
+      } else {
+        setAuthReady(true);
+      }
     });
 
     return () => {
