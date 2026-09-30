@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Papa from "papaparse";
 import { supabase } from "./supabase";
-import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2, FolderKanban, Square, Copy } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2, FolderKanban } from "lucide-react";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -154,65 +154,6 @@ async function askClaude(systemPrompt, messages, timeoutMs = 60000) {
     clearTimeout(timer);
     if (err && err.name === "AbortError") return "No response after 60 seconds — check your deployment's function logs.";
     return "Something went wrong reaching the server. Try again in a moment.";
-  }
-}
-
-
-async function streamVant(systemPrompt, messages, { signal, onToken }) {
-  let accessCode = "";
-  let accessToken = "";
-  try { accessCode = localStorage.getItem("vant_access_code") || ""; } catch { /* no storage access */ }
-  try {
-    const { data } = await supabase.auth.getSession();
-    accessToken = data.session?.access_token || "";
-  } catch { /* auth session may be unavailable */ }
-  if (!accessToken) throw new Error("authentication_required");
-
-  const response = await fetch("/api/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-access-code": accessCode,
-      "Authorization": `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ system: systemPrompt, messages, stream: true }),
-    signal,
-  });
-
-  if (!response.ok) {
-    let data = {};
-    try { data = await response.json(); } catch { /* non-json error */ }
-    const detail = data?.detail || data?.error || `HTTP ${response.status}`;
-    if (data?.error === "access_not_configured") throw new Error("This deployment hasn't set an access code yet — set APP_ACCESS_CODE in your environment variables.");
-    if (data?.error === "invalid_access_code") throw new Error("Wrong or missing access code. Enter the correct one in Settings.");
-    if (data?.error === "authentication_required" || data?.error === "invalid_session") throw new Error("Your VANT session has expired. Please log in again.");
-    throw new Error(detail);
-  }
-  if (!response.body) throw new Error("Streaming is not supported by this browser or deployment.");
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let done = false;
-  while (!done) {
-    const result = await reader.read();
-    done = result.done;
-    buffer += decoder.decode(result.value || new Uint8Array(), { stream: !done });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() || "";
-    for (const event of events) {
-      for (const line of event.split("\n")) {
-        if (!line.startsWith("data:")) continue;
-        const raw = line.slice(5).trim();
-        if (!raw) continue;
-        if (raw === "[DONE]") return;
-        let payload;
-        try { payload = JSON.parse(raw); } catch { continue; }
-        if (payload?.error) throw new Error(payload.error);
-        const token = payload?.choices?.[0]?.delta?.content || payload?.choices?.[0]?.message?.content || "";
-        if (token) onToken(token);
-      }
-    }
   }
 }
 
@@ -426,12 +367,19 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
     );
   }
 
-  function Composer({ theme, isDark, compact = false, attachments, composerNotice, input, setInput, loading, handleSubmit, stopGeneration, composerRef, composerOpen, setComposerOpen, setComposerNotice, fileInputRef, addFiles, takeScreenshot, composerAction, onGoToIntegrations, webSearch, setWebSearch, removeAttachment }) {
+  function Composer({ theme, isDark, compact = false, attachments, composerNotice, input, setInput, loading, handleSubmit, composerRef, composerOpen, setComposerOpen, setComposerNotice, fileInputRef, addFiles, takeScreenshot, composerAction, onGoToIntegrations, webSearch, setWebSearch, removeAttachment }) {
     return (
-      <div style={{ width: "100%", maxWidth: compact ? 920 : 720, margin: compact ? "0 auto" : "36px auto 0" }}>
+      <div style={{ width: "100%", maxWidth: compact ? 920 : 760, margin: compact ? "0 auto" : "0 auto", boxSizing: "border-box" }}>
         {attachments.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8, justifyContent: compact ? "flex-start" : "center" }}>
-            {attachments.map((file, i) => <AttachmentPreview key={`${file.name}-${file.size}-${i}`} file={file} theme={theme} isDark={isDark} onRemove={() => removeAttachment(i)} />)}
+            {attachments.map((file, i) => {
+              const image = file.type.startsWith("image/");
+              return <div key={`${file.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 9px", borderRadius: 10, background: theme.surface, border: `1px solid ${theme.border}` }}>
+                {image ? <ImageIcon size={14} color={ac("violet", isDark)} /> : <FileText size={14} color={theme.textMuted} />}
+                <span style={{ maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: theme.text }}>{file.name}</span>
+                <button type="button" onClick={() => removeAttachment(i)} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>
+              </div>;
+            })}
           </div>
         )}
         {composerNotice && <div style={{ marginBottom: 8, fontSize: 11.5, color: theme.textFaint, textAlign: compact ? "left" : "center" }}>{composerNotice}</div>}
@@ -452,11 +400,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
             setWebSearch={setWebSearch}
           />
           <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder="Ask VANT to do something…" disabled={loading} autoFocus rows={1} style={{ color: theme.text, fontSize: 14.5, outline: "none", textAlign: "left", direction: "ltr", lineHeight: 1.4, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
-          {loading ? (
-            <button type="button" onClick={stopGeneration} title="Stop generation" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("red"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Square size={14} fill={ac("red", isDark)} color={ac("red", isDark)} /></button>
-          ) : (
-            <button type="submit" disabled={!input.trim() && attachments.length === 0} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: (!input.trim() && attachments.length === 0) ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
-          )}
+          <button type="submit" disabled={loading || !input.trim()} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
         </form>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, padding: "0 4px", fontSize: 10.5, color: theme.textFaint }}>
           <span>{webSearch ? "WEB SEARCH MODE" : attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} ready` : "VANT WORK MODE"}</span>
@@ -465,137 +409,6 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
       </div>
     );
   }
-
-function renderInlineMarkdown(text, theme) {
-  const parts = String(text || "").split(/(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_)/g).filter(Boolean);
-  return parts.map((part, index) => {
-    if (part.startsWith("`") && part.endsWith("`")) return <code key={index} style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "0.9em", padding: "2px 5px", borderRadius: 5, background: theme.surfaceStrong }}>{part.slice(1, -1)}</code>;
-    if ((part.startsWith("**") && part.endsWith("**")) || (part.startsWith("__") && part.endsWith("__"))) return <strong key={index}>{part.slice(2, -2)}</strong>;
-    if ((part.startsWith("*") && part.endsWith("*")) || (part.startsWith("_") && part.endsWith("_"))) return <em key={index}>{part.slice(1, -1)}</em>;
-    return <span key={index}>{part}</span>;
-  });
-}
-
-function MarkdownMessage({ content, theme, isDark }) {
-  const text = typeof content === "string" ? content : displayMessageText(content);
-  const lines = String(text || "").split("\\n");
-  const blocks = [];
-  let code = null;
-  let list = null;
-
-  function flushList() {
-    if (!list) return;
-    blocks.push({ type: list.type, items: list.items });
-    list = null;
-  }
-
-  function flushCode() {
-    if (!code) return;
-    blocks.push({ type: "code", lang: code.lang, text: code.lines.join("\\n") });
-    code = null;
-  }
-
-  lines.forEach((line) => {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("```")) {
-      flushList();
-      if (code) flushCode();
-      else code = { lang: trimmed.slice(3).trim(), lines: [] };
-      return;
-    }
-    if (code) { code.lines.push(line); return; }
-    if (!trimmed) { flushList(); blocks.push({ type: "spacer" }); return; }
-
-    const heading = trimmed.match(/^(#{1,3})\\s+(.*)$/);
-    if (heading) { flushList(); blocks.push({ type: "heading", level: heading[1].length, text: heading[2] }); return; }
-
-    const bullet = trimmed.match(/^[-*]\\s+(.*)$/);
-    const ordered = trimmed.match(/^\\d+[.)]\\s+(.*)$/);
-    if (bullet || ordered) {
-      const type = bullet ? "ul" : "ol";
-      if (!list || list.type !== type) { flushList(); list = { type, items: [] }; }
-      list.items.push((bullet || ordered)[1]);
-      return;
-    }
-
-    flushList();
-    const quote = trimmed.match(/^>\\s?(.*)$/);
-    if (quote) blocks.push({ type: "quote", text: quote[1] });
-    else blocks.push({ type: "p", text: line });
-  });
-  flushList();
-  flushCode();
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-      {blocks.map((block, index) => {
-        if (block.type === "spacer") return <div key={index} style={{ height: 2 }} />;
-        if (block.type === "heading") {
-          const size = block.level === 1 ? 18 : block.level === 2 ? 16 : 14.5;
-          return <div key={index} style={{ fontSize: size, fontWeight: 650, marginTop: index ? 4 : 0 }}>{renderInlineMarkdown(block.text, theme)}</div>;
-        }
-        if (block.type === "quote") return <div key={index} style={{ borderLeft: `3px solid ${ac("violet", isDark)}`, paddingLeft: 10, color: theme.textMuted }}>{renderInlineMarkdown(block.text, theme)}</div>;
-        if (block.type === "code") return <CodeBlock key={index} code={block.text} lang={block.lang} theme={theme} />;
-        if (block.type === "ul" || block.type === "ol") {
-          const Tag = block.type === "ul" ? "ul" : "ol";
-          return <Tag key={index} style={{ margin: "2px 0 2px 20px", padding: 0 }}>{block.items.map((item, itemIndex) => <li key={itemIndex} style={{ paddingLeft: 3, marginBottom: 3 }}>{renderInlineMarkdown(item, theme)}</li>)}</Tag>;
-        }
-        return <div key={index} style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{renderInlineMarkdown(block.text, theme)}</div>;
-      })}
-    </div>
-  );
-}
-
-function displayMessageText(content) {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) return content.filter((p) => p?.type === "text").map((p) => p.text || "").join("\\n");
-  return "";
-}
-
-function CodeBlock({ code, lang, theme }) {
-  const [copied, setCopied] = useState(false);
-  async function copy() {
-    try { await navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1400); } catch { /* clipboard unavailable */ }
-  }
-  return (
-    <div style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${theme.border}`, background: "rgba(0,0,0,.22)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 9px", borderBottom: `1px solid ${theme.border}`, color: theme.textFaint, fontSize: 10.5 }}>
-        <span>{lang || "code"}</span>
-        <button type="button" onClick={copy} style={{ border: "none", background: "transparent", color: theme.textMuted, cursor: "pointer", fontSize: 10.5 }}>{copied ? "Copied" : "Copy"}</button>
-      </div>
-      <pre style={{ margin: 0, padding: 11, overflowX: "auto", fontFamily: "JetBrains Mono, monospace", fontSize: 12, lineHeight: 1.55, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}><code>{code}</code></pre>
-    </div>
-  );
-}
-
-function AttachmentPreview({ file, onRemove, compact = false, theme, isDark }) {
-  const isImage = file?.type?.startsWith("image/");
-  const [previewUrl, setPreviewUrl] = useState("");
-  useEffect(() => {
-    if (!isImage || !file) return undefined;
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file, isImage]);
-
-  if (!file) return null;
-  if (isImage && previewUrl) {
-    return (
-      <div style={{ position: "relative", width: compact ? 92 : 116, height: compact ? 70 : 88, borderRadius: 10, overflow: "hidden", border: `1px solid ${theme.border}`, background: theme.surface }}>
-        <img src={previewUrl} alt={file.name || "attachment"} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-        {onRemove && <button type="button" onClick={onRemove} title="Remove attachment" style={{ position: "absolute", top: 5, right: 5, width: 22, height: 22, borderRadius: 999, border: "none", background: "rgba(0,0,0,.62)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={12} /></button>}
-        <div style={{ position: "absolute", left: 6, right: 6, bottom: 5, padding: "2px 5px", borderRadius: 5, background: "rgba(0,0,0,.55)", color: "#fff", fontSize: 9.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</div>
-      </div>
-    );
-  }
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 9px", borderRadius: 10, background: theme.surface, border: `1px solid ${theme.border}`, maxWidth: 230 }}>
-      <FileText size={15} color={ac("violet", isDark)} />
-      <span style={{ minWidth: 0, fontSize: 11.5, color: theme.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</span>
-      {onRemove && <button type="button" onClick={onRemove} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 0, display: "flex" }}><X size={13} /></button>}
-    </div>
-  );
-}
 
 function ChatPage({
   theme,
@@ -624,11 +437,14 @@ function ChatPage({
   const sessionConversationIdRef = useRef(activeConversationId);
   const fileInputRef = useRef(null);
   const composerRef = useRef(null);
-  const abortRef = useRef(null);
 
-  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, loading]);
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, loading]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
     if (sessionConversationIdRef.current === activeConversationId) return;
@@ -644,7 +460,9 @@ function ChatPage({
   }, [activeConversationId]);
 
   useEffect(() => {
-    function close(e) { if (composerRef.current && !composerRef.current.contains(e.target)) setComposerOpen(false); }
+    function close(e) {
+      if (composerRef.current && !composerRef.current.contains(e.target)) setComposerOpen(false);
+    }
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
@@ -652,94 +470,168 @@ function ChatPage({
   function addFiles(fileList) {
     const incoming = Array.from(fileList || []);
     if (!incoming.length) return;
-    const valid = incoming.filter((file) => file.size <= 8 * 1024 * 1024);
-    const rejected = incoming.length - valid.length;
-    setAttachments((prev) => [...prev, ...valid].slice(0, 8));
-    setComposerNotice(rejected ? `${rejected} file${rejected === 1 ? "" : "s"} skipped because they exceed 8 MB.` : `${Math.min(incoming.length, 8)} file${incoming.length === 1 ? "" : "s"} added to this work session.`);
+    setAttachments((prev) => [...prev, ...incoming].slice(0, 8));
+    setComposerNotice(`${Math.min(incoming.length, 8)} file${incoming.length === 1 ? "" : "s"} added to this work session.`);
     setComposerOpen(false);
   }
 
   async function takeScreenshot() {
-    setComposerOpen(false); setComposerNotice("");
+    setComposerOpen(false);
+    setComposerNotice("");
     try {
       if (!navigator.mediaDevices?.getDisplayMedia) throw new Error("unsupported");
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       const track = stream.getVideoTracks()[0];
       const settings = track.getSettings();
       const canvas = document.createElement("canvas");
-      canvas.width = Math.min(settings.width || 1440, 1920); canvas.height = Math.min(settings.height || 900, 1080);
-      const video = document.createElement("video"); video.srcObject = stream; video.muted = true;
-      await video.play(); await new Promise((resolve) => requestAnimationFrame(resolve));
-      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height); track.stop();
+      canvas.width = Math.min(settings.width || 1440, 1920);
+      canvas.height = Math.min(settings.height || 900, 1080);
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.muted = true;
+      await video.play();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+      track.stop();
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82));
       if (!blob) throw new Error("capture_failed");
       const file = new File([blob], `vant-screenshot-${Date.now()}.jpg`, { type: "image/jpeg" });
-      setAttachments((prev) => [...prev, file].slice(0, 8)); setComposerNotice("Screenshot captured and added to this work session.");
-    } catch { setComposerNotice("Screenshot capture was cancelled or isn't available in this browser."); }
+      setAttachments((prev) => [...prev, file].slice(0, 8));
+      setComposerNotice("Screenshot captured and added to this work session.");
+    } catch {
+      setComposerNotice("Screenshot capture was cancelled or isn't available in this browser.");
+    }
   }
 
-  function removeAttachment(index) { setAttachments((prev) => prev.filter((_, i) => i !== index)); }
-  function composerAction(label) { setComposerNotice(`${label} is being prepared as a VANT capability. The interface is ready; its backend connection will be wired in the next capability layer.`); setComposerOpen(false); }
+  function removeAttachment(index) {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function composerAction(label) {
+    setComposerNotice(`${label} is being prepared as a VANT capability. The interface is ready; its backend connection will be wired in the next capability layer.`);
+    setComposerOpen(false);
+  }
 
   function fileToDataUrl(file) {
-    return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   async function prepareImageForModel(file) {
-    const rawUrl = await fileToDataUrl(file); const img = new Image(); img.src = rawUrl;
-    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+    const rawUrl = await fileToDataUrl(file);
+    const img = new Image();
+    img.src = rawUrl;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+
     const maxDimension = 1600;
     const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
-    const width = Math.max(1, Math.round((img.naturalWidth || img.width) * scale)); const height = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
-    const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
+    const width = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+    const height = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
     canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-    return { dataUrl: canvas.toDataURL("image/jpeg", 0.78), width, height };
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+    return { dataUrl, width, height };
   }
 
-  async function buildUserContent(text, sourceAttachments = attachments) {
-    const parts = [{ type: "text", text: text.trim() || "Please inspect the attached material and help me with it." }];
+  async function buildUserContent(text) {
+    const parts = [{ type: "text", text: text.trim() }];
     let textBudget = 14000;
-    for (const file of sourceAttachments) {
+
+    for (const file of attachments) {
       const meta = `${file.name} (${Math.round(file.size / 1024)} KB)`;
       const isImage = file.type.startsWith("image/");
       const isText = file.type.startsWith("text/") || /\.(csv|txt|md|json)$/i.test(file.name);
+
       if (isImage) {
         try {
           const prepared = await prepareImageForModel(file);
-          parts.push({ type: "text", text: `Attachment: ${meta}. Inspect the attached image and use it as evidence for the user's request.` });
-          parts.push({ type: "image_url", image_url: { url: prepared.dataUrl } });
-        } catch { parts.push({ type: "text", text: `Attachment: ${meta}. The image could not be prepared for analysis.` }); }
+          parts.push({
+            type: "text",
+            text: `Attachment: ${meta}. Inspect the attached image and use it as evidence for the user's request.`,
+          });
+          parts.push({
+            type: "image_url",
+            image_url: { url: prepared.dataUrl },
+          });
+        } catch {
+          parts.push({ type: "text", text: `Attachment: ${meta}. The image could not be prepared for analysis.` });
+        }
         continue;
       }
+
       if (isText && textBudget > 0) {
         try {
-          const raw = await file.text(); const excerpt = raw.slice(0, textBudget); textBudget -= excerpt.length;
-          parts.push({ type: "text", text: `${meta}\nCONTENT:\n${excerpt}${raw.length > excerpt.length ? "\n[content truncated]" : ""}` });
-        } catch { parts.push({ type: "text", text: `${meta}\n[content could not be read in the browser]` }); }
+          const raw = await file.text();
+          const excerpt = raw.slice(0, textBudget);
+          textBudget -= excerpt.length;
+          parts.push({
+            type: "text",
+            text: `${meta}\nCONTENT:\n${excerpt}${raw.length > excerpt.length ? "\n[content truncated]" : ""}`,
+          });
+        } catch {
+          parts.push({ type: "text", text: `${meta}\n[content could not be read in the browser]` });
+        }
       } else {
         parts.push({ type: "text", text: `${meta}\n[attachment metadata only — this file type is not yet parsed by VANT Chat]` });
       }
     }
-    if (webSearch) parts.push({ type: "text", text: "WEB SEARCH REQUESTED: Live web search is not connected to this chat endpoint yet. Do not invent web results." });
+
+    if (webSearch) {
+      parts.push({ type: "text", text: "WEB SEARCH REQUESTED: Do not invent web results. If live web access is unavailable, state that clearly." });
+    }
+
     return parts;
   }
 
-  function systemPrompt() {
-    return `You are VANT, an AI work platform and command interface.
+  function displayText(content) {
+    if (typeof content === "string") return content;
+    if (Array.isArray(content)) {
+      return content.filter((p) => p?.type === "text").map((p) => p.text || "").join("\n");
+    }
+    return "";
+  }
+
+  async function send(text) {
+    const cleanText = text.trim();
+    if (!cleanText || loading) return;
+
+    setStarted(true);
+    setInput("");
+    setLoading(true);
+    setComposerNotice("");
+
+    try {
+      const userContent = await buildUserContent(cleanText);
+      const next = [...messages, { role: "user", content: userContent }];
+      setMessages(next);
+      messagesRef.current = next;
+      const chatId = activeConversationId || onCreateConversation({ messages: next });
+      sessionConversationIdRef.current = chatId;
+      onSaveConversation(chatId, next);
+
+      const reply = await askClaude(
+        `You are VANT, an AI work platform and command interface.
 
 CORE BEHAVIOR:
 - Treat the user's request as work to accomplish, not merely a question to answer.
 - Stay tightly relevant to the latest request and conversation context.
-- Be smart, practical, creative, and direct. Match the user's tone when appropriate without becoming sloppy.
-- Use Markdown when it improves clarity: headings, bullets, numbered steps, tables, and fenced code blocks.
-- Do not force a template onto simple questions.
-- Never invent facts, file contents, tool results, or web results.
-- If information is missing, say what is missing and ask the smallest useful question.
-- When the user provides a scenario, identify the objective, known facts, constraints, and missing information before making recommendations.
-- When brainstorming, provide original options and useful tradeoffs.
-- When solving technical or operational problems, separate observations, likely causes, actions, and verification when useful.
-- Avoid repetitive, corrupted, circular, or nonsensical output.
-- You may receive images and text attachments. Inspect actual image content when present; do not claim to have seen unsupported file types.
+- Understand the objective, identify useful inputs, reason carefully, and provide an actionable result.
+- You can receive multimodal user messages containing text and images. Inspect the actual image before answering questions about it.
+- Never claim to have seen, read, or analyzed an attachment if the attachment content was not actually provided.
+- Never invent information, tool results, file contents, or web results.
+- If an attachment is unsupported, explain exactly what is and is not available.
+- Prefer concise, professional responses with clear structure.
+- Avoid repetitive, corrupted, or nonsensical output.
 
 WORK LOOP:
 Understand → Analyze → Decide → Act → Report.
@@ -750,96 +642,82 @@ VANT CAPABILITIES CURRENTLY INCLUDE:
 - Specialized operations and logistics tools
 - Deterministic calculators and trackers
 - Cowork task planning/execution interface
-- Integration layer UI`;
-  }
+- Integration layer UI
 
-  async function send(text) {
-    const cleanText = text.trim();
-    if ((!cleanText && !attachments.length) || loading) return;
-    setStarted(true); setInput(""); setLoading(true); setComposerNotice("");
-    const sourceAttachments = [...attachments];
-    const controller = new AbortController(); abortRef.current = controller;
-    try {
-      const userContent = await buildUserContent(cleanText, sourceAttachments);
-      const next = [...messages, { role: "user", content: userContent }];
-      setMessages(next); messagesRef.current = next;
-      const chatId = activeConversationId || onCreateConversation({ messages: next });
-      sessionConversationIdRef.current = chatId; onSaveConversation(chatId, next);
-      const assistantIndex = next.length;
-      const placeholder = [...next, { role: "assistant", content: "" }];
-      setMessages(placeholder); messagesRef.current = placeholder;
+When the user asks what is visible in an image, describe only what you can actually observe. When the user asks for analysis of an image, use the visual evidence and clearly distinguish observation from inference.`,
+        next.map((m) => ({ role: m.role, content: m.content }))
+      );
 
-      await streamVant(systemPrompt(), next.map((m) => ({ role: m.role, content: m.content })), {
-        signal: controller.signal,
-        onToken: (token) => {
-          setMessages((current) => {
-            const updated = current.map((item, index) => index === assistantIndex ? { ...item, content: `${item.content || ""}${token}` } : item);
-            messagesRef.current = updated;
-            return updated;
-          });
-        },
-      });
-
-      const finalMessages = messagesRef.current;
-      if (!finalMessages[assistantIndex]?.content?.trim()) throw new Error("empty_response");
-      onSaveConversation(chatId, finalMessages);
+      const completedMessages = [...next, { role: "assistant", content: reply }];
+      setMessages(completedMessages);
+      messagesRef.current = completedMessages;
+      onSaveConversation(chatId, completedMessages);
       setAttachments([]);
     } catch (err) {
-      const stopped = err?.name === "AbortError";
-      if (stopped) {
-        const partial = messagesRef.current;
-        if (partial[assistantIndex]?.content?.trim()) onSaveConversation(sessionConversationIdRef.current, partial);
-        setComposerNotice("Generation stopped.");
-      } else {
-        console.error("VANT Chat send error", err);
-        setMessages((current) => {
-          const fallback = "VANT couldn't complete that response. Please try again.";
-          const updated = current.map((item, index) => index === assistantIndex ? { ...item, content: item.content?.trim() ? `${item.content}\n\n${fallback}` : fallback } : item);
-          messagesRef.current = updated; return updated;
-        });
-      }
-    } finally { abortRef.current = null; setLoading(false); }
+      console.error("VANT Chat send error", err);
+      setMessages((m) => [...m, { role: "assistant", content: "I couldn't prepare that request. Please try again." }]);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function stopGeneration() { abortRef.current?.abort(); }
-  function handleSubmit(e) { e.preventDefault(); if (loading) return; send(input); }
+  function handleSubmit(e) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || loading) return;
+    send(text);
+  }
 
   const suggestions = ["Analyze this shipment problem", "Draft a follow-up email to a vendor", "Help me think through a decision", "Turn this into an action plan"];
 
-  const messageAttachments = (content) => Array.isArray(content) ? content.filter((p) => p?.type === "image_url") : [];
 
-  const body = (content) => {
-    const text = displayMessageText(content);
-    return <MarkdownMessage content={text} theme={theme} isDark={isDark} />;
-  };
+  if (!started) {
+    return (
+      <div style={{ height: "100%", display: "flex", minWidth: 0, overflow: "hidden" }}>
+        <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} />
 
-  const renderChat = (empty = false) => (
-    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-      {!empty && <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 24px", borderBottom: `1px solid ${theme.border}` }}><span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · Work Session</span><span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />{loading ? "Generating" : "Live"}</span></div>}
-      {!empty && <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
-        {messages.map((m, i) => {
-          const isUser = m.role === "user";
-          const imageParts = messageAttachments(m.content);
-          return <div key={i} className="v-fade" style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>
-            <div style={{ maxWidth: "82%", minWidth: 0 }}>
-              {isUser && imageParts.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 7, justifyContent: "flex-end", marginBottom: 7 }}>{imageParts.map((part, j) => <div key={j} style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${theme.border}`, width: 150, height: 105, background: theme.surface }}><img src={part.image_url.url} alt="attached" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /></div>)}</div>}
-              <div style={{ padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, background: isUser ? theme.surfaceStrong : acBg("violet"), color: isUser ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b"), overflowWrap: "anywhere" }}>{body(m.content)}</div>
-              {!isUser && m.content && <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
-                <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(displayMessageText(m.content)); setComposerNotice("Response copied."); } catch {} }} style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", fontSize: 11, padding: "2px 5px" }}><Copy size={12} style={{ verticalAlign: "-2px" }} /> Copy</button>
-              </div>}
+        <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden" }}>
+          <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "24px 24px 36px", boxSizing: "border-box", overflow: "auto" }}>
+            <div style={{ width: "min(760px, 100%)", maxWidth: 760, margin: "0 auto" }}>
+              <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, margin: "0 0 14px" }}>VANT · WORK MODE</p>
+              <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 34, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>What are we working on?</h1>
+              <p style={{ color: theme.textMuted, fontSize: 15.5, margin: "0 auto 26px", maxWidth: 560, lineHeight: 1.5 }}>Give VANT a task, a question, a file, or a problem. It will help you understand it, analyze it, and move the work forward.</p>
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 9, maxWidth: 650, margin: "0 auto" }}>
+                {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>{s}</button>)}
+              </div>
             </div>
-          </div>;
-        })}
-      </div>}
-      <div style={{ padding: empty ? "0 24px 24px" : "12px 18px 18px", borderTop: empty ? "none" : `1px solid ${theme.border}` }}>
-        <Composer compact={!empty} theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} stopGeneration={stopGeneration} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} />
+          </div>
+
+          <div style={{ flex: "0 0 auto", width: "100%", boxSizing: "border-box", padding: "0 24px 24px", background: theme.bg }}>
+            <div style={{ width: "min(760px, 100%)", maxWidth: 760, margin: "0 auto" }}>
+              <Composer theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height: "100%", display: "flex", minWidth: 0 }}>
+      <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} />
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 24px", borderBottom: `1px solid ${theme.border}` }}>
+        <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · Work Session</span>
+        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
+      </div>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+        {messages.map((m, i) => (
+          <div key={i} className="v-fade" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+            <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, whiteSpace: "pre-wrap", background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}>{displayText(m.content)}</div>
+          </div>
+        ))}
+        {loading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div></div>}
+      </div>
+      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} /></div>
       </div>
     </div>
   );
-
-  if (!started) return <div style={{ height: "100%", display: "flex", minWidth: 0 }}><HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} /><div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}><p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, marginBottom: 14 }}>VANT · WORK MODE</p><h1 style={{ fontFamily: "Fraunces, serif", fontSize: 34, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>What are we working on?</h1><p style={{ color: theme.textMuted, fontSize: 15.5, margin: "0 0 26px", maxWidth: 560 }}>Give VANT a task, a question, a file, or a problem. It will help you understand it, analyze it, and move the work forward.</p><div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 9, maxWidth: 650 }}>{suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>{s}</button>)}</div>{renderChat(true)}</div></div>;
-
-  return <div style={{ height: "100%", display: "flex", minWidth: 0 }}><HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} />{renderChat(false)}</div>;
 }
 
 // ---------------------------------------------------------------------------
