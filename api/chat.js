@@ -61,6 +61,252 @@ function containsImage(messages) {
   );
 }
 
+function getVantTemperature(messages, hasImage) {
+  // ---------------------------------------------------------
+  // VANT ADAPTIVE TEMPERATURE ENGINE
+  // ---------------------------------------------------------
+
+  if (hasImage) {
+    return 0.25;
+  }
+
+  const userMessages = messages.filter(
+    (message) => message?.role === "user"
+  );
+
+  const latestUser = userMessages[userMessages.length - 1];
+
+  const latestText = Array.isArray(latestUser?.content)
+    ? latestUser.content
+        .filter((part) => part?.type === "text")
+        .map((part) => part.text || "")
+        .join(" ")
+    : String(latestUser?.content || "");
+
+  const text = latestText.toLowerCase().trim();
+
+  // ---------------------------------------------------------
+  // HIGH-PRECISION TASKS
+  // ---------------------------------------------------------
+
+  const calculationSignals = [
+    "calculate",
+    "calculation",
+    "compute",
+    "equation",
+    "formula",
+    "percentage",
+    "percent",
+    "math",
+    "how much",
+    "how many",
+    "sum",
+    "average",
+    "total",
+  ];
+
+  const technicalSignals = [
+    "sql",
+    "postgres",
+    "postgresql",
+    "javascript",
+    "typescript",
+    "react",
+    "python",
+    "code",
+    "coding",
+    "debug",
+    "debugging",
+    "error",
+    "api",
+    "database",
+    "query",
+    "function",
+    "algorithm",
+    "regex",
+    "json",
+  ];
+
+  // ---------------------------------------------------------
+  // ANALYTICAL TASKS
+  // ---------------------------------------------------------
+
+  const analyticalSignals = [
+    "analyze",
+    "analysis",
+    "compare",
+    "comparison",
+    "evaluate",
+    "investigate",
+    "root cause",
+    "problem",
+    "issue",
+    "why",
+    "strategy",
+    "plan",
+    "decision",
+    "risk",
+    "pros and cons",
+    "tradeoff",
+    "trade-off",
+    "recommendation",
+    "recommendations",
+  ];
+
+  // ---------------------------------------------------------
+  // CREATIVE TASKS
+  // ---------------------------------------------------------
+
+  const creativeSignals = [
+    "brainstorm",
+    "brainstorming",
+    "creative",
+    "creatively",
+    "ideas",
+    "idea",
+    "imagine",
+    "invent",
+    "innovative",
+    "innovation",
+    "campaign",
+    "slogan",
+    "tagline",
+    "name ideas",
+    "names",
+    "story",
+    "storytelling",
+    "design",
+    "concept",
+    "concepts",
+    "creative writing",
+    "make it catchy",
+    "make it unique",
+    "think outside",
+  ];
+
+  // ---------------------------------------------------------
+  // WRITING / COMMUNICATION
+  // ---------------------------------------------------------
+
+  const writingSignals = [
+    "write",
+    "rewrite",
+    "rephrase",
+    "draft",
+    "email",
+    "message",
+    "post",
+    "caption",
+    "announcement",
+    "presentation",
+    "script",
+    "copywriting",
+  ];
+
+  // ---------------------------------------------------------
+  // SCORE THE REQUEST
+  // ---------------------------------------------------------
+
+  const countMatches = (signals) =>
+    signals.reduce(
+      (score, signal) =>
+        score + (text.includes(signal) ? 1 : 0),
+      0
+    );
+
+  const calculationScore =
+    countMatches(calculationSignals);
+
+  const technicalScore =
+    countMatches(technicalSignals);
+
+  const analyticalScore =
+    countMatches(analyticalSignals);
+
+  const creativeScore =
+    countMatches(creativeSignals);
+
+  const writingScore =
+    countMatches(writingSignals);
+
+  // ---------------------------------------------------------
+  // USER ENGAGEMENT
+  // ---------------------------------------------------------
+
+  const conversationDepth =
+    userMessages.length;
+
+  const messageLength =
+    text.length;
+
+  const highEngagement =
+    conversationDepth >= 4 ||
+    messageLength >= 700;
+
+  const exploratoryLanguage =
+    /what if|could we|let's|lets|maybe|imagine|how about|another|more ideas/i.test(
+      text
+    );
+
+  const refinementLanguage =
+    /make it|change|improve|expand|more|less|different|another version|try again|refine/i.test(
+      text
+    );
+
+  // ---------------------------------------------------------
+  // DECISION TREE
+  // ---------------------------------------------------------
+
+  // Calculations should remain highly deterministic.
+  if (calculationScore > 0) {
+    return 0.2;
+  }
+
+  // Technical work should prioritize consistency.
+  if (technicalScore >= 1) {
+    return 0.3;
+  }
+
+  // Strong creative intent gets more exploration.
+  if (creativeScore >= 2) {
+    return highEngagement ? 0.9 : 0.8;
+  }
+
+  if (creativeScore === 1 && exploratoryLanguage) {
+    return 0.8;
+  }
+
+  // Writing gets moderate creativity.
+  if (writingScore >= 1) {
+    return refinementLanguage ? 0.8 : 0.7;
+  }
+
+  // Analytical work stays balanced.
+  if (analyticalScore >= 2) {
+    return 0.45;
+  }
+
+  if (analyticalScore === 1) {
+    return 0.5;
+  }
+
+  // User is actively iterating / exploring.
+  if (highEngagement && exploratoryLanguage) {
+    return 0.7;
+  }
+
+  // User is refining an existing answer.
+  if (refinementLanguage) {
+    return 0.65;
+  }
+
+  // ---------------------------------------------------------
+  // DEFAULT VANT TEMPERATURE
+  // ---------------------------------------------------------
+
+  return 0.6;
+}
+
 export default async function handler(req, res) {
   // ---------------------------------------------------------
   // METHOD CHECK
@@ -211,7 +457,7 @@ export default async function handler(req, res) {
         ...(system ? [{ role: "system", content: system }] : []),
         ...validMessages,
       ],
-      temperature: hasImage ? 0.25 : 0.7,
+      temperature: getVantTemperature(validMessages, hasImage),
       top_p: 0.95,
       top_k: 64,
       max_tokens: hasImage ? 900 : 4096,
