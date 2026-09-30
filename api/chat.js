@@ -1,3 +1,5 @@
+export const config = { maxDuration: 60 };
+
 import { createClient } from "@supabase/supabase-js";
 
 const MODEL = "google/gemma-4-31b-it";
@@ -192,36 +194,28 @@ export default async function handler(req, res) {
   // BUILD NVIDIA REQUEST
   // ---------------------------------------------------------
 
+  const { stream = false } = req.body || {};
+
+  if (typeof stream !== "boolean") {
+    return json(res, 400, {
+      error: "invalid_stream_flag",
+    });
+  }
+
   let payload;
 
   try {
     payload = {
       model: MODEL,
-
       messages: [
-        ...(system
-          ? [
-              {
-                role: "system",
-                content: system,
-              },
-            ]
-          : []),
-
+        ...(system ? [{ role: "system", content: system }] : []),
         ...validMessages,
       ],
-
-      temperature: hasImage ? 0.2 : 1,
+      temperature: hasImage ? 0.25 : 0.7,
       top_p: 0.95,
       top_k: 64,
-
-      // Keep multimodal test responses intentionally small.
-      max_tokens: hasImage ? 512 : 4096,
-
-      stream: false,
-
-      // Image requests use direct visual understanding rather than
-      // extended reasoning. Normal text requests retain thinking.
+      max_tokens: hasImage ? 900 : 4096,
+      stream,
       chat_template_kwargs: {
         enable_thinking: !hasImage,
       },
@@ -253,22 +247,17 @@ export default async function handler(req, res) {
   try {
     response = await fetch(NVIDIA_URL, {
       method: "POST",
-
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        Accept: "application/json",
+        Accept: stream
+          ? "text/event-stream"
+          : "application/json",
       },
-
       body: serialized,
-
       signal: AbortSignal.timeout(60_000),
     });
   } catch (err) {
-    // -------------------------------------------------------
-    // TIMEOUT
-    // -------------------------------------------------------
-
     if (
       err?.name === "TimeoutError" ||
       err?.name === "AbortError"
@@ -279,10 +268,6 @@ export default async function handler(req, res) {
           "NVIDIA NIM did not respond within 60 seconds.",
       });
     }
-
-    // -------------------------------------------------------
-    // CONNECTION ERROR
-    // -------------------------------------------------------
 
     console.error(
       "VANT NVIDIA connection error:",
@@ -296,27 +281,15 @@ export default async function handler(req, res) {
     });
   }
 
-  // ---------------------------------------------------------
-  // PARSE NVIDIA RESPONSE
-  // ---------------------------------------------------------
-
-  let data;
-
-  try {
-    data = await response.json();
-  } catch {
-    return json(res, 502, {
-      error: "invalid_nvidia_response",
-      detail:
-        "NVIDIA NIM returned a response that could not be parsed as JSON.",
-    });
-  }
-
-  // ---------------------------------------------------------
-  // NVIDIA API ERROR
-  // ---------------------------------------------------------
-
   if (!response.ok) {
+    let data = {};
+
+    try {
+      data = await response.json();
+    } catch {
+      /* ignore */
+    }
+
     const detail =
       data?.error?.message ||
       data?.detail ||
@@ -343,8 +316,117 @@ export default async function handler(req, res) {
   }
 
   // ---------------------------------------------------------
-  // EXTRACT MODEL RESPONSE
+  // STREAMING RESPONSE
   // ---------------------------------------------------------
+
+  if (stream) {
+    res.statusCode = 200;
+
+    res.setHeader(
+      "Content-Type",
+      "text/event-stream; charset=utf-8"
+    );
+
+    res.setHeader(
+      "Cache-Control",
+      "no-cache, no-transform"
+    );
+
+    res.setHeader(
+      "Connection",
+      "keep-alive"
+    );
+
+    res.setHeader(
+      "X-Accel-Buffering",
+      "no"
+    );
+
+    if (
+      typeof res.flushHeaders === "function"
+    ) {
+      res.flushHeaders();
+    }
+
+    if (!response.body) {
+      res.write(
+        `data: ${JSON.stringify({
+          error: "empty_stream",
+        })}\n\n`
+      );
+
+      res.write("data: [DONE]\n\n");
+
+      return res.end();
+    }
+
+    const reader =
+      response.body.getReader();
+
+    const decoder =
+      new TextDecoder();
+
+    try {
+      while (true) {
+        const { value, done } =
+          await reader.read();
+
+        if (done) break;
+
+        const chunk =
+          decoder.decode(value, {
+            stream: true,
+          });
+
+        if (chunk) {
+          res.write(chunk);
+        }
+      }
+    } catch (err) {
+      console.error(
+        "VANT stream error:",
+        err
+      );
+
+      try {
+        res.write(
+          `data: ${JSON.stringify({
+            error: "stream_interrupted",
+          })}\n\n`
+        );
+      } catch {
+        /* client disconnected */
+      }
+    } finally {
+      try {
+        res.write(
+          "data: [DONE]\n\n"
+        );
+      } catch {
+        /* client disconnected */
+      }
+
+      res.end();
+    }
+
+    return;
+  }
+
+  // ---------------------------------------------------------
+  // NON-STREAMING RESPONSE
+  // ---------------------------------------------------------
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    return json(res, 502, {
+      error: "invalid_nvidia_response",
+      detail:
+        "NVIDIA NIM returned a response that could not be parsed as JSON.",
+    });
+  }
 
   const content =
     data?.choices?.[0]?.message?.content;
@@ -365,10 +447,6 @@ export default async function handler(req, res) {
     });
   }
 
-  // ---------------------------------------------------------
-  // RETURN TO VANT FRONTEND
-  // ---------------------------------------------------------
-
   return json(res, 200, {
     content: [
       {
@@ -376,7 +454,6 @@ export default async function handler(req, res) {
         text: content,
       },
     ],
-
     model: MODEL,
   });
 }
