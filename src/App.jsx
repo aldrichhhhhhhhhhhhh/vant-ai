@@ -352,20 +352,57 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
     );
   }
 
-  function ChatMessageContent({ message, theme, isDark }) {
-    const content = message?.content;
-    if (!Array.isArray(content)) return displayText(content);
+ function ChatMessageContent({ message, theme, isDark }) {
+  const content = message?.content;
 
-    const imageParts = content.filter((part) => part?.type === "image_url" && part?.image_url?.url);
-    const text = content.filter((part) => part?.type === "text").map((part) => part.text || "").join("\n");
-
+  // Normal text message
+  if (typeof content === "string") {
     return (
-      <>
-        {imageParts.map((part, index) => <MessageAttachmentPreview key={`${part.image_url.url.slice(0, 24)}-${index}`} src={part.image_url.url} theme={theme} />)}
-        {text && <div style={{ whiteSpace: "pre-wrap" }}>{text}</div>}
-      </>
+      <div style={{ whiteSpace: "pre-wrap" }}>
+        {content}
+      </div>
     );
   }
+
+  // Empty / invalid content should never crash the UI
+  if (!Array.isArray(content)) {
+    return null;
+  }
+
+  const imageParts = content.filter(
+    (part) =>
+      part?.type === "image_url" &&
+      part?.image_url?.url
+  );
+
+  const textParts = content.filter(
+    (part) => part?.type === "text"
+  );
+
+  const text = textParts
+    .map((part) => part?.text || "")
+    .filter(Boolean)
+    .join("\n");
+
+  return (
+    <>
+      {imageParts.map((part, index) => (
+        <MessageAttachmentPreview
+          key={`${index}-${part.image_url.url.slice(0, 24)}`}
+          src={part.image_url.url}
+          name={part?.name}
+          theme={theme}
+        />
+      ))}
+
+      {text && (
+        <div style={{ whiteSpace: "pre-wrap" }}>
+          {text}
+        </div>
+      )}
+    </>
+  );
+}
 
   function ComposerMenu({ theme, isDark, composerRef, composerOpen, setComposerOpen, setComposerNotice, fileInputRef, addFiles, takeScreenshot, composerAction, onGoToIntegrations, webSearch, setWebSearch }) {
     const itemStyle = { width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "none", background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left", borderRadius: 10 };
