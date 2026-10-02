@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef } from "react";
+import {
+  buildVantWorkEnvelope,
+  buildVantSystemPrompt,
+} from "./vantEngine";
 import Papa from "papaparse";
 import { supabase } from "./supabase";
 import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2, FolderKanban } from "lucide-react";
@@ -700,6 +704,12 @@ function ChatPage({
     try {
       const userContent = await buildUserContent(cleanText);
       const next = [...messages, { role: "user", content: userContent }];
+
+      const work = buildVantWorkEnvelope({
+        messages: next,
+        attachments,
+        memoryAvailable: false,
+      });
       setMessages(next);
       messagesRef.current = next;
       const chatId = activeConversationId || onCreateConversation({ messages: next });
@@ -731,7 +741,9 @@ VANT CAPABILITIES CURRENTLY INCLUDE:
 - Cowork task planning/execution interface
 - Integration layer UI
 
-When the user asks what is visible in an image, describe only what you can actually observe. When the user asks for analysis of an image, use the visual evidence and clearly distinguish observation from inference.`,
+When the user asks what is visible in an image, describe only what you can actually observe. When the user asks for analysis of an image, use the visual evidence and clearly distinguish observation from inference.
+
+${buildVantSystemPrompt(work)}`,
         next.map((m) => ({ role: m.role, content: m.content }))
       );
 
