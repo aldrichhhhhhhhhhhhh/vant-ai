@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import Papa from "papaparse";
+import { supabase } from "./supabase";
 import {
   buildVantWorkEnvelope,
   buildVantSystemPrompt,
 } from "./vantEngine";
-import Papa from "papaparse";
-import { supabase } from "./supabase";
 import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2, FolderKanban } from "lucide-react";
 
 const FONT_IMPORT = `
@@ -118,45 +118,206 @@ function sortConversations(items) {
   }).slice(0, CHAT_HISTORY_LIMIT);
 }
 
-async function askClaude(systemPrompt, messages, timeoutMs = 60000) {
+async function askClaude(
+  systemPrompt,
+  messages,
+  onChunk,
+  timeoutMs = 58000
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   let accessCode = "";
   let accessToken = "";
-  try { accessCode = localStorage.getItem("vant_access_code") || ""; } catch { /* no storage access */ }
+
+  try {
+    accessCode = localStorage.getItem("vant_access_code") || "";
+  } catch {
+    /* no storage access */
+  }
+
   try {
     const { data } = await supabase.auth.getSession();
     accessToken = data.session?.access_token || "";
-  } catch { /* auth session may be unavailable */ }
-  if (!accessToken) return "Your VANT session has expired. Please log in again.";
+  } catch {
+    /* auth session may be unavailable */
+  }
+
+  if (!accessToken) {
+    clearTimeout(timer);
+    return "Your VANT session has expired. Please log in again.";
+  }
+
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
+
       headers: {
         "Content-Type": "application/json",
         "x-access-code": accessCode,
         "Authorization": `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ system: systemPrompt, messages }),
+
+      body: JSON.stringify({
+        system: systemPrompt,
+        messages,
+        stream: true,
+      }),
+
       signal: controller.signal,
     });
-    clearTimeout(timer);
-    const data = await response.json();
+
     if (!response.ok) {
-      if (data?.error === "access_not_configured") return "This deployment hasn't set an access code yet — set APP_ACCESS_CODE in your environment variables.";
-      if (data?.error === "invalid_access_code") return "Wrong or missing access code. Enter the correct one in Settings.";
-      if (data?.error === "payload_too_large") return "That request was too large — try a smaller image or fewer attachments.";
-      return data?.error === "missing_api_key"
-        ? "The server isn't configured with an NVIDIA API key yet — set NVIDIA_API_KEY in your deployment's environment variables."
-        : data?.detail
-          ? `NVIDIA NIM error: ${data.detail}`
-          : "The server had trouble reaching the model. Try again in a moment.";
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        /* ignore invalid error JSON */
+      }
+
+      if (data?.error === "access_not_configured") {
+        clearTimeout(timer);
+        return "This deployment hasn't set an access code yet — set APP_ACCESS_CODE in your environment variables.";
+      }
+
+      if (data?.error === "invalid_access_code") {
+        clearTimeout(timer);
+        return "Wrong or missing access code. Enter the correct one in Settings.";
+      }
+
+      if (data?.error === "payload_too_large") {
+        clearTimeout(timer);
+        return "That request was too large — try a smaller image or fewer attachments.";
+      }
+
+      if (data?.error === "missing_api_key") {
+        clearTimeout(timer);
+        return "The server isn't configured with an NVIDIA API key yet — set NVIDIA_API_KEY in your deployment's environment variables.";
+      }
+
+      if (data?.error === "nvidia_timeout") {
+        clearTimeout(timer);
+        return "VANT's model request timed out before the model could finish. Try the request again with a shorter prompt.";
+      }
+
+      clearTimeout(timer);
+
+      return data?.detail
+        ? `NVIDIA NIM error: ${data.detail}`
+        : "The server had trouble reaching the model. Try again in a moment.";
     }
-    const text = (data.content || []).map((b) => (b.type === "text" ? b.text : "")).filter(Boolean).join("\n");
-    return text || "I couldn't generate a response — try rephrasing.";
+
+    if (!response.body) {
+      clearTimeout(timer);
+      return "The model returned an empty stream. Please try again.";
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    let buffer = "";
+    let fullText = "";
+    let streamFinished = false;
+
+    function processLine(line) {
+      const trimmed = line.trim();
+
+      if (!trimmed) {
+        return false;
+      }
+
+      if (!trimmed.startsWith("data:")) {
+        return false;
+      }
+
+      const payload = trimmed.slice(5).trim();
+
+      if (!payload) {
+        return false;
+      }
+
+      if (payload === "[DONE]") {
+        return true;
+      }
+
+      try {
+        const event = JSON.parse(payload);
+
+        const delta = event?.choices?.[0]?.delta;
+
+        const piece =
+          typeof delta?.content === "string"
+            ? delta.content
+            : typeof event?.choices?.[0]?.text === "string"
+              ? event.choices[0].text
+              : "";
+
+        if (piece) {
+          fullText += piece;
+
+          if (typeof onChunk === "function") {
+            onChunk(fullText);
+          }
+        }
+      } catch {
+        /*
+          SSE chunks can occasionally arrive incomplete.
+          Leave them alone and continue reading.
+        */
+      }
+
+      return false;
+    }
+
+    while (!streamFinished) {
+      const {
+        value,
+        done: readerDone,
+      } = await reader.read();
+
+      if (readerDone) {
+        break;
+      }
+
+      buffer += decoder.decode(value, {
+        stream: true,
+      });
+
+      const lines = buffer.split("\n");
+
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (processLine(line)) {
+          streamFinished = true;
+          break;
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      processLine(buffer);
+    }
+
+    clearTimeout(timer);
+
+    return (
+      fullText.trim() ||
+      "I couldn't generate a response — try rephrasing."
+    );
   } catch (err) {
     clearTimeout(timer);
-    if (err && err.name === "AbortError") return "No response after 60 seconds — check your deployment's function logs.";
+
+    if (err?.name === "AbortError") {
+      return "VANT stopped waiting for the model after 58 seconds. Try a shorter request.";
+    }
+
+    console.error(
+      "VANT Chat streaming error:",
+      err
+    );
+
     return "Something went wrong reaching the server. Try again in a moment.";
   }
 }
@@ -692,75 +853,229 @@ function ChatPage({
     return "";
   }
 
-  async function send(text) {
-    const cleanText = text.trim();
-    if (!cleanText || loading) return;
+async function send(text) {
+  const cleanText = text.trim();
 
-    setStarted(true);
-    setInput("");
-    setLoading(true);
-    setComposerNotice("");
-
-    try {
-      const userContent = await buildUserContent(cleanText);
-      const next = [...messages, { role: "user", content: userContent }];
-
-      const work = buildVantWorkEnvelope({
-        messages: next,
-        attachments,
-        memoryAvailable: false,
-      });
-
-      setMessages(next);
-      messagesRef.current = next;
-      const chatId = activeConversationId || onCreateConversation({ messages: next });
-      sessionConversationIdRef.current = chatId;
-      onSaveConversation(chatId, next);
-
-      const reply = await askClaude(
-        `You are VANT, an AI work platform and command interface.
-
-CORE BEHAVIOR:
-- Treat the user's request as work to accomplish, not merely a question to answer.
-- Stay tightly relevant to the latest request and conversation context.
-- Understand the objective, identify useful inputs, reason carefully, and provide an actionable result.
-- You can receive multimodal user messages containing text and images. Inspect the actual image before answering questions about it.
-- Never claim to have seen, read, or analyzed an attachment if the attachment content was not actually provided.
-- Never invent information, tool results, file contents, or web results.
-- If an attachment is unsupported, explain exactly what is and is not available.
-- Prefer concise, professional responses with clear structure.
-- Avoid repetitive, corrupted, or nonsensical output.
-
-WORK LOOP:
-Understand → Analyze → Decide → Act → Report.
-
-VANT CAPABILITIES CURRENTLY INCLUDE:
-- General AI reasoning and conversation
-- Multimodal image understanding through Gemma 4 31B IT
-- Specialized operations and logistics tools
-- Deterministic calculators and trackers
-- Cowork task planning/execution interface
-- Integration layer UI
-
-When the user asks what is visible in an image, describe only what you can actually observe. When the user asks for analysis of an image, use the visual evidence and clearly distinguish observation from inference.
-
-${buildVantSystemPrompt(work)}`,
-        next.map((m) => ({ role: m.role, content: m.content }))
-      );
-
-      const completedMessages = [...next, { role: "assistant", content: reply }];
-      setMessages(completedMessages);
-      messagesRef.current = completedMessages;
-      onSaveConversation(chatId, completedMessages);
-      setAttachments([]);
-    } catch (err) {
-      console.error("VANT Chat send error", err);
-      setMessages((m) => [...m, { role: "assistant", content: "I couldn't prepare that request. Please try again." }]);
-    } finally {
-      setLoading(false);
-    }
+  if (!cleanText || loading) {
+    return;
   }
 
+  setStarted(true);
+  setInput("");
+  setLoading(true);
+  setComposerNotice("");
+
+  try {
+    /*
+     * ---------------------------------------------------------
+     * 1. Build the user's multimodal message
+     * ---------------------------------------------------------
+     */
+    const userContent = await buildUserContent(cleanText);
+
+    const userMessage = {
+      role: "user",
+      content: userContent,
+    };
+
+    const next = [
+      ...messages,
+      userMessage,
+    ];
+
+    /*
+     * ---------------------------------------------------------
+     * 2. Let the VANT Work Engine understand the request
+     * ---------------------------------------------------------
+     */
+    const work = buildVantWorkEnvelope({
+      messages: next,
+      attachments,
+      memoryAvailable: false,
+    });
+
+    /*
+     * ---------------------------------------------------------
+     * 3. Build VANT's work-aware system prompt
+     * ---------------------------------------------------------
+     */
+    const vantWorkPrompt =
+      buildVantSystemPrompt(work);
+
+    const systemPrompt = `
+You are VANT, an AI work platform and intelligent work assistant.
+
+${vantWorkPrompt}
+
+CORE BEHAVIOR:
+
+- Treat the user's request as work to accomplish, not merely a question to answer.
+- Stay tightly relevant to the latest request and conversation context.
+- Understand the objective before responding.
+- Be practical, intelligent, direct, and useful.
+- Match the user's tone when appropriate.
+- Use structure when it improves clarity.
+- Keep simple requests simple.
+- Give complex requests the structure they require.
+- Never invent facts, tool results, file contents, web results, or observations.
+- Never claim an external action was completed unless VANT actually performed it.
+- If information is missing, clearly state what is missing.
+- If an attachment is available, use only the information actually provided.
+- Distinguish observation from inference when analyzing evidence.
+- For technical problems, provide practical debugging or implementation steps.
+- For creative work, explore original ideas without sacrificing usefulness.
+- For execution-oriented requests, turn the objective into concrete actionable work.
+
+VANT WORK LOOP:
+
+Understand → Analyze → Decide → Act → Verify → Report.
+
+VANT CURRENT CAPABILITIES:
+
+- General AI reasoning and conversation
+- Multimodal image understanding
+- Work classification
+- Analysis and structured problem solving
+- Creative generation
+- Technical assistance
+- Operational planning
+- Cowork task planning interface
+
+Do not pretend that capabilities are available when they are not yet connected.
+
+Respond naturally like a sharp work partner.
+`;
+
+    /*
+     * ---------------------------------------------------------
+     * 4. Create the conversation
+     * ---------------------------------------------------------
+     */
+    const chatId =
+      activeConversationId ||
+      onCreateConversation({
+        messages: next,
+      });
+
+    sessionConversationIdRef.current = chatId;
+
+    /*
+     * ---------------------------------------------------------
+     * 5. Create an EMPTY assistant message.
+     *
+     * This is the message that streaming will continuously
+     * update as NVIDIA sends new chunks.
+     * ---------------------------------------------------------
+     */
+    const streamingAssistantMessage = {
+      role: "assistant",
+      content: "",
+    };
+
+    const streamingMessages = [
+      ...next,
+      streamingAssistantMessage,
+    ];
+
+    setMessages(streamingMessages);
+    messagesRef.current = streamingMessages;
+
+    /*
+     * ---------------------------------------------------------
+     * 6. Start streaming
+     * ---------------------------------------------------------
+     */
+    const reply = await askClaude(
+      systemPrompt,
+
+      next.map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+
+      /*
+       * -------------------------------------------------------
+       * This callback fires EVERY TIME new model text arrives.
+       * -------------------------------------------------------
+       */
+      (partialText) => {
+        setMessages((current) => {
+          const updated = [...current];
+
+          const assistantIndex =
+            updated.length - 1;
+
+          if (
+            assistantIndex >= 0 &&
+            updated[assistantIndex]?.role === "assistant"
+          ) {
+            updated[assistantIndex] = {
+              ...updated[assistantIndex],
+              content: partialText,
+            };
+          }
+
+          messagesRef.current = updated;
+
+          return updated;
+        });
+      }
+    );
+
+    /*
+     * ---------------------------------------------------------
+     * 7. Finalize the assistant message
+     * ---------------------------------------------------------
+     */
+    const completedMessages = [
+      ...next,
+      {
+        role: "assistant",
+        content: reply,
+      },
+    ];
+
+    setMessages(completedMessages);
+    messagesRef.current = completedMessages;
+
+    /*
+     * Save ONLY the completed conversation.
+     */
+    onSaveConversation(
+      chatId,
+      completedMessages
+    );
+
+    /*
+     * Attachments have now been consumed by this request.
+     */
+    setAttachments([]);
+  } catch (err) {
+    console.error(
+      "VANT Chat send error:",
+      err
+    );
+
+    const errorMessage = {
+      role: "assistant",
+      content:
+        "I couldn't prepare that request. Please try again.",
+    };
+
+    setMessages((current) => [
+      ...current,
+      errorMessage,
+    ]);
+
+    messagesRef.current = [
+      ...messagesRef.current,
+      errorMessage,
+    ];
+  } finally {
+    setLoading(false);
+  }
+}
+  
   function handleSubmit(e) {
     e.preventDefault();
     const text = input.trim();
