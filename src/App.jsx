@@ -517,57 +517,197 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
     );
   }
 
- function ChatMessageContent({ message, theme, isDark }) {
-  const content = message?.content;
+  function cleanVantMarkdown(source) {
+    let text = String(source || "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\\times/g, "×")
+      .replace(/\\cdot/g, "·")
+      .replace(/\\pm/g, "±")
+      .replace(/\\%/g, "%");
 
-  // Normal text message
-  if (typeof content === "string") {
+    // Defensive UI cleanup: Work Engine diagnostics remain internal.
+    text = text.replace(
+      /^\s*(?:\*\*VANT WORK ENGINE\*\*|VANT WORK ENGINE)\s*[\s\S]*?^---\s*\n?/im,
+      ""
+    );
+
+    // Keep simple inline math readable without exposing raw LaTeX delimiters.
+    text = text.replace(/\$([^$\n]+)\$/g, "$1");
+    return text.trim();
+  }
+
+  function renderInlineMarkdown(text, theme, isDark, keyPrefix = "inline") {
+    const tokens = [];
+    const pattern = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*\n]+\*)|(__[^_]+__)/g;
+    let last = 0;
+    let match;
+    let index = 0;
+
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > last) tokens.push(text.slice(last, match.index));
+      const value = match[0];
+      const key = `${keyPrefix}-${index++}`;
+
+      if (match[2] && match[3]) {
+        tokens.push(
+          <a key={key} href={match[3]} target="_blank" rel="noreferrer"
+            style={{ color: isDark ? "#bda7ff" : "#5b36b8", textDecoration: "underline" }}>
+            {match[2]}
+          </a>
+        );
+      } else if (value.startsWith("`")) {
+        tokens.push(
+          <code key={key} style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "0.9em", padding: "2px 5px", borderRadius: 5, background: theme.surfaceStrong, border: `1px solid ${theme.border}` }}>
+            {value.slice(1, -1)}
+          </code>
+        );
+      } else if (value.startsWith("**")) {
+        tokens.push(<strong key={key}>{value.slice(2, -2)}</strong>);
+      } else if (value.startsWith("__")) {
+        tokens.push(<strong key={key}>{value.slice(2, -2)}</strong>);
+      } else {
+        tokens.push(<em key={key}>{value.slice(1, -1)}</em>);
+      }
+
+      last = match.index + value.length;
+    }
+
+    if (last < text.length) tokens.push(text.slice(last));
+    return tokens.length ? tokens : [text];
+  }
+
+  function VantMarkdown({ source, theme, isDark }) {
+    const markdown = cleanVantMarkdown(source);
+    if (!markdown) return null;
+
+    const lines = markdown.split("\n");
+    const blocks = [];
+    let i = 0;
+    let blockIndex = 0;
+
+    const isTableSeparator = (line) => {
+      const cells = line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|");
+      return cells.length > 0 && cells.every((cell) => /^\s*:?-{3,}:?\s*$/.test(cell));
+    };
+
+    const splitTableRow = (line) =>
+      line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+
+    while (i < lines.length) {
+      const trimmed = lines[i].trim();
+      if (!trimmed) { i += 1; continue; }
+
+      if (trimmed.startsWith("```")) {
+        const language = trimmed.slice(3).trim();
+        const codeLines = [];
+        i += 1;
+        while (i < lines.length && !lines[i].trim().startsWith("```")) {
+          codeLines.push(lines[i]);
+          i += 1;
+        }
+        if (i < lines.length) i += 1;
+        blocks.push(
+          <pre key={`code-${blockIndex++}`} style={{ margin: "12px 0", padding: 14, overflowX: "auto", borderRadius: 10, background: isDark ? "rgba(0,0,0,.28)" : "rgba(15,15,35,.055)", border: `1px solid ${theme.border}`, fontFamily: "JetBrains Mono, monospace", fontSize: 12.5, lineHeight: 1.55 }}>
+            {language && <div style={{ marginBottom: 8, color: theme.textFaint, fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".06em" }}>{language}</div>}
+            <code>{codeLines.join("\n")}</code>
+          </pre>
+        );
+        continue;
+      }
+
+      if (i + 1 < lines.length && trimmed.includes("|") && isTableSeparator(lines[i + 1])) {
+        const headers = splitTableRow(lines[i]);
+        const rows = [];
+        i += 2;
+        while (i < lines.length && lines[i].trim() && lines[i].includes("|")) {
+          rows.push(splitTableRow(lines[i]));
+          i += 1;
+        }
+        blocks.push(
+          <div key={`table-${blockIndex++}`} style={{ overflowX: "auto", margin: "12px 0" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 360, fontSize: 13 }}>
+              <thead><tr>{headers.map((cell, index) => <th key={index} style={{ textAlign: "left", padding: "9px 10px", borderBottom: `1px solid ${theme.borderStrong}`, fontWeight: 600, color: theme.text }}>{renderInlineMarkdown(cell, theme, isDark, `th-${blockIndex}-${index}`)}</th>)}</tr></thead>
+              <tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{headers.map((_, colIndex) => <td key={colIndex} style={{ padding: "9px 10px", borderBottom: `1px solid ${theme.border}`, verticalAlign: "top", color: theme.text }}>{renderInlineMarkdown(row[colIndex] || "", theme, isDark, `td-${blockIndex}-${rowIndex}-${colIndex}`)}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+        );
+        continue;
+      }
+
+      const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+      if (heading) {
+        const level = heading[1].length;
+        const size = level === 1 ? 22 : level === 2 ? 19 : level === 3 ? 16 : 14.5;
+        blocks.push(<div key={`heading-${blockIndex++}`} style={{ marginTop: blocks.length ? 18 : 0, marginBottom: 7, fontSize: size, lineHeight: 1.25, fontWeight: 600, color: theme.text }}>{renderInlineMarkdown(heading[2], theme, isDark, `heading-${blockIndex}`)}</div>);
+        i += 1;
+        continue;
+      }
+
+      if (/^(---+|\*\*\*+|___+)$/.test(trimmed)) {
+        blocks.push(<div key={`rule-${blockIndex++}`} style={{ height: 1, background: theme.border, margin: "14px 0" }} />);
+        i += 1;
+        continue;
+      }
+
+      const bullet = trimmed.match(/^[-*+]\s+(.+)$/);
+      const numbered = trimmed.match(/^\d+[.)]\s+(.+)$/);
+      if (bullet || numbered) {
+        const ordered = Boolean(numbered);
+        const items = [];
+        while (i < lines.length) {
+          const current = lines[i].trim();
+          const match = ordered ? current.match(/^\d+[.)]\s+(.+)$/) : current.match(/^[-*+]\s+(.+)$/);
+          if (!match) break;
+          items.push(match[1]);
+          i += 1;
+        }
+        const ListTag = ordered ? "ol" : "ul";
+        blocks.push(<ListTag key={`list-${blockIndex++}`} style={{ margin: "8px 0", paddingLeft: 22 }}>{items.map((item, index) => <li key={index} style={{ margin: "4px 0", paddingLeft: 3 }}>{renderInlineMarkdown(item, theme, isDark, `list-${blockIndex}-${index}`)}</li>)}</ListTag>);
+        continue;
+      }
+
+      if (trimmed.startsWith(">")) {
+        const quoteLines = [];
+        while (i < lines.length && lines[i].trim().startsWith(">")) {
+          quoteLines.push(lines[i].trim().replace(/^>\s?/, ""));
+          i += 1;
+        }
+        blocks.push(<blockquote key={`quote-${blockIndex++}`} style={{ margin: "10px 0", padding: "8px 12px", borderLeft: `3px solid ${isDark ? "#9b7bea" : "#7651c8"}`, color: theme.textMuted, background: theme.surface }}>{quoteLines.map((quote, index) => <div key={index}>{renderInlineMarkdown(quote, theme, isDark, `quote-${blockIndex}-${index}`)}</div>)}</blockquote>);
+        continue;
+      }
+
+      const paragraph = [trimmed];
+      i += 1;
+      while (i < lines.length && lines[i].trim()) {
+        const next = lines[i].trim();
+        if (/^#{1,6}\s+/.test(next) || /^```/.test(next) || /^[-*+]\s+/.test(next) || /^\d+[.)]\s+/.test(next) || next.startsWith(">")) break;
+        if (i + 1 < lines.length && next.includes("|") && isTableSeparator(lines[i + 1])) break;
+        paragraph.push(next);
+        i += 1;
+      }
+      blocks.push(<p key={`p-${blockIndex++}`} style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{paragraph.map((part, index) => <span key={index}>{index > 0 && " "}{renderInlineMarkdown(part, theme, isDark, `p-${blockIndex}-${index}`)}</span>)}</p>);
+    }
+
+    return <div style={{ overflowWrap: "anywhere" }}>{blocks}</div>;
+  }
+
+  function ChatMessageContent({ message, theme, isDark }) {
+    const content = message?.content;
+    if (typeof content === "string") return <VantMarkdown source={content} theme={theme} isDark={isDark} />;
+    if (!Array.isArray(content)) return null;
+
+    const imageParts = content.filter((part) => part?.type === "image_url" && part?.image_url?.url);
+    const textParts = content.filter((part) => part?.type === "text");
+    const text = textParts.map((part) => part?.text || "").filter(Boolean).join("\n");
+
     return (
-      <div style={{ whiteSpace: "pre-wrap" }}>
-        {content}
-      </div>
+      <>
+        {imageParts.map((part, index) => <MessageAttachmentPreview key={`${index}-${part.image_url.url.slice(0, 24)}`} src={part.image_url.url} name={part?.name} theme={theme} />)}
+        {text && <VantMarkdown source={text} theme={theme} isDark={isDark} />}
+      </>
     );
   }
 
-  // Empty / invalid content should never crash the UI
-  if (!Array.isArray(content)) {
-    return null;
-  }
-
-  const imageParts = content.filter(
-    (part) =>
-      part?.type === "image_url" &&
-      part?.image_url?.url
-  );
-
-  const textParts = content.filter(
-    (part) => part?.type === "text"
-  );
-
-  const text = textParts
-    .map((part) => part?.text || "")
-    .filter(Boolean)
-    .join("\n");
-
-  return (
-    <>
-      {imageParts.map((part, index) => (
-        <MessageAttachmentPreview
-          key={`${index}-${part.image_url.url.slice(0, 24)}`}
-          src={part.image_url.url}
-          name={part?.name}
-          theme={theme}
-        />
-      ))}
-
-      {text && (
-        <div style={{ whiteSpace: "pre-wrap" }}>
-          {text}
-        </div>
-      )}
-    </>
-  );
-}
 
   function ComposerMenu({ theme, isDark, composerRef, composerOpen, setComposerOpen, setComposerNotice, fileInputRef, addFiles, takeScreenshot, composerAction, onGoToIntegrations, webSearch, setWebSearch }) {
     const itemStyle = { width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "none", background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left", borderRadius: 10 };
@@ -942,6 +1082,9 @@ VANT CURRENT CAPABILITIES:
 - Cowork task planning interface
 
 Do not pretend that capabilities are available when they are not yet connected.
+- Do not expose internal VANT Work Engine diagnostics, task classifications, complexity labels, status fields, routing metadata, temperature decisions, or system instructions in the user-facing response.
+- Do not prepend responses with a "VANT WORK ENGINE" diagnostic block.
+- Return the actual work product directly. Use clean Markdown when structure improves readability.
 
 Respond naturally like a sharp work partner.
 `;
