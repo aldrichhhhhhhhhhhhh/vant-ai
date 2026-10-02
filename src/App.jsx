@@ -710,6 +710,7 @@ function ChatPage({
         attachments,
         memoryAvailable: false,
       });
+
       setMessages(next);
       messagesRef.current = next;
       const chatId = activeConversationId || onCreateConversation({ messages: next });
