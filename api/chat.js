@@ -1,16 +1,27 @@
-export const config = { maxDuration: 60 };
+export const config = {
+  maxDuration: 60,
+};
 
 import { createClient } from "@supabase/supabase-js";
 
 const MODEL = "google/gemma-4-31b-it";
-const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+const NVIDIA_URL =
+  "https://integrate.api.nvidia.com/v1/chat/completions";
 
 const MAX_REQUEST_CHARS = 4_000_000;
 const MAX_MESSAGES = 40;
 
+// Keep NVIDIA slightly below the Vercel function limit.
+// This gives VANT a small amount of time to finish the response cleanly.
+const NVIDIA_TIMEOUT_MS = 55_000;
+
 function json(res, status, body) {
   return res.status(status).json(body);
 }
+
+/* =========================================================
+   MESSAGE VALIDATION
+   ========================================================= */
 
 function isValidImageUrlItem(item) {
   return Boolean(
@@ -23,7 +34,9 @@ function isValidImageUrlItem(item) {
 }
 
 function isValidContentPart(item) {
-  if (!item || typeof item !== "object") return false;
+  if (!item || typeof item !== "object") {
+    return false;
+  }
 
   if (item.type === "text") {
     return typeof item.text === "string";
@@ -33,7 +46,9 @@ function isValidContentPart(item) {
 }
 
 function isValidMessage(message) {
-  if (!message || typeof message !== "object") return false;
+  if (!message || typeof message !== "object") {
+    return false;
+  }
 
   if (!["system", "user", "assistant"].includes(message.role)) {
     return false;
@@ -57,15 +72,18 @@ function containsImage(messages) {
   return messages.some(
     (message) =>
       Array.isArray(message.content) &&
-      message.content.some((part) => part?.type === "image_url")
+      message.content.some(
+        (part) => part?.type === "image_url"
+      )
   );
 }
 
-function getVantTemperature(messages, hasImage) {
-  // ---------------------------------------------------------
-  // VANT ADAPTIVE TEMPERATURE ENGINE
-  // ---------------------------------------------------------
+/* =========================================================
+   VANT ADAPTIVE TEMPERATURE ENGINE
+   ========================================================= */
 
+function getVantTemperature(messages, hasImage) {
+  // Images require more deterministic interpretation.
   if (hasImage) {
     return 0.25;
   }
@@ -74,7 +92,8 @@ function getVantTemperature(messages, hasImage) {
     (message) => message?.role === "user"
   );
 
-  const latestUser = userMessages[userMessages.length - 1];
+  const latestUser =
+    userMessages[userMessages.length - 1];
 
   const latestText = Array.isArray(latestUser?.content)
     ? latestUser.content
@@ -83,11 +102,13 @@ function getVantTemperature(messages, hasImage) {
         .join(" ")
     : String(latestUser?.content || "");
 
-  const text = latestText.toLowerCase().trim();
+  const text = latestText
+    .toLowerCase()
+    .trim();
 
-  // ---------------------------------------------------------
-  // HIGH-PRECISION TASKS
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     CALCULATION
+     --------------------------------------------------------- */
 
   const calculationSignals = [
     "calculate",
@@ -104,6 +125,10 @@ function getVantTemperature(messages, hasImage) {
     "average",
     "total",
   ];
+
+  /* ---------------------------------------------------------
+     TECHNICAL
+     --------------------------------------------------------- */
 
   const technicalSignals = [
     "sql",
@@ -127,9 +152,9 @@ function getVantTemperature(messages, hasImage) {
     "json",
   ];
 
-  // ---------------------------------------------------------
-  // ANALYTICAL TASKS
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     ANALYTICAL
+     --------------------------------------------------------- */
 
   const analyticalSignals = [
     "analyze",
@@ -153,9 +178,9 @@ function getVantTemperature(messages, hasImage) {
     "recommendations",
   ];
 
-  // ---------------------------------------------------------
-  // CREATIVE TASKS
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     CREATIVE
+     --------------------------------------------------------- */
 
   const creativeSignals = [
     "brainstorm",
@@ -184,9 +209,9 @@ function getVantTemperature(messages, hasImage) {
     "think outside",
   ];
 
-  // ---------------------------------------------------------
-  // WRITING / COMMUNICATION
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     WRITING
+     --------------------------------------------------------- */
 
   const writingSignals = [
     "write",
@@ -203,9 +228,9 @@ function getVantTemperature(messages, hasImage) {
     "copywriting",
   ];
 
-  // ---------------------------------------------------------
-  // SCORE THE REQUEST
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     SCORE
+     --------------------------------------------------------- */
 
   const countMatches = (signals) =>
     signals.reduce(
@@ -229,9 +254,9 @@ function getVantTemperature(messages, hasImage) {
   const writingScore =
     countMatches(writingSignals);
 
-  // ---------------------------------------------------------
-  // USER ENGAGEMENT
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     ENGAGEMENT
+     --------------------------------------------------------- */
 
   const conversationDepth =
     userMessages.length;
@@ -253,35 +278,40 @@ function getVantTemperature(messages, hasImage) {
       text
     );
 
-  // ---------------------------------------------------------
-  // DECISION TREE
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     DECISION TREE
+     --------------------------------------------------------- */
 
-  // Calculations should remain highly deterministic.
+  // Highest precision.
   if (calculationScore > 0) {
     return 0.2;
   }
 
-  // Technical work should prioritize consistency.
+  // Technical consistency.
   if (technicalScore >= 1) {
     return 0.3;
   }
 
-  // Strong creative intent gets more exploration.
+  // Creative exploration.
   if (creativeScore >= 2) {
     return highEngagement ? 0.9 : 0.8;
   }
 
-  if (creativeScore === 1 && exploratoryLanguage) {
+  if (
+    creativeScore === 1 &&
+    exploratoryLanguage
+  ) {
     return 0.8;
   }
 
-  // Writing gets moderate creativity.
+  // Writing.
   if (writingScore >= 1) {
-    return refinementLanguage ? 0.8 : 0.7;
+    return refinementLanguage
+      ? 0.8
+      : 0.7;
   }
 
-  // Analytical work stays balanced.
+  // Analysis.
   if (analyticalScore >= 2) {
     return 0.45;
   }
@@ -290,27 +320,31 @@ function getVantTemperature(messages, hasImage) {
     return 0.5;
   }
 
-  // User is actively iterating / exploring.
-  if (highEngagement && exploratoryLanguage) {
+  // Exploratory conversation.
+  if (
+    highEngagement &&
+    exploratoryLanguage
+  ) {
     return 0.7;
   }
 
-  // User is refining an existing answer.
+  // Refinement.
   if (refinementLanguage) {
     return 0.65;
   }
 
-  // ---------------------------------------------------------
-  // DEFAULT VANT TEMPERATURE
-  // ---------------------------------------------------------
-
+  // VANT default.
   return 0.6;
 }
 
+/* =========================================================
+   MAIN API HANDLER
+   ========================================================= */
+
 export default async function handler(req, res) {
-  // ---------------------------------------------------------
-  // METHOD CHECK
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     METHOD CHECK
+     --------------------------------------------------------- */
 
   if (req.method !== "POST") {
     return json(res, 405, {
@@ -318,14 +352,17 @@ export default async function handler(req, res) {
     });
   }
 
-  // ---------------------------------------------------------
-  // SUPABASE AUTH
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     SUPABASE AUTH
+     --------------------------------------------------------- */
 
-  const authHeader = req.headers.authorization || "";
-  const accessToken = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : "";
+  const authHeader =
+    req.headers.authorization || "";
+
+  const accessToken =
+    authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : "";
 
   const supabaseUrl =
     process.env.SUPABASE_URL ||
@@ -335,7 +372,10 @@ export default async function handler(req, res) {
     process.env.SUPABASE_PUBLISHABLE_KEY ||
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!supabaseUrl || !supabasePublishableKey) {
+  if (
+    !supabaseUrl ||
+    !supabasePublishableKey
+  ) {
     return json(res, 500, {
       error: "supabase_not_configured",
     });
@@ -347,28 +387,43 @@ export default async function handler(req, res) {
     });
   }
 
-  const supabase = createClient(supabaseUrl, supabasePublishableKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
+  const supabase = createClient(
+    supabaseUrl,
+    supabasePublishableKey,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
 
-  const { data: userData, error: userError } =
-    await supabase.auth.getUser(accessToken);
+  const {
+    data: userData,
+    error: userError,
+  } =
+    await supabase.auth.getUser(
+      accessToken
+    );
 
-  if (userError || !userData?.user) {
+  if (
+    userError ||
+    !userData?.user
+  ) {
     return json(res, 401, {
       error: "invalid_session",
     });
   }
 
-  // ---------------------------------------------------------
-  // ACCESS CODE
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     ACCESS CODE
+     --------------------------------------------------------- */
 
-  const expectedAccessCode = process.env.APP_ACCESS_CODE;
-  const providedAccessCode = req.headers["x-access-code"] || "";
+  const expectedAccessCode =
+    process.env.APP_ACCESS_CODE;
+
+  const providedAccessCode =
+    req.headers["x-access-code"] || "";
 
   if (!expectedAccessCode) {
     return json(res, 500, {
@@ -376,17 +431,21 @@ export default async function handler(req, res) {
     });
   }
 
-  if (providedAccessCode !== expectedAccessCode) {
+  if (
+    providedAccessCode !==
+    expectedAccessCode
+  ) {
     return json(res, 401, {
       error: "invalid_access_code",
     });
   }
 
-  // ---------------------------------------------------------
-  // NVIDIA API KEY
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     NVIDIA API KEY
+     --------------------------------------------------------- */
 
-  const apiKey = process.env.NVIDIA_API_KEY;
+  const apiKey =
+    process.env.NVIDIA_API_KEY;
 
   if (!apiKey) {
     return json(res, 500, {
@@ -394,76 +453,131 @@ export default async function handler(req, res) {
     });
   }
 
-  // ---------------------------------------------------------
-  // REQUEST BODY
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     REQUEST BODY
+     --------------------------------------------------------- */
 
-  const { system, messages } = req.body || {};
+  const {
+    system,
+    messages,
+    stream = false,
+  } = req.body || {};
 
-  if (system !== undefined && typeof system !== "string") {
+  if (
+    system !== undefined &&
+    typeof system !== "string"
+  ) {
     return json(res, 400, {
       error: "invalid_system_prompt",
     });
   }
 
-  if (!Array.isArray(messages) || messages.length === 0) {
+  if (
+    !Array.isArray(messages) ||
+    messages.length === 0
+  ) {
     return json(res, 400, {
       error: "invalid_messages",
     });
   }
 
-  if (messages.length > MAX_MESSAGES) {
+  if (
+    messages.length >
+    MAX_MESSAGES
+  ) {
     return json(res, 413, {
       error: "too_many_messages",
     });
   }
 
-  // ---------------------------------------------------------
-  // MESSAGE VALIDATION
-  // ---------------------------------------------------------
+  if (
+    typeof stream !== "boolean"
+  ) {
+    return json(res, 400, {
+      error: "invalid_stream_flag",
+    });
+  }
 
-  const validMessages = messages.filter(isValidMessage);
+  /* ---------------------------------------------------------
+     MESSAGE VALIDATION
+     --------------------------------------------------------- */
 
-  if (validMessages.length !== messages.length) {
+  const validMessages =
+    messages.filter(
+      isValidMessage
+    );
+
+  if (
+    validMessages.length !==
+    messages.length
+  ) {
     return json(res, 400, {
       error: "invalid_message_format",
     });
   }
 
-  // ---------------------------------------------------------
-  // DETECT MULTIMODAL REQUEST
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     MULTIMODAL DETECTION
+     --------------------------------------------------------- */
 
-  const hasImage = containsImage(validMessages);
+  const hasImage =
+    containsImage(
+      validMessages
+    );
 
-  // ---------------------------------------------------------
-  // BUILD NVIDIA REQUEST
-  // ---------------------------------------------------------
-
-  const { stream = false } = req.body || {};
-
-  if (typeof stream !== "boolean") {
-    return json(res, 400, {
-      error: "invalid_stream_flag",
-    });
-  }
+  /* ---------------------------------------------------------
+     BUILD NVIDIA REQUEST
+     --------------------------------------------------------- */
 
   let payload;
 
   try {
     payload = {
       model: MODEL,
+
       messages: [
-        ...(system ? [{ role: "system", content: system }] : []),
+        ...(system
+          ? [
+              {
+                role: "system",
+                content: system,
+              },
+            ]
+          : []),
         ...validMessages,
       ],
-      temperature: getVantTemperature(validMessages, hasImage),
+
+      temperature:
+        getVantTemperature(
+          validMessages,
+          hasImage
+        ),
+
       top_p: 0.95,
+
       top_k: 64,
-      max_tokens: hasImage ? 900 : 4096,
+
+      /*
+       * Keep responses fast enough for Vercel.
+       * 4096 was contributing to long-running requests.
+       */
+      max_tokens:
+        hasImage
+          ? 900
+          : 2048,
+
       stream,
+
+      /*
+       * Disable internal reasoning for now.
+       *
+       * VANT should prioritize:
+       * fast visible output
+       * stable streaming
+       * predictable latency
+       */
       chat_template_kwargs: {
-        enable_thinking: !hasImage,
+        enable_thinking: false,
       },
     };
   } catch {
@@ -472,46 +586,70 @@ export default async function handler(req, res) {
     });
   }
 
-  // ---------------------------------------------------------
-  // PAYLOAD SIZE PROTECTION
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     PAYLOAD SIZE PROTECTION
+     --------------------------------------------------------- */
 
-  const serialized = JSON.stringify(payload);
+  const serialized =
+    JSON.stringify(payload);
 
-  if (serialized.length > MAX_REQUEST_CHARS) {
+  if (
+    serialized.length >
+    MAX_REQUEST_CHARS
+  ) {
     return json(res, 413, {
       error: "payload_too_large",
     });
   }
 
-  // ---------------------------------------------------------
-  // CALL NVIDIA NIM
-  // ---------------------------------------------------------
+  /* ---------------------------------------------------------
+     NVIDIA NIM REQUEST
+     --------------------------------------------------------- */
 
   let response;
 
   try {
-    response = await fetch(NVIDIA_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        Accept: stream
-          ? "text/event-stream"
-          : "application/json",
-      },
-      body: serialized,
-      signal: AbortSignal.timeout(60_000),
-    });
+    response = await fetch(
+      NVIDIA_URL,
+      {
+        method: "POST",
+
+        headers: {
+          Authorization:
+            `Bearer ${apiKey}`,
+
+          "Content-Type":
+            "application/json",
+
+          Accept: stream
+            ? "text/event-stream"
+            : "application/json",
+        },
+
+        body: serialized,
+
+        signal:
+          AbortSignal.timeout(
+            NVIDIA_TIMEOUT_MS
+          ),
+      }
+    );
   } catch (err) {
     if (
-      err?.name === "TimeoutError" ||
-      err?.name === "AbortError"
+      err?.name ===
+        "TimeoutError" ||
+      err?.name ===
+        "AbortError"
     ) {
+      console.error(
+        "VANT NVIDIA timeout"
+      );
+
       return json(res, 504, {
         error: "nvidia_timeout",
+
         detail:
-          "NVIDIA NIM did not respond within 60 seconds.",
+          "NVIDIA NIM did not begin responding within 55 seconds.",
       });
     }
 
@@ -521,19 +659,26 @@ export default async function handler(req, res) {
     );
 
     return json(res, 502, {
-      error: "nvidia_connection_failed",
+      error:
+        "nvidia_connection_failed",
+
       detail:
         "Could not connect to NVIDIA NIM.",
     });
   }
 
+  /* ---------------------------------------------------------
+     NVIDIA ERROR
+     --------------------------------------------------------- */
+
   if (!response.ok) {
     let data = {};
 
     try {
-      data = await response.json();
+      data =
+        await response.json();
     } catch {
-      /* ignore */
+      // Ignore JSON parse failure.
     }
 
     const detail =
@@ -555,15 +700,17 @@ export default async function handler(req, res) {
         ? response.status
         : 502,
       {
-        error: "nvidia_api_error",
+        error:
+          "nvidia_api_error",
+
         detail,
       }
     );
   }
 
-  // ---------------------------------------------------------
-  // STREAMING RESPONSE
-  // ---------------------------------------------------------
+  /* =========================================================
+     STREAMING RESPONSE
+     ========================================================= */
 
   if (stream) {
     res.statusCode = 200;
@@ -589,7 +736,8 @@ export default async function handler(req, res) {
     );
 
     if (
-      typeof res.flushHeaders === "function"
+      typeof res.flushHeaders ===
+      "function"
     ) {
       res.flushHeaders();
     }
@@ -601,7 +749,9 @@ export default async function handler(req, res) {
         })}\n\n`
       );
 
-      res.write("data: [DONE]\n\n");
+      res.write(
+        "data: [DONE]\n\n"
+      );
 
       return res.end();
     }
@@ -614,15 +764,22 @@ export default async function handler(req, res) {
 
     try {
       while (true) {
-        const { value, done } =
-          await reader.read();
+        const {
+          value,
+          done,
+        } = await reader.read();
 
-        if (done) break;
+        if (done) {
+          break;
+        }
 
         const chunk =
-          decoder.decode(value, {
-            stream: true,
-          });
+          decoder.decode(
+            value,
+            {
+              stream: true,
+            }
+          );
 
         if (chunk) {
           res.write(chunk);
@@ -637,11 +794,12 @@ export default async function handler(req, res) {
       try {
         res.write(
           `data: ${JSON.stringify({
-            error: "stream_interrupted",
+            error:
+              "stream_interrupted",
           })}\n\n`
         );
       } catch {
-        /* client disconnected */
+        // Client disconnected.
       }
     } finally {
       try {
@@ -649,7 +807,7 @@ export default async function handler(req, res) {
           "data: [DONE]\n\n"
         );
       } catch {
-        /* client disconnected */
+        // Client disconnected.
       }
 
       res.end();
@@ -658,27 +816,32 @@ export default async function handler(req, res) {
     return;
   }
 
-  // ---------------------------------------------------------
-  // NON-STREAMING RESPONSE
-  // ---------------------------------------------------------
+  /* =========================================================
+     NON-STREAMING FALLBACK
+     ========================================================= */
 
   let data;
 
   try {
-    data = await response.json();
+    data =
+      await response.json();
   } catch {
     return json(res, 502, {
-      error: "invalid_nvidia_response",
+      error:
+        "invalid_nvidia_response",
+
       detail:
         "NVIDIA NIM returned a response that could not be parsed as JSON.",
     });
   }
 
   const content =
-    data?.choices?.[0]?.message?.content;
+    data?.choices?.[0]
+      ?.message?.content;
 
   if (
-    typeof content !== "string" ||
+    typeof content !==
+      "string" ||
     !content.trim()
   ) {
     console.error(
@@ -687,7 +850,9 @@ export default async function handler(req, res) {
     );
 
     return json(res, 502, {
-      error: "empty_model_response",
+      error:
+        "empty_model_response",
+
       detail:
         "The model returned no text content.",
     });
@@ -700,6 +865,7 @@ export default async function handler(req, res) {
         text: content,
       },
     ],
+
     model: MODEL,
   });
 }
