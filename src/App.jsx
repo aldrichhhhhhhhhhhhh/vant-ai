@@ -518,23 +518,26 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
   }
 
   function cleanVantMarkdown(source) {
-    let text = String(source || "")
-      .replace(/\r\n/g, "\n")
-      .replace(/\\times/g, "×")
-      .replace(/\\cdot/g, "·")
-      .replace(/\\pm/g, "±")
-      .replace(/\\%/g, "%");
+  let text = String(source || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\\times/g, "×")
+    .replace(/\\cdot/g, "·")
+    .replace(/\\pm/g, "±")
+    .replace(/\\square/g, "☐")
+    .replace(/\\%/g, "%")
+    .replace(/<br\s*\/?>/gi, " · ");
 
-    // Defensive UI cleanup: Work Engine diagnostics remain internal.
-    text = text.replace(
-      /^\s*(?:\*\*VANT WORK ENGINE\*\*|VANT WORK ENGINE)\s*[\s\S]*?^---\s*\n?/im,
-      ""
-    );
+  // Remove internal VANT Work Engine diagnostics
+  text = text.replace(
+    /^\s*(?:\*\*VANT WORK ENGINE\*\*|VANT WORK ENGINE)\s*[\s\S]*?^---\s*\n?/im,
+    ""
+  );
 
-    // Keep simple inline math readable without exposing raw LaTeX delimiters.
-    text = text.replace(/\$([^$\n]+)\$/g, "$1");
-    return text.trim();
-  }
+  // Remove simple inline math delimiters
+  text = text.replace(/\$([^$\n]+)\$/g, "$1");
+
+  return text.trim();
+}
 
   function renderInlineMarkdown(text, theme, isDark, keyPrefix = "inline") {
     const tokens = [];
