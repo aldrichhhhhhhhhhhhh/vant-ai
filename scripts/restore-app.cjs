@@ -196,6 +196,6 @@ console.log(
     " -> src/App.jsx (" +
     Buffer.byteLength(app) +
     " bytes, " +
-    app.split("\\n").length +
+    app.split("\n").length +
     " lines) with AI Chat attachment patch."
 );
