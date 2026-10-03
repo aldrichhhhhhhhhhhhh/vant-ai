@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predev": "node scripts/restore-app.cjs",
+    "prebuild": "node scripts/restore-app.cjs"
   },
   "dependencies": {
     "react": "^18.3.0",
