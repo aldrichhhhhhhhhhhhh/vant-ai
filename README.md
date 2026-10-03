@@ -62,3 +62,21 @@ The serverless `/api/chat` function also requires:
 Do not put service-role keys or other secrets in `VITE_*` variables. The publishable key is safe for the browser; the NVIDIA key and access code must remain server-side.
 
 Database RLS for `public.app_state` and `public.chat_conversations` is configured to allow only the `authenticated` role and only rows owned by `auth.uid()`.
+
+## UX upgrade (Claude × ChatGPT × Grok mix)
+
+This build improves the chat workspace with a blended UX:
+
+- **Claude-inspired:** calmer work-session framing, clearer structure, “understand → analyze → act” thinking state
+- **ChatGPT-inspired:** searchable / collapsible chat history, suggested follow-ups after answers, capability prompt packs on the empty state
+- **Grok-inspired:** direct, no-fluff copy, sharper empty-state personality, lightweight keyboard power features
+
+### Chat UX additions
+
+- Collapsible history rail with search
+- Prompt packs on the welcome screen (Ship / Write / Decide)
+- Hover message actions (copy, edit, regenerate)
+- Working indicator with stop (Esc)
+- Suggested follow-ups after each completed answer
+- Composer chips for Web search + attachment count
+- Shortcuts: `⌘/Ctrl+N` new chat, `Esc` stop generation
