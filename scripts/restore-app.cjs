@@ -57,12 +57,135 @@ function extractFile(zip, wantedName) {
   throw new Error("VANT restore: " + wantedName + " was not found in " + archivePath + ".");
 }
 
-const zip = readFileSync(archivePath);
-const app = extractFile(zip, wanted);
+function patchAiChat(appSource) {
+  let source = appSource;
 
-if (!app.toString("utf8").includes("export default")) {
+  source = source.replace(
+    'import Papa from "papaparse";',
+    'import Papa from "papaparse";\nimport { parseAttachment } from "./chatAttachmentParser";'
+  );
+
+  source = source.replace(
+    'accept=".pdf,.csv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,image/*"',
+    'accept=".pdf,.csv,.tsv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,.xml,.html,.htm,.rtf,image/*"'
+  );
+
+  source = source.replace(
+    '  function AttachmentPreview({ file, theme, isDark, size = 58 }) {',
+    '  function AttachmentPreview({ file, theme, isDark, size = 58 }) {'
+  );
+
+  source = source.replace(
+    '      if (!file || !file.type?.startsWith("image/")) {',
+    '      if (!file || !(file.type?.startsWith("image/") || /\\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(file.name || ""))) {'
+  );
+
+  const start = source.indexOf('  async function buildUserContent(text) {');
+  const end = source.indexOf('\n  function displayText(content) {', start);
+
+  if (start < 0 || end < 0) {
+    throw new Error("VANT restore: buildUserContent patch anchors were not found.");
+  }
+
+  const replacement = `  async function buildUserContent(text) {
+    const parts = [];
+    const cleanText = String(text || "").trim();
+    if (cleanText) parts.push({ type: "text", text: cleanText });
+
+    for (const file of attachments) {
+      const meta = \`Attachment: \${file.name} (\${Math.max(1, Math.round(file.size / 1024))} KB)\`;
+      const isImage =
+        file.type?.startsWith("image/") ||
+        /\\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(file.name || "");
+
+      if (isImage) {
+        try {
+          const prepared = await prepareImageForModel(file);
+          parts.push({
+            type: "text",
+            text: \`\${meta}. Inspect the attached image and use it as evidence for the user's request.\`,
+          });
+          parts.push({
+            type: "image_url",
+            image_url: { url: prepared.dataUrl },
+          });
+        } catch {
+          parts.push({
+            type: "text",
+            text: \`\${meta}. The image could not be prepared for analysis.\`,
+          });
+        }
+        continue;
+      }
+
+      /*
+       * Keep document contents OUT of the visible chat bubble.
+       * The attachment parser runs here and the resulting context is
+       * marked so ChatMessageContent can hide it while the model still
+       * receives it as a normal text part.
+       */
+      try {
+        const parsed = await parseAttachment(file, { maxChars: 40000 });
+        if (parsed?.text) {
+          parts.push({
+            type: "text",
+            text: \`\${meta}\\n[VANT_ATTACHMENT_CONTEXT]\\nTYPE: \${parsed.kind}\\n\${parsed.text}\\n[/VANT_ATTACHMENT_CONTEXT]\`,
+          });
+        } else {
+          parts.push({
+            type: "text",
+            text: \`\${meta}\\n[attachment content could not be extracted in the browser]\`,
+          });
+        }
+      } catch (error) {
+        parts.push({
+          type: "text",
+          text: \`\${meta}\\n[attachment parsing failed: \${error?.message || "unknown parser error"}]\`,
+        });
+      }
+    }
+
+    if (webSearch) {
+      parts.push({
+        type: "text",
+        text: "WEB SEARCH REQUESTED: Do not invent web results. If live web access is unavailable, state that clearly.",
+      });
+    }
+
+    return parts;
+  }
+`;
+
+  source = source.slice(0, start) + replacement + source.slice(end);
+
+  source = source.replace(
+    '  if (!cleanText || loading) {',
+    '  if ((!cleanText && attachments.length === 0) || loading) {'
+  );
+
+  const oldTextParts =
+    '    const textParts = content.filter((part) => part?.type === "text");\n    const text = textParts.map((part) => part?.text || "").filter(Boolean).join("\\n");';
+
+  const newTextParts =
+    '    const textParts = content.filter((part) => part?.type === "text" && !/\\[VANT_ATTACHMENT_CONTEXT\\][\\s\\S]*?\\[\\/VANT_ATTACHMENT_CONTEXT\\]/.test(part?.text || ""));\n    const text = textParts.map((part) => part?.text || "").filter(Boolean).join("\\n");';
+
+  if (!source.includes(oldTextParts)) {
+    throw new Error("VANT restore: ChatMessageContent text filter anchor was not found.");
+  }
+
+  source = source.replace(oldTextParts, newTextParts);
+
+  return source;
+}
+
+const zip = readFileSync(archivePath);
+let app = extractFile(zip, wanted).toString("utf8");
+
+if (!app.includes("export default")) {
   throw new Error("VANT restore: extracted App.jsx does not look like a React entry.");
 }
+
+app = patchAiChat(app);
 
 mkdirSync(join(root, "src"), { recursive: true });
 writeFileSync(targetPath, app);
@@ -71,8 +194,8 @@ console.log(
   "VANT restore: loaded " +
     wanted +
     " -> src/App.jsx (" +
-    app.length +
+    Buffer.byteLength(app) +
     " bytes, " +
-    app.toString("utf8").split("\n").length +
-    " lines)."
+    app.split("\\n").length +
+    " lines) with AI Chat attachment patch."
 );
