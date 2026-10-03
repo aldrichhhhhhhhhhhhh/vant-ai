@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import Papa from "papaparse";
+import { parseAttachment } from "./chatAttachmentParser";
 import { supabase } from "./supabase";
 import {
   buildVantWorkEnvelope,
@@ -498,7 +499,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
     const [src, setSrc] = useState("");
 
     useEffect(() => {
-      if (!file || !file.type?.startsWith("image/")) {
+      if (!file || !(file.type?.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(file.name || ""))) {
         setSrc("");
         return undefined;
       }
@@ -708,7 +709,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
     if (!Array.isArray(content)) return null;
 
     const imageParts = content.filter((part) => part?.type === "image_url" && part?.image_url?.url);
-    const textParts = content.filter((part) => part?.type === "text");
+    const textParts = content.filter((part) => part?.type === "text" && !/\[VANT_ATTACHMENT_CONTEXT\][\s\S]*?\[\/VANT_ATTACHMENT_CONTEXT\]/.test(part?.text || ""));
     const text = textParts.map((part) => part?.text || "").filter(Boolean).join("\n");
 
     return (
@@ -762,7 +763,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
             </button>
           </div>
         )}
-        <input ref={fileInputRef} type="file" multiple accept=".pdf,.csv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,image/*" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+        <input ref={fileInputRef} type="file" multiple accept=".pdf,.csv,.tsv,.xlsx,.xls,.doc,.docx,.txt,.md,.json,.xml,.html,.htm,.rtf,image/*" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
       </div>
     );
   }
@@ -949,50 +950,62 @@ function ChatPage({
   }
 
   async function buildUserContent(text) {
-    const parts = [{ type: "text", text: text.trim() }];
-    let textBudget = 14000;
+    const parts = [];
+    const cleanText = String(text || "").trim();
+    if (cleanText) parts.push({ type: "text", text: cleanText });
 
     for (const file of attachments) {
-      const meta = `${file.name} (${Math.round(file.size / 1024)} KB)`;
-      const isImage = file.type.startsWith("image/");
-      const isText = file.type.startsWith("text/") || /\.(csv|txt|md|json)$/i.test(file.name);
+      const meta = `Attachment: ${file.name} (${Math.max(1, Math.round(file.size / 1024))} KB)`;
+      const isImage =
+        file.type?.startsWith("image/") ||
+        /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(file.name || "");
 
       if (isImage) {
         try {
           const prepared = await prepareImageForModel(file);
           parts.push({
             type: "text",
-            text: `Attachment: ${meta}. Inspect the attached image and use it as evidence for the user's request.`,
+            text: `${meta}. Inspect the attached image and use it as evidence for the user's request.`,
           });
           parts.push({
             type: "image_url",
             image_url: { url: prepared.dataUrl },
           });
         } catch {
-          parts.push({ type: "text", text: `Attachment: ${meta}. The image could not be prepared for analysis.` });
+          parts.push({
+            type: "text",
+            text: `${meta}. The image could not be prepared for analysis.`,
+          });
         }
         continue;
       }
 
-      if (isText && textBudget > 0) {
-        try {
-          const raw = await file.text();
-          const excerpt = raw.slice(0, textBudget);
-          textBudget -= excerpt.length;
+      try {
+        const parsed = await parseAttachment(file, { maxChars: 40000 });
+        if (parsed?.text) {
           parts.push({
             type: "text",
-            text: `${meta}\nCONTENT:\n${excerpt}${raw.length > excerpt.length ? "\n[content truncated]" : ""}`,
+            text: `${meta}\n[VANT_ATTACHMENT_CONTEXT]\nTYPE: ${parsed.kind}\n${parsed.text}\n[/VANT_ATTACHMENT_CONTEXT]`,
           });
-        } catch {
-          parts.push({ type: "text", text: `${meta}\n[content could not be read in the browser]` });
+        } else {
+          parts.push({
+            type: "text",
+            text: `${meta}\n[attachment content could not be extracted in the browser]`,
+          });
         }
-      } else {
-        parts.push({ type: "text", text: `${meta}\n[attachment metadata only — this file type is not yet parsed by VANT Chat]` });
+      } catch (error) {
+        parts.push({
+          type: "text",
+          text: `${meta}\n[attachment parsing failed: ${error?.message || "unknown parser error"}]`,
+        });
       }
     }
 
     if (webSearch) {
-      parts.push({ type: "text", text: "WEB SEARCH REQUESTED: Do not invent web results. If live web access is unavailable, state that clearly." });
+      parts.push({
+        type: "text",
+        text: "WEB SEARCH REQUESTED: Do not invent web results. If live web access is unavailable, state that clearly.",
+      });
     }
 
     return parts;
@@ -1009,7 +1022,7 @@ function ChatPage({
 async function send(text, options = {}) {
   const cleanText = text.trim();
 
-  if (!cleanText || loading) {
+  if ((!cleanText && attachments.length === 0) || loading) {
     return;
   }
 
