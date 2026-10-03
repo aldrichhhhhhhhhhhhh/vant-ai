@@ -5,7 +5,7 @@ import {
   buildVantWorkEnvelope,
   buildVantSystemPrompt,
 } from "./vantEngine";
-import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2, FolderKanban } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2, FolderKanban } from "lucide-react";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -122,9 +122,15 @@ async function askClaude(
   systemPrompt,
   messages,
   onChunk,
-  timeoutMs = 58000
+  timeoutMs = 58000,
+  externalSignal = null
 ) {
   const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener("abort", abortFromCaller, { once: true });
+  }
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   let accessCode = "";
@@ -301,6 +307,7 @@ async function askClaude(
     }
 
     clearTimeout(timer);
+    if (externalSignal) externalSignal.removeEventListener("abort", abortFromCaller);
 
     return (
       fullText.trim() ||
@@ -308,8 +315,10 @@ async function askClaude(
     );
   } catch (err) {
     clearTimeout(timer);
+    if (externalSignal) externalSignal.removeEventListener("abort", abortFromCaller);
 
     if (err?.name === "AbortError") {
+      if (externalSignal?.aborted) return "__VANT_USER_STOPPED__";
       return "VANT stopped waiting for the model after 58 seconds. Try a shorter request.";
     }
 
@@ -518,26 +527,25 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
   }
 
   function cleanVantMarkdown(source) {
-  let text = String(source || "")
-    .replace(/\r\n/g, "\n")
-    .replace(/\\times/g, "×")
-    .replace(/\\cdot/g, "·")
-    .replace(/\\pm/g, "±")
-    .replace(/\\square/g, "☐")
-    .replace(/\\%/g, "%")
-    .replace(/<br\s*\/?>/gi, " · ");
+    let text = String(source || "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\\times/g, "×")
+      .replace(/\\cdot/g, "·")
+      .replace(/\\pm/g, "±")
+      .replace(/\\square/g, "☐")
+      .replace(/<br\s*\/?>/gi, " · ")
+      .replace(/\\%/g, "%");
 
-  // Remove internal VANT Work Engine diagnostics
-  text = text.replace(
-    /^\s*(?:\*\*VANT WORK ENGINE\*\*|VANT WORK ENGINE)\s*[\s\S]*?^---\s*\n?/im,
-    ""
-  );
+    // Defensive UI cleanup: Work Engine diagnostics remain internal.
+    text = text.replace(
+      /^\s*(?:\*\*VANT WORK ENGINE\*\*|VANT WORK ENGINE)\s*[\s\S]*?^---\s*\n?/im,
+      ""
+    );
 
-  // Remove simple inline math delimiters
-  text = text.replace(/\$([^$\n]+)\$/g, "$1");
-
-  return text.trim();
-}
+    // Keep simple inline math readable without exposing raw LaTeX delimiters.
+    text = text.replace(/\$([^$\n]+)\$/g, "$1");
+    return text.trim();
+  }
 
   function renderInlineMarkdown(text, theme, isDark, keyPrefix = "inline") {
     const tokens = [];
@@ -832,6 +840,8 @@ function ChatPage({
   const sessionConversationIdRef = useRef(activeConversationId);
   const fileInputRef = useRef(null);
   const composerRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const [editingMessageIndex, setEditingMessageIndex] = useState(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -996,7 +1006,7 @@ function ChatPage({
     return "";
   }
 
-async function send(text) {
+async function send(text, options = {}) {
   const cleanText = text.trim();
 
   if (!cleanText || loading) {
@@ -1021,8 +1031,9 @@ async function send(text) {
       content: userContent,
     };
 
+    const baseMessages = Array.isArray(options.baseMessages) ? options.baseMessages : messages;
     const next = [
-      ...messages,
+      ...baseMessages,
       userMessage,
     ];
 
@@ -1131,6 +1142,9 @@ Respond naturally like a sharp work partner.
      * 6. Start streaming
      * ---------------------------------------------------------
      */
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     const reply = await askClaude(
       systemPrompt,
 
@@ -1165,8 +1179,19 @@ Respond naturally like a sharp work partner.
 
           return updated;
         });
-      }
+      },
+      58000,
+      abortController.signal
     );
+
+    if (reply === "__VANT_USER_STOPPED__") {
+      const stoppedMessages = [...next];
+      setMessages(stoppedMessages);
+      messagesRef.current = stoppedMessages;
+      onSaveConversation(chatId, stoppedMessages);
+      setAttachments([]);
+      return;
+    }
 
     /*
      * ---------------------------------------------------------
@@ -1218,14 +1243,58 @@ Respond naturally like a sharp work partner.
       errorMessage,
     ];
   } finally {
+    abortControllerRef.current = null;
     setLoading(false);
   }
 }
   
+  async function copyMessage(message) {
+    const text = displayText(message?.content);
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setComposerNotice("Response copied to clipboard.");
+    } catch {
+      setComposerNotice("Clipboard access is unavailable in this browser.");
+    }
+  }
+
+  function editUserMessage(index) {
+    const message = messages[index];
+    const text = displayText(message?.content);
+    if (!text) return;
+    setMessages(messages.slice(0, index));
+    messagesRef.current = messages.slice(0, index);
+    setInput(text);
+    setEditingMessageIndex(index);
+    setStarted(true);
+    setComposerNotice("Message loaded into the composer. Edit it and send again.");
+  }
+
+  async function regenerateAssistant(index) {
+    if (loading) return;
+    const previousUserIndex = [...messages.slice(0, index)].map((m, i) => ({ m, i })).reverse().find(({ m }) => m.role === "user")?.i;
+    if (previousUserIndex == null) return;
+    const prompt = displayText(messages[previousUserIndex]?.content);
+    if (!prompt) return;
+    const baseMessages = messages.slice(0, previousUserIndex);
+    setMessages(baseMessages);
+    messagesRef.current = baseMessages;
+    setComposerNotice("Regenerating the response…");
+    await send(prompt, { baseMessages });
+  }
+
+  function stopGeneration() {
+    if (!loading) return;
+    abortControllerRef.current?.abort();
+    setComposerNotice("Generation stopped.");
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     const text = input.trim();
     if (!text || loading) return;
+    setEditingMessageIndex(null);
     send(text);
   }
 
@@ -1269,11 +1338,18 @@ Respond naturally like a sharp work partner.
       </div>
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
         {messages.map((m, i) => (
-          <div key={i} className="v-fade" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+          <div key={i} className="v-fade" style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
             <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}><ChatMessageContent message={m} theme={theme} isDark={isDark} /></div>
+            {m.content && (
+              <div style={{ display: "flex", gap: 4, marginTop: 4, opacity: 0.82 }}>
+                <button type="button" onClick={() => copyMessage(m)} title="Copy" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 5 }}><Copy size={14} /></button>
+                {m.role === "user" && !loading && <button type="button" onClick={() => editUserMessage(i)} title="Edit and resend" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 5 }}><Pencil size={14} /></button>}
+                {m.role === "assistant" && !loading && i > 0 && <button type="button" onClick={() => regenerateAssistant(i)} title="Regenerate" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 5 }}><RefreshCw size={14} /></button>}
+              </div>
+            )}
           </div>
         ))}
-        {loading && <div style={{ display: "flex", justifyContent: "flex-start" }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div></div>}
+        {loading && <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 8 }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div><button type="button" onClick={stopGeneration} title="Stop generation" style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Square size={12} fill="currentColor" /></button></div>}
       </div>
       <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} /></div>
       </div>
