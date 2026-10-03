@@ -68,7 +68,7 @@ function decorateResponseActions() {
 }
 function conversationText(){const messages=[];document.querySelectorAll(".v-msg").forEach((node)=>{const text=(node.textContent||"").trim();if(text)messages.push(text);});return messages.join("\n\n");}
 function decorateConversationHeader(){
-  const title=Array.from(document.querySelectorAll("div")).find((el)=>el.textContent?.trim()==="Work session"); const header=title?.parentElement;
+  const title=Array.from(document.querySelectorAll("div")).find((el)=>el.textContent?.trim()==="Work session"); const header=title?.parentElement?.parentElement;
   if(!header||header.dataset.vantConversationTools)return; header.dataset.vantConversationTools="1";
   const tools=document.createElement("div");tools.style.cssText="margin-left:auto;display:flex;gap:8px;align-items:center";
   const outputs=document.createElement("button");outputs.type="button";outputs.textContent="Outputs";outputs.setAttribute("style",buttonStyle);
