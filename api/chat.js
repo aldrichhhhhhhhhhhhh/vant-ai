@@ -584,7 +584,11 @@ export default async function handler(req, res) {
               enable_thinking: false,
             },
           }
-        : {}),
+        : {
+            // Team + VANT uses GPT-OSS for speed; keep reasoning light
+            // so short requests reliably produce visible answer content.
+            reasoning_effort: "low",
+          }),
     };
   } catch {
     return json(res, 400, {
