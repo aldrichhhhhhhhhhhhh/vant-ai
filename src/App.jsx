@@ -125,7 +125,8 @@ async function askClaude(
   onChunk,
   timeoutMs = 58000,
   externalSignal = null,
-  stream = true
+  stream = true,
+  requestOptions = null
 ) {
   const controller = new AbortController();
   const abortFromCaller = () => controller.abort();
@@ -170,6 +171,7 @@ async function askClaude(
         system: systemPrompt,
         messages,
         stream,
+        ...(requestOptions || {}),
       }),
 
       signal: controller.signal,
@@ -557,7 +559,8 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
         null,
         58000,
         null,
-        false
+        false,
+        { model: "openai/gpt-oss-20b", max_tokens: 768 }
       );
 
       const isModelFailure =
