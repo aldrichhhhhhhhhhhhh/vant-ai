@@ -6,7 +6,7 @@ import {
   buildVantWorkEnvelope,
   buildVantSystemPrompt,
 } from "./vantEngine";
-import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Target, Image as ImageIcon, Link2, FolderKanban, ThumbsUp, ThumbsDown, Flag, MoreHorizontal } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Target, Image as ImageIcon, Link2, FolderKanban, Users, ThumbsUp, ThumbsDown, Flag, MoreHorizontal } from "lucide-react";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -370,89 +370,193 @@ function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSetting
 // ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------
-function ProjectsPage({ theme, isDark, projects, onProjectsChange, onOpenProjectChat }) {
+function normalizeProject(row) {
+  return {
+    id: row.id,
+    name: row.name || "Untitled project",
+    description: row.description || "",
+    color: row.color || "violet",
+    icon: row.icon || "folder",
+    priority: row.priority || "moderate",
+    createdAt: row.created_at || new Date().toISOString(),
+    updatedAt: row.updated_at || row.created_at || new Date().toISOString(),
+  };
+}
+
+const PROJECT_COLORS = ["violet", "cyan", "green", "amber", "red"];
+const PROJECT_PRIORITIES = [
+  { value: "high", label: "High" },
+  { value: "moderate", label: "Moderate" },
+  { value: "low", label: "Low" },
+];
+
+function ProjectWorkspace({ theme, isDark, project, onBack, onCustomize }) {
+  if (!project) return null;
+  const color = PROJECT_COLORS.includes(project.color) ? project.color : "violet";
+  const priority = PROJECT_PRIORITIES.find((item) => item.value === project.priority)?.label || "Moderate";
+
+  return (
+    <div style={{ height: "100%", overflowY: "auto", padding: "28px 34px 40px" }}>
+      <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+        <button type="button" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", background: "transparent", color: theme.textMuted, cursor: "pointer", padding: 0, marginBottom: 22 }}>
+          <ArrowLeft size={15} /> All Projects
+        </button>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, marginBottom: 24 }}>
+          <div style={{ display: "flex", gap: 15, alignItems: "flex-start" }}>
+            <div style={{ width: 52, height: 52, borderRadius: 15, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid " + theme.border }}>
+              <FolderKanban size={23} color={ac(color, isDark)} />
+            </div>
+            <div>
+              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10.5, letterSpacing: 1.3, color: ac(color, isDark), marginBottom: 5 }}>VANT · PROJECT WORKSPACE</div>
+              <h1 style={{ margin: 0, fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500 }}>{project.name}</h1>
+              <p style={{ margin: "7px 0 0", color: theme.textMuted, fontSize: 14 }}>{project.description || "No project description yet."}</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => onCustomize(project.id)} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}>
+            <Palette size={15} /> Customize
+          </button>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 22 }}>
+          <span style={{ padding: "6px 10px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 12, fontWeight: 600 }}>Priority · {priority}</span>
+          <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: theme.textMuted, fontSize: 12 }}>Owner workspace</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+          {[
+            { icon: LayoutDashboard, title: "Project Dashboard", text: "Your project command center. Activity, progress, and project intelligence will live here." },
+            { icon: MessageSquare, title: "Chats", text: "Project conversations are linked to this workspace so context stays with the work." },
+            { icon: Users, title: "Team", text: "Invite collaborators and build Team Chat in the next Projects phase." },
+            { icon: FolderKanban, title: "Project Space", text: "Files, tasks, activity, and VANT execution will attach to this project." },
+          ].map(({ icon: Icon, title, text }) => (
+            <div key={title} style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, minHeight: 130 }}>
+              <Icon size={18} color={ac(color, isDark)} />
+              <div style={{ fontWeight: 600, marginTop: 15 }}>{title}</div>
+              <div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 6 }}>{text}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectsPage({ theme, isDark, projects, onProjectsChange, onOpenProject, onDeleteProject, onCustomizeProject, projectSaving }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editColor, setEditColor] = useState("violet");
+  const [editPriority, setEditPriority] = useState("moderate");
 
-  function createProject(e) {
+  async function createProject(e) {
     e?.preventDefault();
     const cleanName = name.trim();
-    if (!cleanName) return;
-    const project = {
-      id: `project_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      name: cleanName,
-      description: description.trim(),
-      chats: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    onProjectsChange([project, ...projects]);
-    setName("");
-    setDescription("");
-    setCreating(false);
+    if (!cleanName || projectSaving) return;
+    const created = await onProjectsChange({ name: cleanName, description: description.trim() });
+    if (created) {
+      setName("");
+      setDescription("");
+      setCreating(false);
+    }
   }
 
-  function deleteProject(id) {
-    if (!window.confirm("Delete this project and its project chats?")) return;
-    onProjectsChange(projects.filter((project) => project.id !== id));
+  function startCustomize(project) {
+    setEditingId(project.id);
+    setEditColor(project.color || "violet");
+    setEditPriority(project.priority || "moderate");
+  }
+
+  async function saveCustomize(project) {
+    await onCustomizeProject(project.id, { color: editColor, priority: editPriority });
+    setEditingId(null);
   }
 
   const card = {
     background: theme.surfaceCard,
-    border: `1px solid ${theme.border}`,
+    border: "1px solid " + theme.border,
     borderRadius: 16,
     padding: 18,
   };
 
   return (
     <div style={{ height: "100%", overflowY: "auto", padding: "28px 34px 40px" }}>
-      <div style={{ maxWidth: 980, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1080, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, marginBottom: 28 }}>
           <div>
             <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1.4, color: ac("violet", isDark), marginBottom: 8 }}>VANT · PROJECTS</div>
             <h1 style={{ margin: 0, fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500 }}>Your workspaces</h1>
-            <p style={{ margin: "8px 0 0", color: theme.textMuted, fontSize: 14.5 }}>Keep related chats together so each piece of work has its own context.</p>
+            <p style={{ margin: "8px 0 0", color: theme.textMuted, fontSize: 14.5 }}>Every project is its own VANT workspace — persistent, organized, and ready to grow with the work.</p>
           </div>
           <button type="button" onClick={() => setCreating(true)} style={{ display: "flex", alignItems: "center", gap: 8, border: "none", borderRadius: 11, padding: "10px 14px", background: acBg("violet"), color: ac("violet", isDark), cursor: "pointer", fontWeight: 600 }}>
-            <FolderKanban size={16} /> New Project
+            <FolderPlus size={16} /> New Project
           </button>
         </div>
 
         {creating && (
           <form onSubmit={createProject} style={{ ...card, marginBottom: 20 }}>
-            <div style={{ fontWeight: 600, marginBottom: 12 }}>Create a project</div>
-            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name" style={{ width: "100%", boxSizing: "border-box", padding: "11px 12px", borderRadius: 10, border: `1px solid ${theme.borderStrong}`, background: theme.inputBg, color: theme.text, outline: "none", marginBottom: 10 }} />
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" rows={3} style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: "11px 12px", borderRadius: 10, border: `1px solid ${theme.borderStrong}`, background: theme.inputBg, color: theme.text, outline: "none" }} />
+            <div style={{ fontWeight: 600, marginBottom: 12 }}>Create a VANT project</div>
+            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name" style={{ width: "100%", boxSizing: "border-box", padding: "11px 12px", borderRadius: 10, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", marginBottom: 10 }} />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this project about?" rows={3} style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: "11px 12px", borderRadius: 10, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none" }} />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-              <button type="button" onClick={() => { setCreating(false); setName(""); setDescription(""); }} style={{ padding: "9px 13px", borderRadius: 9, border: `1px solid ${theme.border}`, background: "transparent", color: theme.textMuted, cursor: "pointer" }}>Cancel</button>
-              <button type="submit" disabled={!name.trim()} style={{ padding: "9px 13px", borderRadius: 9, border: "none", background: acBg("violet"), color: ac("violet", isDark), cursor: name.trim() ? "pointer" : "not-allowed", opacity: name.trim() ? 1 : 0.5 }}>Create</button>
+              <button type="button" onClick={() => { setCreating(false); setName(""); setDescription(""); }} style={{ padding: "9px 13px", borderRadius: 9, border: "1px solid " + theme.border, background: "transparent", color: theme.textMuted, cursor: "pointer" }}>Cancel</button>
+              <button type="submit" disabled={!name.trim() || projectSaving} style={{ padding: "9px 13px", borderRadius: 9, border: "none", background: acBg("violet"), color: ac("violet", isDark), cursor: name.trim() && !projectSaving ? "pointer" : "not-allowed", opacity: name.trim() && !projectSaving ? 1 : 0.5 }}>{projectSaving ? "Saving…" : "Create Project"}</button>
             </div>
           </form>
         )}
 
         {!projects.length ? (
-          <div style={{ ...card, textAlign: "center", padding: "58px 24px" }}>
-            <FolderKanban size={30} color={theme.textFaint} />
-            <h3 style={{ margin: "14px 0 6px", fontWeight: 600 }}>No projects yet</h3>
-            <p style={{ margin: 0, color: theme.textMuted, fontSize: 14 }}>Create your first project to organize related VANT work.</p>
+          <div style={{ ...card, textAlign: "center", padding: "64px 24px" }}>
+            <div style={{ width: 58, height: 58, borderRadius: 17, background: acBg("violet"), margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center" }}><FolderKanban size={27} color={ac("violet", isDark)} /></div>
+            <h3 style={{ margin: "16px 0 6px", fontWeight: 600 }}>No projects yet</h3>
+            <p style={{ margin: 0, color: theme.textMuted, fontSize: 14 }}>Create a project and VANT will give it a persistent workspace of its own.</p>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 14 }}>
-            {projects.map((project) => (
-              <div key={project.id} style={{ ...card, cursor: "pointer", transition: "border-color .15s ease" }} onClick={() => onOpenProjectChat(project.id)}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 11, background: acBg("violet"), display: "flex", alignItems: "center", justifyContent: "center" }}><FolderKanban size={19} color={ac("violet", isDark)} /></div>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); deleteProject(project.id); }} title="Delete project" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer" }}><Trash2 size={16} /></button>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+            {projects.map((project) => {
+              const color = PROJECT_COLORS.includes(project.color) ? project.color : "violet";
+              const priority = PROJECT_PRIORITIES.find((item) => item.value === project.priority)?.label || "Moderate";
+              const isEditing = editingId === project.id;
+              return (
+                <div key={project.id} style={{ ...card, cursor: "pointer", transition: "transform .15s ease, border-color .15s ease", boxShadow: isDark ? "0 12px 32px rgba(0,0,0,0.16)" : "0 12px 32px rgba(0,0,0,0.06)" }} onClick={() => onOpenProject(project.id)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 12, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center" }}><FolderKanban size={20} color={ac(color, isDark)} /></div>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onDeleteProject(project.id); }} title="Delete project" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 4 }}><Trash2 size={16} /></button>
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: 16, marginTop: 17 }}>{project.name}</div>
+                  <div style={{ color: theme.textMuted, fontSize: 13, lineHeight: 1.5, marginTop: 6, minHeight: 39 }}>{project.description || "No description"}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 15, flexWrap: "wrap" }}>
+                    <span style={{ padding: "4px 8px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 11, fontWeight: 600 }}>● {priority}</span>
+                    <span style={{ padding: "4px 8px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: theme.textFaint, fontSize: 11 }}>Owner</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, color: theme.textFaint, fontSize: 12 }}>
+                    <span>Workspace</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, color: ac(color, isDark) }}>Open <ChevronRight size={14} /></span>
+                  </div>
+                  <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid " + theme.border }}>
+                    {!isEditing ? (
+                      <button type="button" onClick={() => startCustomize(project)} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "none", background: "transparent", color: theme.textMuted, cursor: "pointer", fontSize: 12, padding: 0 }}>
+                        <Palette size={13} /> Customize project
+                      </button>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: 11, color: theme.textFaint, marginBottom: 8, fontFamily: "JetBrains Mono, monospace", letterSpacing: 1 }}>PROJECT SETTINGS</div>
+                        <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 9 }}>
+                          {PROJECT_COLORS.map((key) => (
+                            <button key={key} type="button" title={key} onClick={() => setEditColor(key)} style={{ width: 25, height: 25, borderRadius: 8, border: editColor === key ? "2px solid " + ac(key, isDark) : "1px solid " + theme.border, background: acBg(key), color: ac(key, isDark), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>●</button>
+                          ))}
+                        </div>
+                        <select value={editPriority} onChange={(e) => setEditPriority(e.target.value)} style={{ width: "100%", padding: "8px 9px", borderRadius: 9, border: "1px solid " + theme.border, background: theme.inputBg, color: theme.text, marginBottom: 9 }}>
+                          {PROJECT_PRIORITIES.map((item) => <option key={item.value} value={item.value}>{item.label} priority</option>)}
+                        </select>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 7 }}>
+                          <button type="button" onClick={() => setEditingId(null)} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid " + theme.border, background: "transparent", color: theme.textMuted, cursor: "pointer" }}>Cancel</button>
+                          <button type="button" onClick={() => saveCustomize(project)} style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: acBg("violet"), color: ac("violet", isDark), cursor: "pointer" }}>Save</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ fontWeight: 600, marginTop: 16 }}>{project.name}</div>
-                <div style={{ color: theme.textMuted, fontSize: 13, lineHeight: 1.5, marginTop: 6, minHeight: 39 }}>{project.description || "No description"}</div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, color: theme.textFaint, fontSize: 12 }}>
-                  <span>{project.chats?.length || 0} chat{(project.chats?.length || 0) === 1 ? "" : "s"}</span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 4, color: ac("violet", isDark) }}>Open <ChevronRight size={14} /></span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -2755,7 +2859,7 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
 export default function VantWorkingPrototype() {
   const [active, setActive] = useState("chat");
   const [projects, setProjects] = useState([]);
-  const [projectChat, setProjectChat] = useState(null);
+  const [projectChat, setProjectChat] = useState(null);\n  const [projectSaving, setProjectSaving] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [newChatNonce, setNewChatNonce] = useState(0);
@@ -3046,24 +3150,94 @@ export default function VantWorkingPrototype() {
     if (!themeLoaded) setThemeLoaded(true);
   }, [themeLoaded]);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("vant_projects");
-      if (raw) setProjects(JSON.parse(raw));
-    } catch (error) {
+  async function loadProjects(authUser) {
+    if (!authUser?.id) {
+      setProjects([]);
+      setProjectChat(null);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("projects")
+      .select("id, owner_id, name, description, color, icon, priority, created_at, updated_at")
+      .eq("owner_id", authUser.id)
+      .order("updated_at", { ascending: false });
+    if (error) {
       console.error("VANT: failed to load projects", error);
+      setProjects([]);
+      return;
     }
-  }, []);
+    setProjects((data || []).map(normalizeProject));
+  }
 
-  useEffect(() => {
-    try {
-      localStorage.setItem("vant_projects", JSON.stringify(projects));
-    } catch (error) {
-      console.error("VANT: failed to save projects", error);
+  async function createProject(projectInput) {
+    if (!user?.id) return null;
+    setProjectSaving(true);
+    const { data, error } = await supabase
+      .from("projects")
+      .insert({
+        owner_id: user.id,
+        name: projectInput.name,
+        description: projectInput.description || "",
+        color: "violet",
+        icon: "folder",
+        priority: "moderate",
+      })
+      .select("id, owner_id, name, description, color, icon, priority, created_at, updated_at")
+      .single();
+    setProjectSaving(false);
+    if (error) {
+      console.error("VANT: failed to create project", error);
+      window.alert("VANT couldn't save this project. Please try again.");
+      return null;
     }
-  }, [projects]);
+    const project = normalizeProject(data);
+    setProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]);
+    return project;
+  }
 
-  function openProjectChat(projectId) {
+  async function deleteProject(projectId) {
+    if (!user?.id) return;
+    if (!window.confirm("Delete this project? This removes the project workspace.")) return;
+    const previous = projects;
+    setProjects((current) => current.filter((item) => item.id !== projectId));
+    if (projectChat === projectId) setProjectChat(null);
+    const { error: chatError } = await supabase
+      .from("chat_conversations")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("project_id", projectId);
+    if (chatError) console.error("VANT: failed to remove project chats", chatError);
+    const { error } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", projectId)
+      .eq("owner_id", user.id);
+    if (error) {
+      console.error("VANT: failed to delete project", error);
+      setProjects(previous);
+      window.alert("VANT couldn't delete this project. Nothing was removed from your project list.");
+    }
+  }
+
+  async function customizeProject(projectId, patch) {
+    if (!user?.id) return;
+    const { data, error } = await supabase
+      .from("projects")
+      .update(patch)
+      .eq("id", projectId)
+      .eq("owner_id", user.id)
+      .select("id, owner_id, name, description, color, icon, priority, created_at, updated_at")
+      .single();
+    if (error) {
+      console.error("VANT: failed to customize project", error);
+      window.alert("VANT couldn't save the project settings.");
+      return;
+    }
+    const updated = normalizeProject(data);
+    setProjects((current) => current.map((item) => item.id === projectId ? updated : item));
+  }
+
+  function openProject(projectId) {
     setProjectChat(projectId);
     setActive("projects");
   }
@@ -3153,7 +3327,11 @@ export default function VantWorkingPrototype() {
       onTogglePinConversation={togglePinConversation}
       onDeleteConversation={deleteConversation}
     />;
-    if (active === "projects") return <ProjectsPage {...props} projects={projects} onProjectsChange={setProjects} onOpenProjectChat={openProjectChat} />;
+    if (active === "projects") {
+      const selectedProject = projects.find((item) => item.id === projectChat);
+      if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} onBack={() => setProjectChat(null)} onCustomize={customizeProject} />;
+      return <ProjectsPage {...props} projects={projects} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
+    }
     if (active === "tools") return <ToolsPage {...props} />;
     if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
     if (active === "cowork") return <CoworkPage {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
