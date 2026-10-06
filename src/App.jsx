@@ -390,10 +390,11 @@ const PROJECT_PRIORITIES = [
   { value: "low", label: "Low" },
 ];
 
-function ProjectWorkspace({ theme, isDark, project, onBack, onCustomize }) {
+function ProjectWorkspace({ theme, isDark, project, chats = [], onBack, onCustomize, onNewChat, onOpenChat, onAskVant }) {
   if (!project) return null;
   const color = PROJECT_COLORS.includes(project.color) ? project.color : "violet";
   const priority = PROJECT_PRIORITIES.find((item) => item.value === project.priority)?.label || "Moderate";
+  const recentChats = chats.slice(0, 5);
 
   return (
     <div style={{ height: "100%", overflowY: "auto", padding: "28px 34px 40px" }}>
@@ -415,6 +416,10 @@ function ProjectWorkspace({ theme, isDark, project, onBack, onCustomize }) {
           <button type="button" onClick={() => onCustomize(project.id)} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}>
             <Palette size={15} /> Customize
           </button>
+          <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+            <button type="button" onClick={onAskVant} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}><Sparkles size={15} /> Ask VANT</button>
+            <button type="button" onClick={onNewChat} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", borderRadius: 10, padding: "9px 13px", background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontWeight: 600 }}><Plus size={15} /> New Chat</button>
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 22 }}>
           <span style={{ padding: "6px 10px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 12, fontWeight: 600 }}>Priority · {priority}</span>
@@ -433,6 +438,13 @@ function ProjectWorkspace({ theme, isDark, project, onBack, onCustomize }) {
               <div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 6 }}>{text}</div>
             </div>
           ))}
+        </div>
+        <div style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, marginTop: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+            <div><div style={{ fontWeight: 600 }}>Recent Project Chats</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>Conversations that belong to this workspace.</div></div>
+            <button type="button" onClick={onNewChat} style={{ border: "none", background: acBg(color), color: ac(color, isDark), borderRadius: 9, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}><Plus size={13} /> New Chat</button>
+          </div>
+          {recentChats.length ? recentChats.map((chat) => <button key={chat.id} type="button" onClick={() => onOpenChat(chat.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "11px 3px", border: "none", borderTop: "1px solid " + theme.border, background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left" }}><MessageSquare size={15} color={ac(color, isDark)} /><span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13.5 }}>{chat.title || "New VANT chat"}</span><ChevronRight size={14} color={theme.textFaint} /></button>) : <div style={{ borderTop: "1px solid " + theme.border, paddingTop: 18, color: theme.textMuted, fontSize: 13, textAlign: "center" }}>No project chats yet. Start one above.</div>}
         </div>
       </div>
     </div>
@@ -930,6 +942,8 @@ function ChatPage({
   onSaveConversation,
   onTogglePinConversation,
   onDeleteConversation,
+  projectId = null,
+  projectName = "",
 }) {
   const activeConversation = conversations.find((item) => item.id === activeConversationId) || null;
   const [started, setStarted] = useState(Boolean(activeConversation?.messages?.length));
@@ -1178,6 +1192,10 @@ async function send(text, options = {}) {
 
     const systemPrompt = `
 You are VANT, an AI work platform and intelligent work assistant.
+${projectId ? `
+PROJECT CONTEXT:
+You are working inside the VANT project workspace "${projectName}". Treat this conversation as project-specific work. Never invent project facts that are not present in the conversation.
+` : ""}
 
 ${vantWorkPrompt}
 
@@ -1232,6 +1250,7 @@ Respond naturally like a sharp work partner.
       activeConversationId ||
       onCreateConversation({
         messages: next,
+        projectId,
       });
 
     sessionConversationIdRef.current = chatId;
@@ -1308,7 +1327,7 @@ Respond naturally like a sharp work partner.
       const stoppedMessages = [...next];
       setMessages(stoppedMessages);
       messagesRef.current = stoppedMessages;
-      onSaveConversation(chatId, stoppedMessages);
+      onSaveConversation(chatId, stoppedMessages, projectId);
       setAttachments([]);
       return;
     }
@@ -1334,7 +1353,8 @@ Respond naturally like a sharp work partner.
      */
     onSaveConversation(
       chatId,
-      completedMessages
+      completedMessages,
+      projectId
     );
 
     /*
@@ -2860,6 +2880,7 @@ export default function VantWorkingPrototype() {
   const [active, setActive] = useState("chat");
   const [projects, setProjects] = useState([]);
   const [projectChat, setProjectChat] = useState(null);
+  const [projectConversationId, setProjectConversationId] = useState(null);
   const [projectSaving, setProjectSaving] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
@@ -2944,14 +2965,14 @@ export default function VantWorkingPrototype() {
     setActive("chat");
   }
 
-  function createConversationDraft({ messages = [] } = {}) {
+  function createConversationDraft({ messages = [], projectId = null } = {}) {
     const id = newChatId();
     const now = new Date().toISOString();
     const conversation = {
       id,
       title: deriveChatTitle(messages),
       pinned: false,
-      projectId: null,
+      projectId,
       messages: sanitizeMessagesForPersistence(messages),
       createdAt: now,
       updatedAt: now,
@@ -2965,7 +2986,7 @@ export default function VantWorkingPrototype() {
     return id;
   }
 
-  function saveConversation(id, messages) {
+  function saveConversation(id, messages, projectIdOverride = undefined) {
     if (!id) return;
     const now = new Date().toISOString();
     setConversations((current) => {
@@ -2974,6 +2995,7 @@ export default function VantWorkingPrototype() {
         ...(existing || { id, pinned: false, projectId: null, createdAt: now }),
         title: existing?.title && existing.title !== "New VANT chat" ? existing.title : deriveChatTitle(messages),
         messages: sanitizeMessagesForPersistence(messages),
+        projectId: projectIdOverride !== undefined ? projectIdOverride : (existing?.projectId || null),
         updatedAt: now,
       };
       const next = sortConversations([updated, ...current.filter((item) => item.id !== id)]);
@@ -2986,7 +3008,7 @@ export default function VantWorkingPrototype() {
         user_id: user.id,
         title: deriveChatTitle(messages),
         pinned: conversations.find((item) => item.id === id)?.pinned || false,
-        project_id: conversations.find((item) => item.id === id)?.projectId || null,
+        project_id: projectIdOverride !== undefined ? projectIdOverride : (conversations.find((item) => item.id === id)?.projectId || null),
         messages: sanitizeMessagesForPersistence(messages),
         updated_at: now,
       }, { onConflict: "id" }).then(({ error }) => {
@@ -3240,7 +3262,29 @@ export default function VantWorkingPrototype() {
 
   function openProject(projectId) {
     setProjectChat(projectId);
+    setProjectConversationId(null);
     setActive("projects");
+  }
+
+  function openProjectConversation(conversationId) {
+    setProjectConversationId(conversationId);
+    setActiveConversationId(conversationId);
+  }
+
+  function createProjectConversation(projectId) {
+    const id = createConversationDraft({ projectId, messages: [] });
+    setProjectChat(projectId);
+    setProjectConversationId(id);
+    setActiveConversationId(id);
+    return id;
+  }
+
+  function askProjectVant(projectId) {
+    const prompt = "Analyze this project and help me decide what we should work on next.";
+    const id = createConversationDraft({ projectId, messages: [{ role: "user", content: prompt }] });
+    setProjectChat(projectId);
+    setProjectConversationId(id);
+    setActiveConversationId(id);
   }
 
   async function persistAppState(patch) {
@@ -3330,7 +3374,8 @@ export default function VantWorkingPrototype() {
     />;
     if (active === "projects") {
       const selectedProject = projects.find((item) => item.id === projectChat);
-      if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} onBack={() => setProjectChat(null)} onCustomize={customizeProject} />;
+      if (selectedProject && projectConversationId) return <ChatPage key={"project-chat-" + projectConversationId} {...props} projectId={selectedProject.id} projectName={selectedProject.name} conversations={conversations} activeConversationId={projectConversationId} onGoToIntegrations={() => setActive("integrations")} onNewConversation={() => createProjectConversation(selectedProject.id)} onCreateConversation={(options) => createConversationDraft({ ...options, projectId: selectedProject.id })} onSelectConversation={openProjectConversation} onSaveConversation={(id, messages, projectId) => saveConversation(id, messages, projectId || selectedProject.id)} onTogglePinConversation={togglePinConversation} onDeleteConversation={deleteConversation} />;
+      if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} chats={conversations.filter((item) => item.projectId === selectedProject.id)} onBack={() => { setProjectChat(null); setProjectConversationId(null); }} onCustomize={customizeProject} onNewChat={() => createProjectConversation(selectedProject.id)} onOpenChat={openProjectConversation} onAskVant={() => askProjectVant(selectedProject.id)} />;
       return <ProjectsPage {...props} projects={projects} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
     }
     if (active === "tools") return <ToolsPage {...props} />;
