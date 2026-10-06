@@ -497,7 +497,6 @@ function formatProjectContext(context, { includeChats = true } = {}) {
   const result = lines.join("\n").trim();
   return result.length > 12000 ? result.slice(0, 12000) + "\n[Project intelligence truncated for model context.]" : result;
 }
-
 function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
   const [messages, setMessages] = useState([]);
   const [members, setMembers] = useState([]);
@@ -732,6 +731,16 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
 function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, onCustomize, onNewChat, onOpenChat, onAskVant, onProjectLeft }) {
   const [workspacePanel, setWorkspacePanel] = useState(null);
   const [members, setMembers] = useState([]);
+  const [knowledge, setKnowledge] = useState([]);
+  const [memory, setMemory] = useState([]);
+  const [intelligenceSummary, setIntelligenceSummary] = useState(null);
+  const [knowledgeTitle, setKnowledgeTitle] = useState("");
+  const [knowledgeContent, setKnowledgeContent] = useState("");
+  const [knowledgeType, setKnowledgeType] = useState("note");
+  const [memoryTitle, setMemoryTitle] = useState("");
+  const [memoryContent, setMemoryContent] = useState("");
+  const [memoryType, setMemoryType] = useState("fact");
+  const [intelligenceBusy, setIntelligenceBusy] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("collaborator");
   const [inviteBusy, setInviteBusy] = useState(false);
@@ -746,24 +755,88 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
     else console.error("VANT: failed to load project members", error);
   }
 
+  async function loadIntelligence() {
+    const [knowledgeResult, memoryResult, summaryResult] = await Promise.all([
+      supabase.from("project_knowledge").select("id, title, content, knowledge_type, source_type, created_by, created_at, updated_at").eq("project_id", project.id).order("updated_at", { ascending: false }).limit(100),
+      supabase.from("project_memory").select("id, title, content, memory_type, source_type, confidence, created_by, created_at, updated_at").eq("project_id", project.id).order("updated_at", { ascending: false }).limit(100),
+      supabase.rpc("get_project_intelligence_summary", { p_project_id: project.id }),
+    ]);
+    if (!knowledgeResult.error) setKnowledge(knowledgeResult.data || []);
+    else console.error("VANT: failed to load project knowledge", knowledgeResult.error);
+    if (!memoryResult.error) setMemory(memoryResult.data || []);
+    else console.error("VANT: failed to load project memory", memoryResult.error);
+    if (!summaryResult.error) setIntelligenceSummary(summaryResult.data || null);
+    else console.error("VANT: failed to load intelligence summary", summaryResult.error);
+  }
+
   useEffect(() => {
     loadMembers();
+    loadIntelligence();
     const channel = supabase.channel("workspace-members-" + project.id)
       .on("postgres_changes", { event: "*", schema: "public", table: "project_members", filter: "project_id=eq." + project.id }, () => loadMembers())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [project.id]);
 
+  async function addKnowledge(e) {
+    e?.preventDefault();
+    if (!knowledgeTitle.trim() || !knowledgeContent.trim() || intelligenceBusy) return;
+    setIntelligenceBusy(true);
+    const { error } = await supabase.from("project_knowledge").insert({
+      project_id: project.id,
+      title: knowledgeTitle.trim(),
+      content: knowledgeContent.trim(),
+      knowledge_type: knowledgeType,
+      source_type: "manual",
+      created_by: user.id,
+    });
+    setIntelligenceBusy(false);
+    if (error) { window.alert("VANT couldn't save that knowledge item."); return; }
+    setKnowledgeTitle("");
+    setKnowledgeContent("");
+    await loadIntelligence();
+  }
+
+  async function deleteKnowledge(id) {
+    if (!window.confirm("Remove this project knowledge item?")) return;
+    const { error } = await supabase.from("project_knowledge").delete().eq("id", id).eq("project_id", project.id);
+    if (error) window.alert("VANT couldn't remove that knowledge item.");
+    else await loadIntelligence();
+  }
+
+  async function addMemory(e) {
+    e?.preventDefault();
+    if (!memoryTitle.trim() || !memoryContent.trim() || intelligenceBusy) return;
+    setIntelligenceBusy(true);
+    const { error } = await supabase.from("project_memory").insert({
+      project_id: project.id,
+      title: memoryTitle.trim(),
+      content: memoryContent.trim(),
+      memory_type: memoryType,
+      source_type: "manual",
+      confidence: 1,
+      created_by: user.id,
+    });
+    setIntelligenceBusy(false);
+    if (error) { window.alert("VANT couldn't save that memory."); return; }
+    setMemoryTitle("");
+    setMemoryContent("");
+    await loadIntelligence();
+  }
+
+  async function deleteMemory(id) {
+    if (!window.confirm("Remove this project memory?")) return;
+    const { error } = await supabase.from("project_memory").delete().eq("id", id).eq("project_id", project.id);
+    if (error) window.alert("VANT couldn't remove that memory.");
+    else await loadIntelligence();
+  }
+
   async function inviteMember(e) {
     e?.preventDefault();
     if (!isOwner || !inviteEmail.trim() || inviteBusy) return;
     setInviteBusy(true);
     setInviteMessage("");
-    const { data, error } = await supabase.rpc("invite_project_member", {
-      p_project_id: project.id,
-      p_email: inviteEmail.trim(),
-      p_role: inviteRole,
-    });
+    const { data, error } = await supabase.rpc("invite_project_member", { p_project_id: project.id, p_email: inviteEmail.trim(), p_role: inviteRole });
     setInviteBusy(false);
     if (error) {
       const message = error.message?.includes("user_not_found") ? "No VANT account was found for that email." : error.message?.includes("not_project_owner") ? "Only the project owner can invite members." : "VANT couldn't add that member.";
@@ -778,28 +851,15 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
   async function manageMember(member, action, role = null) {
     if (!isOwner || !member?.user_id || member.role === "owner") return;
     setInviteMessage("");
-    const { data, error } = await supabase.rpc("manage_project_member", {
-      p_project_id: project.id,
-      p_user_id: member.user_id,
-      p_action: action,
-      p_role: role,
-    });
+    const { data, error } = await supabase.rpc("manage_project_member", { p_project_id: project.id, p_user_id: member.user_id, p_action: action, p_role: role });
     if (error) {
-      const message = error.message?.includes("not_project_owner")
-        ? "Only the project owner can manage members."
-        : error.message?.includes("invalid_role")
-          ? "That role is not available."
-          : "VANT couldn't update that member.";
+      const message = error.message?.includes("not_project_owner") ? "Only the project owner can manage members." : error.message?.includes("invalid_role") ? "That role is not available." : "VANT couldn't update that member.";
       setInviteMessage(message);
       return;
     }
     await loadMembers();
     const updated = data?.[0];
-    setInviteMessage(
-      action === "remove"
-        ? `${member.display_name || "Member"} removed from the project.`
-        : `${updated?.display_name || member.display_name || "Member"} is now a ${updated?.role || role}.`
-    );
+    setInviteMessage(action === "remove" ? `${member.display_name || "Member"} removed from the project.` : `${updated?.display_name || member.display_name || "Member"} is now a ${updated?.role || role}.`);
   }
 
   async function leaveProject() {
@@ -807,11 +867,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
     setInviteMessage("");
     const { error } = await supabase.rpc("leave_project", { p_project_id: project.id });
     if (error) {
-      setInviteMessage(
-        error.message?.includes("owner_cannot_leave")
-          ? "The project owner cannot leave this project."
-          : "VANT couldn't leave this project."
-      );
+      setInviteMessage(error.message?.includes("owner_cannot_leave") ? "The project owner cannot leave this project." : "VANT couldn't leave this project.");
       return;
     }
     onProjectLeft?.(project.id);
@@ -819,36 +875,25 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
   }
 
   function openWorkspaceWidget(widget) {
-    if (widget === "chats") {
-      if (chats.length) onOpenChat(chats[0].id); else onNewChat();
-      return;
-    }
-    if (widget === "team") {
-      setWorkspacePanel("team");
-      return;
-    }
+    if (widget === "chats") { if (chats.length) onOpenChat(chats[0].id); else onNewChat(); return; }
+    if (widget === "team") { setWorkspacePanel("team"); return; }
     setWorkspacePanel(widget);
   }
+
   const color = PROJECT_COLORS.includes(project.color) ? project.color : "violet";
   const priority = PROJECT_PRIORITIES.find((item) => item.value === project.priority)?.label || "Moderate";
   const recentChats = chats.slice(0, 5);
+  const currentMember = members.find((member) => member.user_id === user?.id);
+  const canEditIntelligence = isOwner || currentMember?.role === "collaborator";
 
   return (
     <div style={{ height: "100%", overflowY: "auto", padding: "28px 34px 40px" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-        <button type="button" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", background: "transparent", color: theme.textMuted, cursor: "pointer", padding: 0, marginBottom: 22 }}>
-          <ArrowLeft size={15} /> All Projects
-        </button>
+        <button type="button" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", background: "transparent", color: theme.textMuted, cursor: "pointer", padding: 0, marginBottom: 22 }}><ArrowLeft size={15} /> All Projects</button>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, marginBottom: 24 }}>
           <div style={{ display: "flex", gap: 15, alignItems: "flex-start" }}>
-            <div style={{ width: 52, height: 52, borderRadius: 15, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid " + theme.border }}>
-              <FolderKanban size={23} color={ac(color, isDark)} />
-            </div>
-            <div>
-              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10.5, letterSpacing: 1.3, color: ac(color, isDark), marginBottom: 5 }}>VANT · PROJECT WORKSPACE</div>
-              <h1 style={{ margin: 0, fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500 }}>{project.name}</h1>
-              <p style={{ margin: "7px 0 0", color: theme.textMuted, fontSize: 14 }}>{project.description || "No project description yet."}</p>
-            </div>
+            <div style={{ width: 52, height: 52, borderRadius: 15, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid " + theme.border }}><FolderKanban size={23} color={ac(color, isDark)} /></div>
+            <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10.5, letterSpacing: 1.3, color: ac(color, isDark), marginBottom: 5 }}>VANT · PROJECT WORKSPACE</div><h1 style={{ margin: 0, fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500 }}>{project.name}</h1><p style={{ margin: "7px 0 0", color: theme.textMuted, fontSize: 14 }}>{project.description || "No project description yet."}</p></div>
           </div>
           <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
             {isOwner && <button type="button" onClick={() => onCustomize(project.id)} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={15} /> Customize</button>}
@@ -856,6 +901,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
             <button type="button" onClick={onNewChat} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", borderRadius: 10, padding: "9px 13px", background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontWeight: 600 }}><Plus size={15} /> New Chat</button>
           </div>
         </div>
+
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           <span style={{ padding: "6px 10px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 12, fontWeight: 600 }}>Priority · {priority}</span>
           <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: theme.textMuted, fontSize: 12 }}>{isOwner ? "Owner workspace" : "Shared workspace"}</span>
@@ -867,30 +913,27 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
             { icon: MessageSquare, label: "PROJECT CHATS", value: chats.length, detail: chats.length ? "Your conversations in this workspace" : "Ready for your first chat" },
             { icon: Target, label: "PRIORITY", value: priority, detail: "Attached to this workspace" },
             { icon: Users, label: "TEAM", value: String(members.length), detail: members.length === 1 ? "You · collaboration ready" : "Project members" },
-            { icon: FolderKanban, label: "WORKSPACE", value: "Active", detail: isOwner ? "Owner-controlled workspace" : "Shared with you" },
+            { icon: Sparkles, label: "INTELLIGENCE", value: String((intelligenceSummary?.knowledge_count || 0) + (intelligenceSummary?.memory_count || 0)), detail: "Knowledge + project memory" },
           ].map(({ icon: Icon, label, value, detail }) => (
-            <div key={label} style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 15, padding: 15 }}>
-              <Icon size={16} color={ac(color, isDark)} />
-              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: theme.textFaint, marginTop: 10 }}>{label}</div>
-              <div style={{ fontSize: 20, fontWeight: 600, marginTop: 4 }}>{value}</div>
-              <div style={{ color: theme.textFaint, fontSize: 11.5, marginTop: 3 }}>{detail}</div>
-            </div>
+            <div key={label} style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 15, padding: 15 }}><Icon size={16} color={ac(color, isDark)} /><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: theme.textFaint, marginTop: 10 }}>{label}</div><div style={{ fontSize: 20, fontWeight: 600, marginTop: 4 }}>{value}</div><div style={{ color: theme.textFaint, fontSize: 11.5, marginTop: 3 }}>{detail}</div></div>
           ))}
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, margin: "0 0 9px" }}>
-          <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: theme.textFaint }}>COMMAND CENTER</div><div style={{ fontSize: 15, fontWeight: 600, marginTop: 3 }}>Move the project forward</div></div>
-          <div style={{ color: theme.textFaint, fontSize: 11.5 }}>Everything starts here</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10, marginBottom: 16 }}>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, margin: "0 0 9px" }}><div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: theme.textFaint }}>COMMAND CENTER</div><div style={{ fontSize: 15, fontWeight: 600, marginTop: 3 }}>Move the project forward</div></div><div style={{ color: theme.textFaint, fontSize: 11.5 }}>Project intelligence is active</div></div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10, marginBottom: 16 }}>
           <button type="button" onClick={onAskVant} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: acBg(color), border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}><Sparkles size={17} color={ac(color, isDark)} /><div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Ask VANT</div><div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Work through this project with project-aware context.</div></button>
           <button type="button" onClick={onNewChat} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: theme.surface, border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}><Plus size={17} color={ac("cyan", isDark)} /><div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Start New Chat</div><div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Open a clean conversation inside this workspace.</div></button>
         </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
           {[
-            { key: "dashboard", icon: LayoutDashboard, title: "Project Dashboard", text: "Open the project command center and current workspace state.", status: "OPEN" },
-            { key: "chats", icon: MessageSquare, title: "Chats", text: chats.length ? "Open the latest conversation inside this project." : "Start the first conversation inside this project.", status: chats.length ? "OPEN" : "START" },
-            { key: "team", icon: Users, title: "Team", text: "View members, invite collaborators, and open the shared Team Chat.", status: "LIVE" },
-            { key: "space", icon: FolderKanban, title: "Project Space", text: "View this project's identity, priority, ownership, and workspace data.", status: "OPEN" },
+            { key: "dashboard", icon: LayoutDashboard, title: "Project Dashboard", text: "See current project state and intelligence metrics.", status: "LIVE" },
+            { key: "knowledge", icon: Target, title: "Project Knowledge", text: "Manage facts, goals, decisions, notes, and instructions.", status: String(knowledge.length) },
+            { key: "memory", icon: Sparkles, title: "Project Memory", text: "Store durable facts, decisions, goals, actions, and open questions.", status: String(memory.length) },
+            { key: "team", icon: Users, title: "Team", text: "Manage members and open the shared Team Chat.", status: "LIVE" },
+            { key: "space", icon: FolderKanban, title: "Project Space", text: "View identity, priority, ownership, and workspace data.", status: "OPEN" },
+            { key: "chats", icon: MessageSquare, title: "Chats", text: chats.length ? "Open the latest project conversation." : "Start the first project conversation.", status: chats.length ? "OPEN" : "START" },
           ].map(({ key, icon: Icon, title, text, status }) => (
             <button key={title} type="button" onClick={() => openWorkspaceWidget(key)} style={{ textAlign: "left", background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, minHeight: 130, color: theme.text, cursor: "pointer" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><Icon size={18} color={ac(color, isDark)} /><span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: key === "team" ? ac("green", isDark) : theme.textFaint }}>{status}</span></div>
@@ -898,74 +941,71 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
             </button>
           ))}
         </div>
+
         {workspacePanel && (
           <div role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) setWorkspacePanel(null); }} style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-            <div style={{ width: "min(560px, 100%)", maxHeight: "80vh", overflowY: "auto", background: theme.surfaceCard, border: "1px solid " + theme.borderStrong, borderRadius: 18, padding: 22 }}>
+            <div style={{ width: "min(720px, 100%)", maxHeight: "82vh", overflowY: "auto", background: theme.surfaceCard, border: "1px solid " + theme.borderStrong, borderRadius: 18, padding: 22 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: ac(color, isDark) }}>VANT · PROJECT</div><h2 style={{ margin: "6px 0 0", fontSize: 21 }}>{workspacePanel === "team" ? "Team" : workspacePanel === "space" ? "Project Space" : "Project Dashboard"}</h2></div>
+                <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: ac(color, isDark) }}>VANT · PROJECT</div><h2 style={{ margin: "6px 0 0", fontSize: 21 }}>{workspacePanel === "team" ? "Team" : workspacePanel === "knowledge" ? "Project Knowledge" : workspacePanel === "memory" ? "Project Memory" : workspacePanel === "space" ? "Project Space" : "Project Dashboard"}</h2></div>
                 <button type="button" onClick={() => setWorkspacePanel(null)} aria-label="Close project panel" style={{ border: "1px solid " + theme.border, background: theme.surface, color: theme.textMuted, borderRadius: 9, width: 32, height: 32, cursor: "pointer" }}><X size={15} /></button>
               </div>
-              {workspacePanel === "dashboard" && <div style={{ marginTop: 20, display: "grid", gap: 10 }}><div style={{ padding: 14, borderRadius: 12, background: theme.surface, border: "1px solid " + theme.border }}><div style={{ color: theme.textFaint, fontSize: 11 }}>PROJECT STATUS</div><div style={{ fontSize: 18, fontWeight: 600, marginTop: 5 }}>Active</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>{chats.length} project chat{chats.length === 1 ? "" : "s"} currently attached.</div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}><button type="button" onClick={onAskVant} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: acBg(color), color: theme.text, cursor: "pointer", textAlign: "left" }}><Sparkles size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>Ask VANT</div></button><button type="button" onClick={onNewChat} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer", textAlign: "left" }}><Plus size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>New Chat</div></button></div></div>}
-              {workspacePanel === "team" && (
-                <div style={{ marginTop: 20 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div><div style={{ fontWeight: 600 }}>Project members</div><div style={{ color: theme.textMuted, fontSize: 12 }}>Changes update live.</div></div>
-                    <button type="button" onClick={() => setTeamChatOpen(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 9, border: "1px solid " + theme.border, background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontSize: 12, fontWeight: 600 }}><MessageSquare size={13} /> Team Chat</button>
-                    {!isOwner && <button type="button" onClick={leaveProject} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 9, border: "1px solid " + theme.border, background: "transparent", color: ac("red", isDark), cursor: "pointer", fontSize: 12, fontWeight: 600 }}><ArrowLeft size={13} /> Leave Project</button>}
+
+              {workspacePanel === "dashboard" && <div style={{ marginTop: 20, display: "grid", gap: 10 }}>
+                <div style={{ padding: 14, borderRadius: 12, background: theme.surface, border: "1px solid " + theme.border }}><div style={{ color: theme.textFaint, fontSize: 11 }}>PROJECT INTELLIGENCE</div><div style={{ fontSize: 18, fontWeight: 600, marginTop: 5 }}>Active</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>Knowledge {intelligenceSummary?.knowledge_count || 0} · Memory {intelligenceSummary?.memory_count || 0} · Activity {intelligenceSummary?.activity_count || 0} · Members {intelligenceSummary?.member_count || members.length} · Chats {intelligenceSummary?.chat_count || chats.length}</div></div>
+                <button type="button" onClick={() => setWorkspacePanel("knowledge")} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: acBg(color), color: theme.text, cursor: "pointer", textAlign: "left" }}><Target size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>Manage Project Knowledge</div><div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 4 }}>Give VANT durable project facts and decisions.</div></button>
+              </div>}
+
+              {workspacePanel === "knowledge" && <div style={{ marginTop: 20 }}>
+                {canEditIntelligence && <form onSubmit={addKnowledge} style={{ padding: 14, borderRadius: 12, background: theme.surface, border: "1px solid " + theme.border, marginBottom: 14 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Add knowledge</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 150px", gap: 8, marginTop: 9 }}>
+                    <input value={knowledgeTitle} onChange={(e) => setKnowledgeTitle(e.target.value)} placeholder="Title" style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text }} />
+                    <select value={knowledgeType} onChange={(e) => setKnowledgeType(e.target.value)} style={{ padding: "9px 8px", borderRadius: 8, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text }}>
+                      <option value="fact">Fact</option><option value="goal">Goal</option><option value="decision">Decision</option><option value="note">Note</option><option value="instruction">Instruction</option><option value="reference">Reference</option>
+                    </select>
                   </div>
-                  <div style={{ display: "grid", gap: 8 }}>
-                    {members.map((member) => {
-                      const online = member.user_id === user?.id;
-                      const isMemberOwner = member.role === "owner";
-                      return <div key={member.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 11px", border: "1px solid " + theme.border, borderRadius: 11, background: theme.surface }}>
-                        <div style={{ width: 30, height: 30, borderRadius: 9, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center", color: ac(color, isDark), fontWeight: 600, fontSize: 12 }}>{(member.display_name || "V").slice(0,1).toUpperCase()}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600 }}>{member.display_name || "VANT User"} {member.user_id === user?.id ? "(You)" : ""}</div>
-                          <div style={{ color: theme.textFaint, fontSize: 11.5 }}>{member.role} · {member.email || "VANT account"}</div>
-                        </div>
-                        <span style={{ fontSize: 10, color: online ? ac("green", isDark) : theme.textFaint }}>{online ? "● YOU" : "MEMBER"}</span>
-                        {isOwner && !isMemberOwner && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <select value={member.role} onChange={(e) => manageMember(member, "change_role", e.target.value)} title={`Change role for ${member.display_name || "member"}`} style={{ width: 112, padding: "6px 7px", borderRadius: 8, border: "1px solid " + theme.border, background: theme.inputBg, color: theme.text, fontSize: 11.5 }}>
-                              <option value="collaborator">Collaborator</option>
-                              <option value="viewer">Viewer</option>
-                            </select>
-                            <button type="button" onClick={() => manageMember(member, "remove")} title="Remove member" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid " + theme.border, background: "transparent", color: ac("red", isDark), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={13} /></button>
-                          </div>
-                        )}
-                      </div>;
-                    })}
+                  <textarea value={knowledgeContent} onChange={(e) => setKnowledgeContent(e.target.value)} placeholder="What should VANT know?" rows={3} style={{ width: "100%", boxSizing: "border-box", marginTop: 8, padding: 10, borderRadius: 8, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, resize: "vertical" }} />
+                  <button type="submit" disabled={intelligenceBusy || !knowledgeTitle.trim() || !knowledgeContent.trim()} style={{ marginTop: 8, border: "none", borderRadius: 8, padding: "8px 12px", background: ac(color, isDark), color: isDark ? "#090b10" : "#fff", cursor: "pointer", fontWeight: 600 }}>Save Knowledge</button>
+                </form>}
+                {knowledge.length ? knowledge.map((item) => <div key={item.id} style={{ padding: 12, borderBottom: "1px solid " + theme.border, display: "flex", gap: 10 }}><div style={{ flex: 1 }}><div style={{ fontSize: 10, color: ac(color, isDark), fontFamily: "JetBrains Mono, monospace", letterSpacing: .7 }}>{item.knowledge_type.toUpperCase()}</div><div style={{ fontWeight: 600, marginTop: 3 }}>{item.title}</div><div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.5, marginTop: 3, whiteSpace: "pre-wrap" }}>{item.content}</div></div>{canEditIntelligence && <button type="button" onClick={() => deleteKnowledge(item.id)} title="Delete knowledge" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid " + theme.border, background: "transparent", color: ac("red", isDark), cursor: "pointer" }}><Trash2 size={13} /></button>}</div>) : <div style={{ color: theme.textMuted, fontSize: 13, padding: 16, textAlign: "center" }}>No project knowledge yet.</div>}
+              </div>}
+
+              {workspacePanel === "memory" && <div style={{ marginTop: 20 }}>
+                {canEditIntelligence && <form onSubmit={addMemory} style={{ padding: 14, borderRadius: 12, background: theme.surface, border: "1px solid " + theme.border, marginBottom: 14 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Add project memory</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 150px", gap: 8, marginTop: 9 }}>
+                    <input value={memoryTitle} onChange={(e) => setMemoryTitle(e.target.value)} placeholder="Memory title" style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text }} />
+                    <select value={memoryType} onChange={(e) => setMemoryType(e.target.value)} style={{ padding: "9px 8px", borderRadius: 8, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text }}>
+                      <option value="fact">Fact</option><option value="decision">Decision</option><option value="goal">Goal</option><option value="action_item">Action item</option><option value="open_question">Open question</option>
+                    </select>
                   </div>
-                  {isOwner && <form onSubmit={inviteMember} style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + theme.border }}>
-                    <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 8 }}>Invite a VANT user</div>
-                    <div style={{ display: "flex", gap: 7 }}>
-                      <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="their@email.com" type="email" style={{ flex: 1, minWidth: 0, padding: "9px 11px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 12.5 }} />
-                      <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} style={{ width: 112, padding: "9px 7px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, fontSize: 12 }}>
-                        <option value="collaborator">Collaborator</option><option value="viewer">Viewer</option>
-                      </select>
-                      <button type="submit" disabled={inviteBusy || !inviteEmail.trim()} style={{ width: 42, borderRadius: 9, border: "none", background: ac(color, isDark), color: isDark ? "#0b0d13" : "#fff", cursor: inviteBusy ? "wait" : "pointer", opacity: inviteBusy || !inviteEmail.trim() ? 0.5 : 1 }} title="Add member"><UserPlus size={15} /></button>
-                    </div>
-                    {inviteMessage && <div style={{ color: inviteMessage.includes("added") ? ac("green", isDark) : ac("red", isDark), fontSize: 11.5, marginTop: 7 }}>{inviteMessage}</div>}
-                  </form>}
-                </div>
-              )}
-              {workspacePanel === "space" && <div style={{ marginTop: 20 }}><div style={{ display: "grid", gap: 0 }}>{[["Project", project.name],["Description", project.description || "No description"],["Priority", priority],["Color", color],["Chats", String(chats.length)],["Members", String(members.length)],["Status", "Active"]].map(([label,value]) => <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 18, padding: "11px 0", borderBottom: "1px solid " + theme.border }}><span style={{ color: theme.textFaint, fontSize: 12 }}>{label}</span><span style={{ color: theme.text, fontSize: 12.5, textAlign: "right", maxWidth: "70%" }}>{value}</span></div>)}</div>{isOwner && <button type="button" onClick={() => { setWorkspacePanel(null); onCustomize(project.id); }} style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={14} /> Customize Project</button>}</div>}
+                  <textarea value={memoryContent} onChange={(e) => setMemoryContent(e.target.value)} placeholder="What should persist for this project?" rows={3} style={{ width: "100%", boxSizing: "border-box", marginTop: 8, padding: 10, borderRadius: 8, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, resize: "vertical" }} />
+                  <button type="submit" disabled={intelligenceBusy || !memoryTitle.trim() || !memoryContent.trim()} style={{ marginTop: 8, border: "none", borderRadius: 8, padding: "8px 12px", background: ac(color, isDark), color: isDark ? "#090b10" : "#fff", cursor: "pointer", fontWeight: 600 }}>Save Memory</button>
+                </form>}
+                {memory.length ? memory.map((item) => <div key={item.id} style={{ padding: 12, borderBottom: "1px solid " + theme.border, display: "flex", gap: 10 }}><div style={{ flex: 1 }}><div style={{ fontSize: 10, color: ac("violet", isDark), fontFamily: "JetBrains Mono, monospace", letterSpacing: .7 }}>{item.memory_type.replace("_", " ").toUpperCase()} · {Math.round(Number(item.confidence || 1) * 100)}%</div><div style={{ fontWeight: 600, marginTop: 3 }}>{item.title}</div><div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.5, marginTop: 3, whiteSpace: "pre-wrap" }}>{item.content}</div></div>{canEditIntelligence && <button type="button" onClick={() => deleteMemory(item.id)} title="Delete memory" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid " + theme.border, background: "transparent", color: ac("red", isDark), cursor: "pointer" }}><Trash2 size={13} /></button>}</div>) : <div style={{ color: theme.textMuted, fontSize: 13, padding: 16, textAlign: "center" }}>No project memory yet.</div>}
+              </div>}
+
+              {workspacePanel === "space" && <div style={{ marginTop: 20 }}><div style={{ display: "grid", gap: 0 }}>{[["Project", project.name],["Description", project.description || "No description"],["Priority", priority],["Color", color],["Chats", String(chats.length)],["Members", String(members.length)],["Knowledge", String(knowledge.length)],["Memory", String(memory.length)],["Status", "Active"]].map(([label,value]) => <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 18, padding: "11px 0", borderBottom: "1px solid " + theme.border }}><span style={{ color: theme.textFaint, fontSize: 12 }}>{label}</span><span style={{ color: theme.text, fontSize: 12.5, textAlign: "right", maxWidth: "70%" }}>{value}</span></div>)}</div>{isOwner && <button type="button" onClick={() => { setWorkspacePanel(null); onCustomize(project.id); }} style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={14} /> Customize Project</button>}</div>}
+
+              {workspacePanel === "team" && <div style={{ marginTop: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8 }}><div><div style={{ fontWeight: 600 }}>Project members</div><div style={{ color: theme.textMuted, fontSize: 12 }}>Changes update live.</div></div><button type="button" onClick={() => setTeamChatOpen(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 9, border: "1px solid " + theme.border, background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontSize: 12, fontWeight: 600 }}><MessageSquare size={13} /> Team Chat</button>{!isOwner && <button type="button" onClick={leaveProject} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 9, border: "1px solid " + theme.border, background: "transparent", color: ac("red", isDark), cursor: "pointer", fontSize: 12, fontWeight: 600 }}><ArrowLeft size={13} /> Leave Project</button>}</div>
+                <div style={{ display: "grid", gap: 8 }}>{members.map((member) => { const online = member.user_id === user?.id; const isMemberOwner = member.role === "owner"; return <div key={member.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 11px", border: "1px solid " + theme.border, borderRadius: 11, background: theme.surface }}><div style={{ width: 30, height: 30, borderRadius: 9, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center", color: ac(color, isDark), fontWeight: 600, fontSize: 12 }}>{(member.display_name || "V").slice(0,1).toUpperCase()}</div><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{member.display_name || "VANT User"} {member.user_id === user?.id ? "(You)" : ""}</div><div style={{ color: theme.textFaint, fontSize: 11.5 }}>{member.role} · {member.email || "VANT account"}</div></div><span style={{ fontSize: 10, color: online ? ac("green", isDark) : theme.textFaint }}>{online ? "● YOU" : "MEMBER"}</span>{isOwner && !isMemberOwner && <div style={{ display: "flex", alignItems: "center", gap: 6 }}><select value={member.role} onChange={(e) => manageMember(member, "change_role", e.target.value)} style={{ width: 112, padding: "6px 7px", borderRadius: 8, border: "1px solid " + theme.border, background: theme.inputBg, color: theme.text, fontSize: 11.5 }}><option value="collaborator">Collaborator</option><option value="viewer">Viewer</option></select><button type="button" onClick={() => manageMember(member, "remove")} title="Remove member" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid " + theme.border, background: "transparent", color: ac("red", isDark), cursor: "pointer" }}><X size={13} /></button></div>}</div>; })}</div>
+                {isOwner && <form onSubmit={inviteMember} style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + theme.border }}><div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 8 }}>Invite a VANT user</div><div style={{ display: "flex", gap: 7 }}><input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="their@email.com" type="email" style={{ flex: 1, minWidth: 0, padding: "9px 11px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 12.5 }} /><select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} style={{ width: 112, padding: "9px 7px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, fontSize: 12 }}><option value="collaborator">Collaborator</option><option value="viewer">Viewer</option></select><button type="submit" disabled={inviteBusy || !inviteEmail.trim()} style={{ width: 42, borderRadius: 9, border: "none", background: ac(color, isDark), color: isDark ? "#0b0d13" : "#fff", cursor: inviteBusy ? "wait" : "pointer", opacity: inviteBusy || !inviteEmail.trim() ? 0.5 : 1 }} title="Add member"><UserPlus size={15} /></button></div>{inviteMessage && <div style={{ color: inviteMessage.includes("added") ? ac("green", isDark) : ac("red", isDark), fontSize: 11.5, marginTop: 7 }}>{inviteMessage}</div>}</form>}
+              </div>}
             </div>
           </div>
         )}
         {teamChatOpen && <ProjectTeamChat theme={theme} isDark={isDark} project={project} user={user} onClose={() => setTeamChatOpen(false)} />}
 
         <div style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, marginTop: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-            <div><div style={{ fontWeight: 600 }}>Recent Project Chats</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>Your conversations that belong to this workspace.</div></div>
-            <button type="button" onClick={onNewChat} style={{ border: "none", background: acBg(color), color: ac(color, isDark), borderRadius: 9, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}><Plus size={13} /> New Chat</button>
-          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}><div><div style={{ fontWeight: 600 }}>Recent Project Chats</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>Your conversations that belong to this workspace.</div></div><button type="button" onClick={onNewChat} style={{ border: "none", background: acBg(color), color: ac(color, isDark), borderRadius: 9, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}><Plus size={13} /> New Chat</button></div>
           {recentChats.length ? recentChats.map((chat) => <button key={chat.id} type="button" onClick={() => onOpenChat(chat.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "11px 3px", border: "none", borderTop: "1px solid " + theme.border, background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left" }}><MessageSquare size={15} color={ac(color, isDark)} /><span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13.5 }}>{chat.title || "New VANT chat"}</span><ChevronRight size={14} color={theme.textFaint} /></button>) : <div style={{ borderTop: "1px solid " + theme.border, paddingTop: 18, color: theme.textMuted, fontSize: 13, textAlign: "center" }}>No project chats yet. Start one above.</div>}
         </div>
       </div>
     </div>
   );
 }
+
 function ProjectsPage({ theme, isDark, projects, user, onProjectsChange, onOpenProject, onDeleteProject, onCustomizeProject, projectSaving }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -997,8 +1037,7 @@ function ProjectsPage({ theme, isDark, projects, user, onProjectsChange, onOpenP
     setEditingId(null);
   }
 
-  const card = {
-    background: theme.surfaceCard,
+  const card = {    background: theme.surfaceCard,
     border: "1px solid " + theme.border,
     borderRadius: 16,
     padding: 18,
@@ -1497,8 +1536,7 @@ function ChatPage({
     sessionConversationIdRef.current = activeConversationId;
     const nextMessages = activeConversation?.messages || [];
     messagesRef.current = nextMessages;
-    setMessages(nextMessages);
-    setStarted(nextMessages.length > 0);
+    setMessages(nextMessages);    setStarted(nextMessages.length > 0);
     setInput("");
     setAttachments([]);
     setComposerNotice("");
@@ -1997,8 +2035,7 @@ Respond naturally like a sharp work partner.
   }
 
   function reportBadResponse(index, reason) {
-    setResponseFeedback((current) => ({ ...current, [index]: `bad:${reason}` }));
-    setResponsePanel(null);
+    setResponseFeedback((current) => ({ ...current, [index]: `bad:${reason}` }));    setResponsePanel(null);
     setComposerNotice(`Feedback recorded: ${reason}.`);
   }
 
@@ -2497,8 +2534,7 @@ function LoadOptimizerTool({ onBack, theme, isDark }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
         <div><label style={labelStyle}>Item length (cm)</label><input value={itemL} onChange={(e) => setItemL(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
         <div><label style={labelStyle}>Item width (cm)</label><input value={itemW} onChange={(e) => setItemW(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
-        <div><label style={labelStyle}>Item height (cm)</label><input value={itemH} onChange={(e) => setItemH(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
-      </div>
+        <div><label style={labelStyle}>Item height (cm)</label><input value={itemH} onChange={(e) => setItemH(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
         <div><label style={labelStyle}>Total quantity to ship</label><input value={qty} onChange={(e) => setQty(e.target.value)} type="number" min="0" style={fieldStyle} placeholder="0" /></div>
         <div><label style={labelStyle}>Assumed packing efficiency (%)</label><input value={efficiency} onChange={(e) => setEfficiency(e.target.value)} type="number" min="1" max="100" style={fieldStyle} /></div>
