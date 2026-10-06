@@ -645,7 +645,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
           {pinned.map(renderItem)}
           {recent.length > 0 && <div style={{ margin: "16px 6px 6px", fontSize: 11, fontWeight: 600, color: theme.textFaint }}>Recents</div>}
           {recent.map(renderItem)}
-          {!conversations.length && <div style={{ padding: "28px 12px", color: theme.textFaint, fontSize: 12.5, lineHeight: 1.5 }}>projectMode ? "Project conversations stay inside this workspace." : "Your completed conversations will appear here automatically."</div>}
+          {!conversations.length && <div style={{ padding: "28px 12px", color: theme.textFaint, fontSize: 12.5, lineHeight: 1.5 }}>{projectMode ? "Project conversations stay inside this workspace." : "Your completed conversations will appear here automatically."}</div>}
         </div>
       </aside>
     );
