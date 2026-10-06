@@ -124,7 +124,8 @@ async function askClaude(
   messages,
   onChunk,
   timeoutMs = 58000,
-  externalSignal = null
+  externalSignal = null,
+  stream = true
 ) {
   const controller = new AbortController();
   const abortFromCaller = () => controller.abort();
@@ -168,7 +169,7 @@ async function askClaude(
       body: JSON.stringify({
         system: systemPrompt,
         messages,
-        stream: true,
+        stream,
       }),
 
       signal: controller.signal,
@@ -213,6 +214,29 @@ async function askClaude(
       return data?.detail
         ? `NVIDIA NIM error: ${data.detail}`
         : "The server had trouble reaching the model. Try again in a moment.";
+    }
+
+    if (!stream) {
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        clearTimeout(timer);
+        return "The model returned an invalid response. Please try again.";
+      }
+
+      clearTimeout(timer);
+      if (externalSignal) externalSignal.removeEventListener("abort", abortFromCaller);
+
+      const text =
+        typeof data?.content?.[0]?.text === "string"
+          ? data.content[0].text
+          : typeof data?.choices?.[0]?.message?.content === "string"
+            ? data.choices[0].message.content
+            : "";
+
+      return text.trim() || "I couldn't generate a response — try again.";
     }
 
     if (!response.body) {
@@ -532,7 +556,8 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
         [{ role: "user", content: cleanPrompt }],
         null,
         58000,
-        null
+        null,
+        false
       );
 
       const isModelFailure =
