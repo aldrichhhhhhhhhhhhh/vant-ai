@@ -6,7 +6,7 @@ import {
   buildVantWorkEnvelope,
   buildVantSystemPrompt,
 } from "./vantEngine";
-import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2, FolderKanban, ThumbsUp, ThumbsDown, Flag, MoreHorizontal } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Target, Image as ImageIcon, Link2, FolderKanban, ThumbsUp, ThumbsDown, Flag, MoreHorizontal } from "lucide-react";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -870,6 +870,7 @@ function ChatPage({
   useEffect(() => {
     function close(e) {
       if (composerRef.current && !composerRef.current.contains(e.target)) setComposerOpen(false);
+      if (!e.target.closest?.("[data-vant-response-actions]")) setResponsePanel(null);
     }
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -1265,12 +1266,32 @@ Respond naturally like a sharp work partner.
   
   async function copyMessage(message) {
     const text = displayText(message?.content);
-    if (!text) return;
+    if (!text) {
+      setComposerNotice("There is no response text to copy.");
+      return false;
+    }
     try {
-      await navigator.clipboard.writeText(text);
-      setComposerNotice("Response copied to clipboard.");
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        setComposerNotice("Response copied to clipboard.");
+        return true;
+      }
+    } catch {}
+    try {
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.left = "-9999px";
+      document.body.appendChild(area);
+      area.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(area);
+      setComposerNotice(copied ? "Response copied to clipboard." : "Could not copy this response.");
+      return copied;
     } catch {
-      setComposerNotice("Clipboard access is unavailable in this browser.");
+      setComposerNotice("Could not copy this response in this browser.");
+      return false;
     }
   }
 
@@ -1288,11 +1309,23 @@ Respond naturally like a sharp work partner.
 
   async function regenerateAssistant(index) {
     if (loading) return;
-    const previousUserIndex = [...messages.slice(0, index)].map((m, i) => ({ m, i })).reverse().find(({ m }) => m.role === "user")?.i;
-    if (previousUserIndex == null) return;
+    const previousUserIndex = [...messages.slice(0, index)]
+      .map((m, i) => ({ m, i }))
+      .reverse()
+      .find(({ m }) => m.role === "user")?.i;
+    if (previousUserIndex == null) {
+      setComposerNotice("VANT could not find the request for this response.");
+      return;
+    }
     const prompt = displayText(messages[previousUserIndex]?.content);
-    if (!prompt) return;
+    if (!prompt) {
+      setComposerNotice("VANT could not recover the original request.");
+      return;
+    }
+    // Preserve every earlier turn, remove the selected request/response,
+    // then let send() append the request and generate a fresh answer.
     const baseMessages = messages.slice(0, previousUserIndex);
+    setResponsePanel(null);
     setMessages(baseMessages);
     messagesRef.current = baseMessages;
     setComposerNotice("Regenerating the response…");
@@ -1300,9 +1333,14 @@ Respond naturally like a sharp work partner.
   }
 
   function reactToResponse(index, reaction) {
-    setResponseFeedback((current) => ({ ...current, [index]: reaction }));
+    setResponseFeedback((current) => {
+      const next = { ...current };
+      if (next[index] === reaction) delete next[index];
+      else next[index] = reaction;
+      return next;
+    });
     setResponsePanel(null);
-    setComposerNotice(reaction === "up" ? "Thanks — response marked helpful." : "Thanks — VANT will treat this response as unhelpful.");
+    setComposerNotice(reaction === "up" ? "Response marked helpful." : "Response marked not helpful.");
   }
 
   function reportBadResponse(index, reason) {
@@ -1328,9 +1366,14 @@ Respond naturally like a sharp work partner.
 
     if (action === "use") {
       const text = displayText(message.content);
-      if (!text) return;
+      if (!text) {
+        setResponsePanel(null);
+        setComposerNotice("This response has no text to use.");
+        return;
+      }
       setInput(text);
       setResponsePanel(null);
+      setComposerOpen(false);
       setComposerNotice("Response loaded into the composer. Edit it or send it to VANT.");
       return;
     }
@@ -1354,7 +1397,18 @@ Respond naturally like a sharp work partner.
     send(text);
   }
 
-  const suggestions = ["Analyze this shipment problem", "Draft a follow-up email to a vendor", "Help me think through a decision", "Turn this into an action plan"];
+  const workCards = [
+    { title: "Ship smarter", icon: Truck, accentKey: "cyan", prompts: ["Analyze this shipment delay and propose next actions", "Compare actual vs volumetric weight for this carton"] },
+    { title: "Write fast", icon: FileText, accentKey: "violet", prompts: ["Draft a firm but polite vendor follow-up email", "Rewrite this update for executives in 5 bullets"] },
+    { title: "Decide clearly", icon: Target, accentKey: "amber", prompts: ["Help me think through this decision with tradeoffs", "Turn this messy note into a 3-step action plan"] },
+  ];
+
+  function startWork(prompt) {
+    if (loading) return;
+    setInput("");
+    setComposerNotice("");
+    send(prompt);
+  }
 
 
   if (!started) {
@@ -1365,11 +1419,43 @@ Respond naturally like a sharp work partner.
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden" }}>
           <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "24px 24px 36px", boxSizing: "border-box", overflow: "auto" }}>
             <div style={{ width: "min(760px, 100%)", maxWidth: 760, margin: "0 auto" }}>
-              <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, margin: "0 0 14px" }}>VANT · WORK MODE</p>
-              <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 34, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>What are we working on?</h1>
-              <p style={{ color: theme.textMuted, fontSize: 15.5, margin: "0 auto 26px", maxWidth: 560, lineHeight: 1.5 }}>Give VANT a task, a question, a file, or a problem. It will help you understand it, analyze it, and move the work forward.</p>
-              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 9, maxWidth: 650, margin: "0 auto" }}>
-                {suggestions.map((s) => <button key={s} onClick={() => send(s)} style={{ padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>{s}</button>)}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: acBg("violet"), border: `1px solid ${theme.border}`, color: ac("violet", isDark), fontFamily: "JetBrains Mono, monospace", fontSize: 11.5, letterSpacing: 1.3, marginBottom: 26 }}>
+                <Sparkles size={14} /> VANT · WORK MODE
+              </div>
+              <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 42, fontWeight: 500, margin: "0 0 12px", color: theme.text }}>What are we working on?</h1>
+              <p style={{ color: theme.textMuted, fontSize: 16, margin: "0 auto 34px", maxWidth: 650, lineHeight: 1.55 }}>
+                Drop a task, a messy problem, a spreadsheet, or a half-baked idea. VANT will understand the objective, cut the fluff, and push the work forward — not just answer.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, width: "100%", maxWidth: 1080, margin: "0 auto" }}>
+                {workCards.map((card) => {
+                  const Icon = card.icon;
+                  const accent = ac(card.accentKey, isDark);
+                  return (
+                    <div key={card.title} style={{ textAlign: "left", padding: 16, borderRadius: 18, background: theme.surface, border: `1px solid ${theme.border}`, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 14 }}>
+                        <div style={{ width: 45, height: 45, borderRadius: 12, background: acBg(card.accentKey), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Icon size={21} color={accent} />
+                        </div>
+                        <span style={{ fontSize: 16, fontWeight: 600, color: theme.text }}>{card.title}</span>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                        {card.prompts.map((prompt) => (
+                          <button key={prompt} type="button" disabled={loading} onClick={() => startWork(prompt)}
+                            style={{ width: "100%", minHeight: 70, textAlign: "left", padding: "12px 14px", borderRadius: 13, background: theme.surfaceStrong, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, lineHeight: 1.35, cursor: loading ? "default" : "pointer", opacity: loading ? 0.55 : 1 }}>
+                            {prompt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: 14, marginTop: 25, color: theme.textFaint, fontSize: 12 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Sparkles size={14} /> Thinks before it talks</span>
+                <span>·</span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Wrench size={14} /> Built for real work</span>
+                <span>·</span>
+                <span>⌘ / Ctrl + N new chat</span>
               </div>
             </div>
           </div>
@@ -1397,7 +1483,7 @@ Respond naturally like a sharp work partner.
           <div key={i} className="v-fade" style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
             <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}><ChatMessageContent message={m} theme={theme} isDark={isDark} /></div>
             {m.content && (
-              <div style={{ position: "relative", marginTop: 6, maxWidth: "78%", width: "fit-content" }}>
+              <div data-vant-response-actions="true" style={{ position: "relative", marginTop: 6, maxWidth: "78%", width: "fit-content" }}>
                 <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5, color: theme.textFaint }}>
                   <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1.1, marginRight: 2, opacity: 0.9 }}>VANT RESPONSE</span>
                   <button type="button" onClick={() => copyMessage(m)} title="Copy response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><Copy size={13} />Copy</button>
@@ -1421,7 +1507,7 @@ Respond naturally like a sharp work partner.
                   </div>
                 )}
                 {responsePanel?.index === i && responsePanel.type === "more" && (
-                  <div className="v-fade" style={{ display: "flex", flexDirection: "column", minWidth: 190, position: "absolute", left: 0, top: 35, zIndex: 20, padding: 6, borderRadius: 11, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 14px 36px rgba(0,0,0,.35)" : "0 14px 36px rgba(15,15,35,.12)" }}>
+                  <div className="v-fade" style={{ display: "flex", flexDirection: "column", minWidth: 210, position: "absolute", left: 0, bottom: 35, zIndex: 50, padding: 6, borderRadius: 11, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 14px 36px rgba(0,0,0,.35)" : "0 14px 36px rgba(15,15,35,.12)" }}>
                     <button type="button" onClick={() => handleResponseAction(i, "copy")} style={{ border: "none", background: "transparent", color: theme.text, textAlign: "left", borderRadius: 7, padding: "8px 9px", cursor: "pointer", fontSize: 12 }}>Copy response</button>
                     {!loading && i > 0 && <button type="button" onClick={() => handleResponseAction(i, "regenerate")} style={{ border: "none", background: "transparent", color: theme.text, textAlign: "left", borderRadius: 7, padding: "8px 9px", cursor: "pointer", fontSize: 12 }}>Regenerate response</button>}
                     <button type="button" onClick={() => handleResponseAction(i, "use")} style={{ border: "none", background: "transparent", color: theme.text, textAlign: "left", borderRadius: 7, padding: "8px 9px", cursor: "pointer", fontSize: 12 }}>Use as composer input</button>
