@@ -501,35 +501,63 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
     if (vantMode === "team_vant" && vantInvocation) {
       const cleanPrompt = content.replace(/^@vant\s*/i, "").trim() || "Join the team conversation and help us move the project forward.";
       const history = [...messages, { id: "local-" + Date.now(), project_id: project.id, user_id: user.id, content, sender_type: "human", created_at: new Date().toISOString() }];
-      const vantMessages = history.slice(-24).map((message, index, list) => ({
-        role: message.sender_type === "vant" ? "assistant" : "user",
-        content: message.sender_type === "vant"
-          ? message.content
-          : index === list.length - 1
-            ? cleanPrompt
-            : memberName(message.user_id) + ": " + message.content,
-      }));
+      const teamContext = history
+        .slice(-24, -1)
+        .map((message) => {
+          const speaker = message.sender_type === "vant" ? "VANT" : memberName(message.user_id);
+          return speaker + ": " + message.content;
+        })
+        .join("\n");
+
       const vantPrompt =
         "You are VANT participating inside a shared project Team Chat.\n\n" +
         "PROJECT: \"" + project.name + "\"\n" +
         "PROJECT DESCRIPTION: " + (project.description || "No description provided.") + "\n\n" +
         "ROLE:\nYou are a participating team member, not the owner of the conversation.\n" +
-        "Only respond to the explicit request made to @VANT.\n" +
+        "Only respond when explicitly called with @VANT.\n" +
         "Use the team conversation as context.\n" +
         "Do not invent project facts, decisions, files, or actions.\n" +
         "Do not claim to have completed external work.\n" +
         "Be concise enough for a team chat, but provide useful structure when needed.\n" +
-        "If the team asks you to summarize, summarize the visible conversation.\n" +
+        "If the team asks you to summarize, summarize only the visible conversation.\n" +
         "If the team asks what to do next, give concrete next steps.\n" +
         "If information is missing, say what is missing.\n\n" +
-        "TEAM CHAT CONTEXT:\n" +
-        vantMessages.slice(0, -1).map((message) => (message.role === "assistant" ? "VANT: " : "TEAM: ") + message.content).join("\n") +
-        "\n\nCURRENT REQUEST:\n" + cleanPrompt;
-      const reply = await askClaude(vantPrompt, vantMessages, null, 58000, null);
-      const { error: vantError } = await supabase.from("project_messages").insert({ project_id: project.id, user_id: user.id, content: reply, sender_type: "vant" });
-      if (vantError) {
-        console.error("VANT: failed to save team VANT response", vantError);
-        window.alert("VANT generated a response but couldn't save it to the team room.");
+        "RECENT TEAM CHAT:\n" +
+        (teamContext || "No earlier team messages.") +
+        "\n\nEXPLICIT REQUEST FROM THE TEAM:\n" +
+        cleanPrompt;
+
+      const reply = await askClaude(
+        vantPrompt,
+        [{ role: "user", content: cleanPrompt }],
+        null,
+        58000,
+        null
+      );
+
+      const isModelFailure =
+        !reply ||
+        reply.startsWith("The server had trouble reaching the model.") ||
+        reply.startsWith("Something went wrong reaching the server.") ||
+        reply.startsWith("NVIDIA NIM error:") ||
+        reply.startsWith("VANT's model request timed out") ||
+        reply === "__VANT_USER_STOPPED__";
+
+      if (isModelFailure) {
+        console.error("VANT: Team + VANT model call failed", reply);
+        window.alert(reply === "__VANT_USER_STOPPED__" ? "VANT stopped the response." : reply);
+      } else {
+        const { error: vantError } = await supabase.from("project_messages").insert({
+          project_id: project.id,
+          user_id: user.id,
+          content: reply,
+          sender_type: "vant",
+        });
+
+        if (vantError) {
+          console.error("VANT: failed to save team VANT response", vantError);
+          window.alert("VANT generated a response but couldn't save it to the team room.");
+        }
       }
     }
     setSending(false);
