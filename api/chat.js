@@ -556,12 +556,17 @@ export default async function handler(req, res) {
       ],
 
       temperature:
-        getVantTemperature(
-          validMessages,
-          hasImage
-        ),
+        requestedModel === TEAM_VANT_MODEL
+          ? 0.6
+          : getVantTemperature(
+              validMessages,
+              hasImage
+            ),
 
-      top_p: 0.95,
+      top_p:
+        requestedModel === TEAM_VANT_MODEL
+          ? 0.7
+          : 0.95,
 
       top_k: 64,
 
@@ -876,6 +881,6 @@ export default async function handler(req, res) {
       },
     ],
 
-    model: MODEL,
+    model: requestedModel,
   });
 }
