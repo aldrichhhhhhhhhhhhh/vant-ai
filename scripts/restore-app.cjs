@@ -178,24 +178,35 @@ function patchAiChat(appSource) {
   return source;
 }
 
-const zip = readFileSync(archivePath);
-let app = extractFile(zip, wanted).toString("utf8");
+if (require("fs").existsSync(targetPath)) {
+  const current = readFileSync(targetPath, "utf8");
+  console.log(
+    "VANT restore: preserving committed src/App.jsx (" +
+      Buffer.byteLength(current) +
+      " bytes, " +
+      current.split("\n").length +
+      " lines). Historical ZIP restore skipped."
+  );
+} else {
+  const zip = readFileSync(archivePath);
+  let app = extractFile(zip, wanted).toString("utf8");
 
-if (!app.includes("export default")) {
-  throw new Error("VANT restore: extracted App.jsx does not look like a React entry.");
+  if (!app.includes("export default")) {
+    throw new Error("VANT restore: extracted App.jsx does not look like a React entry.");
+  }
+
+  app = patchAiChat(app);
+
+  mkdirSync(join(root, "src"), { recursive: true });
+  writeFileSync(targetPath, app);
+
+  console.log(
+    "VANT restore: loaded " +
+      wanted +
+      " -> src/App.jsx (" +
+      Buffer.byteLength(app) +
+      " bytes, " +
+      app.split("\n").length +
+      " lines) with AI Chat attachment patch."
+  );
 }
-
-app = patchAiChat(app);
-
-mkdirSync(join(root, "src"), { recursive: true });
-writeFileSync(targetPath, app);
-
-console.log(
-  "VANT restore: loaded " +
-    wanted +
-    " -> src/App.jsx (" +
-    Buffer.byteLength(app) +
-    " bytes, " +
-    app.split("\n").length +
-    " lines) with AI Chat attachment patch."
-);
