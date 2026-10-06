@@ -6,7 +6,7 @@ import {
   buildVantWorkEnvelope,
   buildVantSystemPrompt,
 } from "./vantEngine";
-import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2, FolderKanban } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Image as ImageIcon, Link2, FolderKanban, ThumbsUp, ThumbsDown, Flag, MoreHorizontal } from "lucide-react";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -843,6 +843,8 @@ function ChatPage({
   const composerRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [editingMessageIndex, setEditingMessageIndex] = useState(null);
+  const [responseFeedback, setResponseFeedback] = useState({});
+  const [responsePanel, setResponsePanel] = useState(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -1297,6 +1299,47 @@ Respond naturally like a sharp work partner.
     await send(prompt, { baseMessages });
   }
 
+  function reactToResponse(index, reaction) {
+    setResponseFeedback((current) => ({ ...current, [index]: reaction }));
+    setResponsePanel(null);
+    setComposerNotice(reaction === "up" ? "Thanks — response marked helpful." : "Thanks — VANT will treat this response as unhelpful.");
+  }
+
+  function reportBadResponse(index, reason) {
+    setResponseFeedback((current) => ({ ...current, [index]: `bad:${reason}` }));
+    setResponsePanel(null);
+    setComposerNotice(`Feedback recorded: ${reason}.`);
+  }
+
+  function handleResponseAction(index, action) {
+    const message = messages[index];
+    if (!message) return;
+
+    if (action === "copy") {
+      copyMessage(message);
+      setResponsePanel(null);
+      return;
+    }
+
+    if (action === "regenerate") {
+      regenerateAssistant(index);
+      return;
+    }
+
+    if (action === "use") {
+      const text = displayText(message.content);
+      if (!text) return;
+      setInput(text);
+      setResponsePanel(null);
+      setComposerNotice("Response loaded into the composer. Edit it or send it to VANT.");
+      return;
+    }
+
+    if (action === "report") {
+      setResponsePanel({ index, type: "bad" });
+    }
+  }
+
   function stopGeneration() {
     if (!loading) return;
     abortControllerRef.current?.abort();
@@ -1354,12 +1397,39 @@ Respond naturally like a sharp work partner.
           <div key={i} className="v-fade" style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
             <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}><ChatMessageContent message={m} theme={theme} isDark={isDark} /></div>
             {m.content && (
-              <div style={{ display: "flex", gap: 4, marginTop: 4, opacity: 0.82 }}>
-                <button type="button" onClick={() => copyMessage(m)} title="Copy" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 5 }}><Copy size={14} /></button>
-                {m.role === "user" && !loading && <button type="button" onClick={() => editUserMessage(i)} title="Edit and resend" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 5 }}><Pencil size={14} /></button>}
-                {m.role === "assistant" && !loading && i > 0 && <button type="button" onClick={() => regenerateAssistant(i)} title="Regenerate" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 5 }}><RefreshCw size={14} /></button>}
+              <div style={{ position: "relative", marginTop: 6, maxWidth: "78%", width: "fit-content" }}>
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5, color: theme.textFaint }}>
+                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1.1, marginRight: 2, opacity: 0.9 }}>VANT RESPONSE</span>
+                  <button type="button" onClick={() => copyMessage(m)} title="Copy response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><Copy size={13} />Copy</button>
+                  {!loading && i > 0 && <button type="button" onClick={() => regenerateAssistant(i)} title="Regenerate response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><RefreshCw size={13} />Regenerate</button>}
+                  <button type="button" onClick={() => setResponsePanel((current) => current?.index === i && current.type === "react" ? null : { index: i, type: "react" })} title="React to response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${responseFeedback[i] ? ac("violet", isDark) : theme.border}`, background: responseFeedback[i] ? acBg("violet") : theme.surface, color: responseFeedback[i] ? ac("violet", isDark) : theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><ThumbsUp size={13} />React</button>
+                  <button type="button" onClick={() => setResponsePanel((current) => current?.index === i && current.type === "bad" ? null : { index: i, type: "bad" })} title="Report a bad response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><Flag size={13} />Bad Response</button>
+                  <button type="button" onClick={() => setResponsePanel((current) => current?.index === i && current.type === "more" ? null : { index: i, type: "more" })} title="More response actions" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><MoreHorizontal size={14} />More Action</button>
+                </div>
+                {responsePanel?.index === i && responsePanel.type === "react" && (
+                  <div className="v-fade" style={{ display: "flex", gap: 6, marginTop: 7, padding: 7, borderRadius: 11, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 12px 30px rgba(0,0,0,.28)" : "0 12px 30px rgba(15,15,35,.10)" }}>
+                    <button type="button" onClick={() => reactToResponse(i, "up")} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${responseFeedback[i] === "up" ? ac("green", isDark) : theme.border}`, background: responseFeedback[i] === "up" ? acBg("green") : theme.surface, color: responseFeedback[i] === "up" ? ac("green", isDark) : theme.textMuted, borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 11.5 }}><ThumbsUp size={13} />Helpful</button>
+                    <button type="button" onClick={() => reactToResponse(i, "down")} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${responseFeedback[i] === "down" ? ac("red", isDark) : theme.border}`, background: responseFeedback[i] === "down" ? acBg("red") : theme.surface, color: responseFeedback[i] === "down" ? ac("red", isDark) : theme.textMuted, borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 11.5 }}><ThumbsDown size={13} />Not helpful</button>
+                  </div>
+                )}
+                {responsePanel?.index === i && responsePanel.type === "bad" && (
+                  <div className="v-fade" style={{ marginTop: 7, padding: 10, borderRadius: 11, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 12px 30px rgba(0,0,0,.28)" : "0 12px 30px rgba(15,15,35,.10)" }}>
+                    <div style={{ fontSize: 11.5, color: theme.text, marginBottom: 7 }}>What was wrong with this response?</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {["Incorrect", "Not relevant", "Too long", "Missing action"].map((reason) => <button key={reason} type="button" onClick={() => reportBadResponse(i, reason)} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 11.5 }}>{reason}</button>)}
+                    </div>
+                  </div>
+                )}
+                {responsePanel?.index === i && responsePanel.type === "more" && (
+                  <div className="v-fade" style={{ display: "flex", flexDirection: "column", minWidth: 190, position: "absolute", left: 0, top: 35, zIndex: 20, padding: 6, borderRadius: 11, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 14px 36px rgba(0,0,0,.35)" : "0 14px 36px rgba(15,15,35,.12)" }}>
+                    <button type="button" onClick={() => handleResponseAction(i, "copy")} style={{ border: "none", background: "transparent", color: theme.text, textAlign: "left", borderRadius: 7, padding: "8px 9px", cursor: "pointer", fontSize: 12 }}>Copy response</button>
+                    {!loading && i > 0 && <button type="button" onClick={() => handleResponseAction(i, "regenerate")} style={{ border: "none", background: "transparent", color: theme.text, textAlign: "left", borderRadius: 7, padding: "8px 9px", cursor: "pointer", fontSize: 12 }}>Regenerate response</button>}
+                    <button type="button" onClick={() => handleResponseAction(i, "use")} style={{ border: "none", background: "transparent", color: theme.text, textAlign: "left", borderRadius: 7, padding: "8px 9px", cursor: "pointer", fontSize: 12 }}>Use as composer input</button>
+                    <button type="button" onClick={() => handleResponseAction(i, "report")} style={{ border: "none", background: "transparent", color: theme.text, textAlign: "left", borderRadius: 7, padding: "8px 9px", cursor: "pointer", fontSize: 12 }}>Report response</button>
+                  </div>
+                )}
               </div>
-            )}
+            )}}
           </div>
         ))}
         {loading && <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 8 }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div><button type="button" onClick={stopGeneration} title="Stop generation" style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Square size={12} fill="currentColor" /></button></div>}
