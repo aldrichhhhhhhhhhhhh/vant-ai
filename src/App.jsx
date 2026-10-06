@@ -720,7 +720,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
     </div>
   );
 }
-function ProjectsPage({ theme, isDark, projects, onProjectsChange, onOpenProject, onDeleteProject, onCustomizeProject, projectSaving }) {
+function ProjectsPage({ theme, isDark, projects, user, onProjectsChange, onOpenProject, onDeleteProject, onCustomizeProject, projectSaving }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
@@ -796,17 +796,18 @@ function ProjectsPage({ theme, isDark, projects, onProjectsChange, onOpenProject
               const color = PROJECT_COLORS.includes(project.color) ? project.color : "violet";
               const priority = PROJECT_PRIORITIES.find((item) => item.value === project.priority)?.label || "Moderate";
               const isEditing = editingId === project.id;
+              const isOwner = project.ownerId === user?.id;
               return (
                 <div key={project.id} style={{ ...card, cursor: "pointer", transition: "transform .15s ease, border-color .15s ease", boxShadow: isDark ? "0 12px 32px rgba(0,0,0,0.16)" : "0 12px 32px rgba(0,0,0,0.06)" }} onClick={() => onOpenProject(project.id)}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                     <div style={{ width: 42, height: 42, borderRadius: 12, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center" }}><FolderKanban size={20} color={ac(color, isDark)} /></div>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onDeleteProject(project.id); }} title="Delete project" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 4 }}><Trash2 size={16} /></button>
+                    {isOwner && <button type="button" onClick={(e) => { e.stopPropagation(); onDeleteProject(project.id); }} title="Delete project" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 4 }}><Trash2 size={16} /></button>}
                   </div>
                   <div style={{ fontWeight: 600, fontSize: 16, marginTop: 17 }}>{project.name}</div>
                   <div style={{ color: theme.textMuted, fontSize: 13, lineHeight: 1.5, marginTop: 6, minHeight: 39 }}>{project.description || "No description"}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 15, flexWrap: "wrap" }}>
                     <span style={{ padding: "4px 8px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 11, fontWeight: 600 }}>● {priority}</span>
-                    <span style={{ padding: "4px 8px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: theme.textFaint, fontSize: 11 }}>Owner</span>
+                    <span style={{ padding: "4px 8px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: theme.textFaint, fontSize: 11 }}>{isOwner ? "Owner" : "Shared"}</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, color: theme.textFaint, fontSize: 12 }}>
                     <span>Workspace</span>
@@ -814,9 +815,9 @@ function ProjectsPage({ theme, isDark, projects, onProjectsChange, onOpenProject
                   </div>
                   <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid " + theme.border }}>
                     {!isEditing ? (
-                      <button type="button" onClick={() => startCustomize(project)} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "none", background: "transparent", color: theme.textMuted, cursor: "pointer", fontSize: 12, padding: 0 }}>
+                      isOwner ? <button type="button" onClick={() => startCustomize(project)} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: "none", background: "transparent", color: theme.textMuted, cursor: "pointer", fontSize: 12, padding: 0 }}>
                         <Palette size={13} /> Customize project
-                      </button>
+                      </button> : <span style={{ color: theme.textFaint, fontSize: 12 }}>Shared project</span>
                     ) : (
                       <div>
                         <div style={{ fontSize: 11, color: theme.textFaint, marginBottom: 8, fontFamily: "JetBrains Mono, monospace", letterSpacing: 1 }}>PROJECT SETTINGS</div>
@@ -3665,7 +3666,7 @@ export default function VantWorkingPrototype() {
       const selectedProject = projects.find((item) => item.id === projectChat);
       if (selectedProject && projectConversationId) return <ChatPage key={"project-chat-" + projectConversationId} {...props} projectId={selectedProject.id} projectName={selectedProject.name} projectMode projectId={selectedProject.id} conversations={conversations.filter((item) => item.projectId === selectedProject.id)} activeConversationId={projectConversationId} onGoToIntegrations={() => setActive("integrations")} onNewConversation={() => createProjectConversation(selectedProject.id)} onCreateConversation={(options) => createConversationDraft({ ...options, projectId: selectedProject.id })} onSelectConversation={openProjectConversation} onSaveConversation={(id, messages, projectId) => saveConversation(id, messages, projectId || selectedProject.id)} onTogglePinConversation={togglePinConversation} onDeleteConversation={deleteConversation} onBackToProject={() => { setProjectConversationId(null); setActive("projects"); }} />;
       if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} user={user} chats={conversations.filter((item) => item.projectId === selectedProject.id)} onBack={() => { setProjectChat(null); setProjectConversationId(null); }} onCustomize={customizeProject} onNewChat={() => createProjectConversation(selectedProject.id)} onOpenChat={openProjectConversation} onAskVant={() => askProjectVant(selectedProject.id)} />;
-      return <ProjectsPage {...props} projects={projects} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
+      return <ProjectsPage {...props} projects={projects} user={user} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
     }
     if (active === "tools") return <ToolsPage {...props} />;
     if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
