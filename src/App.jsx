@@ -2859,7 +2859,8 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
 export default function VantWorkingPrototype() {
   const [active, setActive] = useState("chat");
   const [projects, setProjects] = useState([]);
-  const [projectChat, setProjectChat] = useState(null);\n  const [projectSaving, setProjectSaving] = useState(false);
+  const [projectChat, setProjectChat] = useState(null);
+  const [projectSaving, setProjectSaving] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [newChatNonce, setNewChatNonce] = useState(0);
