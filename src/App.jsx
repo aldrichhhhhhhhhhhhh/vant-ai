@@ -6,7 +6,7 @@ import {
   buildVantWorkEnvelope,
   buildVantSystemPrompt,
 } from "./vantEngine";
-import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Target, Image as ImageIcon, Link2, FolderKanban, Users, ThumbsUp, ThumbsDown, Flag, MoreHorizontal } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Target, Image as ImageIcon, Link2, FolderKanban, Users, UserPlus, ThumbsUp, ThumbsDown, Flag, MoreHorizontal } from "lucide-react";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -373,6 +373,7 @@ function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSetting
 function normalizeProject(row) {
   return {
     id: row.id,
+    ownerId: row.owner_id || null,
     name: row.name || "Untitled project",
     description: row.description || "",
     color: row.color || "violet",
@@ -390,12 +391,208 @@ const PROJECT_PRIORITIES = [
   { value: "low", label: "Low" },
 ];
 
-function ProjectWorkspace({ theme, isDark, project, chats = [], onBack, onCustomize, onNewChat, onOpenChat, onAskVant }) {
+function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
+  const [messages, setMessages] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [onlineMembers, setOnlineMembers] = useState([]);
+  const scrollRef = useRef(null);
+
+  async function loadMessages() {
+    const { data, error } = await supabase
+      .from("project_messages")
+      .select("id, project_id, user_id, content, created_at, edited_at")
+      .eq("project_id", project.id)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    if (!error) setMessages(data || []);
+    else console.error("VANT: failed to load team messages", error);
+    setLoading(false);
+  }
+
+  async function loadMembers() {
+    const { data, error } = await supabase
+      .from("project_members")
+      .select("id, user_id, role, email, display_name, created_at")
+      .eq("project_id", project.id)
+      .order("created_at", { ascending: true });
+    if (!error) setMembers(data || []);
+    else console.error("VANT: failed to load project members", error);
+  }
+
+  useEffect(() => {
+    loadMessages();
+    loadMembers();
+
+    const messageChannel = supabase
+      .channel("project-messages-" + project.id)
+      .on("postgres_changes", { event: "*", schema: "public", table: "project_messages", filter: "project_id=eq." + project.id }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          setMessages((current) => current.some((item) => item.id === payload.new.id) ? current : [...current, payload.new]);
+        } else if (payload.eventType === "UPDATE") {
+          setMessages((current) => current.map((item) => item.id === payload.new.id ? payload.new : item));
+        } else if (payload.eventType === "DELETE") {
+          setMessages((current) => current.filter((item) => item.id !== payload.old.id));
+        }
+      })
+      .subscribe((status, error) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") console.error("VANT: team chat realtime error", error || status);
+      });
+
+    const memberChannel = supabase
+      .channel("project-members-" + project.id)
+      .on("postgres_changes", { event: "*", schema: "public", table: "project_members", filter: "project_id=eq." + project.id }, () => {
+        loadMembers();
+      })
+      .on("presence", { event: "sync" }, () => {
+        const state = memberChannel.presenceState();
+        setOnlineMembers(Object.values(state).flat());
+      })
+      .on("presence", { event: "join" }, () => {
+        const state = memberChannel.presenceState();
+        setOnlineMembers(Object.values(state).flat());
+      })
+      .on("presence", { event: "leave" }, () => {
+        const state = memberChannel.presenceState();
+        setOnlineMembers(Object.values(state).flat());
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED" && user?.id) {
+          await memberChannel.track({ user_id: user.id, name: user.name, email: user.email });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(messageChannel);
+      supabase.removeChannel(memberChannel);
+    };
+  }, [project.id, user?.id]);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages.length]);
+
+  async function sendMessage(e) {
+    e?.preventDefault();
+    const content = input.trim();
+    if (!content || sending) return;
+    setSending(true);
+    const { error } = await supabase.from("project_messages").insert({
+      project_id: project.id,
+      user_id: user.id,
+      content,
+    });
+    if (error) {
+      console.error("VANT: failed to send team message", error);
+      window.alert("VANT couldn't send that message. Please try again.");
+    } else {
+      setInput("");
+    }
+    setSending(false);
+  }
+
+  function memberName(userId) {
+    const member = members.find((item) => item.user_id === userId);
+    return member?.display_name || member?.email?.split("@")[0] || (userId === user?.id ? user.name : "VANT User");
+  }
+
+  const onlineIds = new Set(onlineMembers.map((item) => item.user_id));
+  const accent = ac(project.color, isDark);
+
+  return (
+    <div role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.62)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
+      <div style={{ width: "min(760px, 100%)", height: "min(720px, 88vh)", background: theme.surfaceCard, border: "1px solid " + theme.borderStrong, borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.35)" }}>
+        <div style={{ padding: "15px 18px", borderBottom: "1px solid " + theme.border, display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 11, background: acBg(project.color), display: "flex", alignItems: "center", justifyContent: "center" }}><Users size={17} color={accent} /></div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1.1, color: theme.textFaint }}>VANT · TEAM CHAT</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{project.name}</div>
+          </div>
+          <div style={{ fontSize: 11.5, color: theme.textMuted }}>{onlineMembers.length} online</div>
+          <button type="button" onClick={onClose} aria-label="Close team chat" style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid " + theme.border, background: theme.surface, color: theme.textMuted, cursor: "pointer" }}><X size={15} /></button>
+        </div>
+        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 18 }}>
+          {loading ? <div style={{ color: theme.textMuted, fontSize: 13 }}>Loading team chat…</div> : messages.length === 0 ? (
+            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", color: theme.textMuted, fontSize: 13 }}>
+              <div><Users size={24} color={accent} /><div style={{ marginTop: 9, fontWeight: 600, color: theme.text }}>Your team room is ready.</div><div style={{ marginTop: 4 }}>Start the first shared project conversation.</div></div>
+            </div>
+          ) : messages.map((message) => {
+            const own = message.user_id === user?.id;
+            return (
+              <div key={message.id} style={{ display: "flex", justifyContent: own ? "flex-end" : "flex-start", marginBottom: 12 }}>
+                <div style={{ maxWidth: "78%", padding: "10px 13px", borderRadius: own ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: own ? acBg(project.color) : theme.surface, border: "1px solid " + theme.border }}>
+                  {!own && <div style={{ fontSize: 11, color: accent, fontWeight: 600, marginBottom: 4 }}>{memberName(message.user_id)}</div>}
+                  <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5, fontSize: 13.5 }}>{message.content}</div>
+                  <div style={{ fontSize: 9.5, color: theme.textFaint, marginTop: 5 }}>{new Date(message.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <form onSubmit={sendMessage} style={{ padding: 12, borderTop: "1px solid " + theme.border, display: "flex", gap: 8 }}>
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Message your project team…" disabled={sending} autoFocus style={{ flex: 1, minWidth: 0, padding: "11px 14px", borderRadius: 12, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 13.5 }} />
+          <button type="submit" disabled={!input.trim() || sending} style={{ width: 44, borderRadius: 12, border: "none", background: accent, color: isDark ? "#0b0d13" : "#fff", cursor: input.trim() && !sending ? "pointer" : "not-allowed", opacity: input.trim() && !sending ? 1 : 0.45 }}><Send size={16} /></button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, onCustomize, onNewChat, onOpenChat, onAskVant }) {
   const [workspacePanel, setWorkspacePanel] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("collaborator");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [teamChatOpen, setTeamChatOpen] = useState(false);
+  const isOwner = project.ownerId === user?.id;
   if (!project) return null;
+
+  async function loadMembers() {
+    const { data, error } = await supabase.from("project_members").select("id, user_id, role, email, display_name, created_at").eq("project_id", project.id).order("created_at", { ascending: true });
+    if (!error) setMembers(data || []);
+    else console.error("VANT: failed to load project members", error);
+  }
+
+  useEffect(() => {
+    loadMembers();
+    const channel = supabase.channel("workspace-members-" + project.id)
+      .on("postgres_changes", { event: "*", schema: "public", table: "project_members", filter: "project_id=eq." + project.id }, () => loadMembers())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [project.id]);
+
+  async function inviteMember(e) {
+    e?.preventDefault();
+    if (!isOwner || !inviteEmail.trim() || inviteBusy) return;
+    setInviteBusy(true);
+    setInviteMessage("");
+    const { data, error } = await supabase.rpc("invite_project_member", {
+      p_project_id: project.id,
+      p_email: inviteEmail.trim(),
+      p_role: inviteRole,
+    });
+    setInviteBusy(false);
+    if (error) {
+      const message = error.message?.includes("user_not_found") ? "No VANT account was found for that email." : error.message?.includes("not_project_owner") ? "Only the project owner can invite members." : "VANT couldn't add that member.";
+      setInviteMessage(message);
+      return;
+    }
+    setInviteEmail("");
+    setInviteMessage(data?.[0]?.display_name ? data[0].display_name + " added to the project." : "Member added.");
+    loadMembers();
+  }
+
   function openWorkspaceWidget(widget) {
     if (widget === "chats") {
       if (chats.length) onOpenChat(chats[0].id); else onNewChat();
+      return;
+    }
+    if (widget === "team") {
+      setWorkspacePanel("team");
       return;
     }
     setWorkspacePanel(widget);
@@ -421,26 +618,24 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], onBack, onCustom
               <p style={{ margin: "7px 0 0", color: theme.textMuted, fontSize: 14 }}>{project.description || "No project description yet."}</p>
             </div>
           </div>
-          <button type="button" onClick={() => onCustomize(project.id)} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}>
-            <Palette size={15} /> Customize
-          </button>
           <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+            {isOwner && <button type="button" onClick={() => onCustomize(project.id)} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={15} /> Customize</button>}
             <button type="button" onClick={onAskVant} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}><Sparkles size={15} /> Ask VANT</button>
             <button type="button" onClick={onNewChat} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", borderRadius: 10, padding: "9px 13px", background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontWeight: 600 }}><Plus size={15} /> New Chat</button>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           <span style={{ padding: "6px 10px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 12, fontWeight: 600 }}>Priority · {priority}</span>
-          <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: theme.textMuted, fontSize: 12 }}>Owner workspace</span>
-          <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: ac("green", isDark), fontSize: 12 }}>● Active</span>
+          <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: theme.textMuted, fontSize: 12 }}>{isOwner ? "Owner workspace" : "Shared workspace"}</span>
+          <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: ac("green", isDark) }}>● Active</span>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 16 }}>
           {[
-            { icon: MessageSquare, label: "PROJECT CHATS", value: chats.length, detail: chats.length ? "Conversations in this workspace" : "Ready for your first chat" },
+            { icon: MessageSquare, label: "PROJECT CHATS", value: chats.length, detail: chats.length ? "Your conversations in this workspace" : "Ready for your first chat" },
             { icon: Target, label: "PRIORITY", value: priority, detail: "Attached to this workspace" },
-            { icon: Users, label: "TEAM", value: "1", detail: "Owner · collaboration next" },
-            { icon: FolderKanban, label: "WORKSPACE", value: "Active", detail: "Project foundation ready" },
+            { icon: Users, label: "TEAM", value: String(members.length), detail: members.length === 1 ? "You · collaboration ready" : "Project members" },
+            { icon: FolderKanban, label: "WORKSPACE", value: "Active", detail: isOwner ? "Owner-controlled workspace" : "Shared with you" },
           ].map(({ icon: Icon, label, value, detail }) => (
             <div key={label} style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 15, padding: 15 }}>
               <Icon size={16} color={ac(color, isDark)} />
@@ -450,38 +645,24 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], onBack, onCustom
             </div>
           ))}
         </div>
-
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, margin: "0 0 9px" }}>
-          <div>
-            <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: theme.textFaint }}>COMMAND CENTER</div>
-            <div style={{ fontSize: 15, fontWeight: 600, marginTop: 3 }}>Move the project forward</div>
-          </div>
+          <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: theme.textFaint }}>COMMAND CENTER</div><div style={{ fontSize: 15, fontWeight: 600, marginTop: 3 }}>Move the project forward</div></div>
           <div style={{ color: theme.textFaint, fontSize: 11.5 }}>Everything starts here</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10, marginBottom: 16 }}>
-          <button type="button" onClick={onAskVant} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: acBg(color), border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}>
-            <Sparkles size={17} color={ac(color, isDark)} />
-            <div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Ask VANT</div>
-            <div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Work through this project with project-aware context.</div>
-          </button>
-          <button type="button" onClick={onNewChat} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: theme.surface, border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}>
-            <Plus size={17} color={ac("cyan", isDark)} />
-            <div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Start New Chat</div>
-            <div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Open a clean conversation inside this workspace.</div>
-          </button>
+          <button type="button" onClick={onAskVant} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: acBg(color), border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}><Sparkles size={17} color={ac(color, isDark)} /><div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Ask VANT</div><div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Work through this project with project-aware context.</div></button>
+          <button type="button" onClick={onNewChat} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: theme.surface, border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}><Plus size={17} color={ac("cyan", isDark)} /><div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Start New Chat</div><div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Open a clean conversation inside this workspace.</div></button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
           {[
             { key: "dashboard", icon: LayoutDashboard, title: "Project Dashboard", text: "Open the project command center and current workspace state.", status: "OPEN" },
             { key: "chats", icon: MessageSquare, title: "Chats", text: chats.length ? "Open the latest conversation inside this project." : "Start the first conversation inside this project.", status: chats.length ? "OPEN" : "START" },
-            { key: "team", icon: Users, title: "Team", text: "View the people currently assigned to this project workspace.", status: "VIEW" },
+            { key: "team", icon: Users, title: "Team", text: "View members, invite collaborators, and open the shared Team Chat.", status: "LIVE" },
             { key: "space", icon: FolderKanban, title: "Project Space", text: "View this project's identity, priority, ownership, and workspace data.", status: "OPEN" },
           ].map(({ key, icon: Icon, title, text, status }) => (
             <button key={title} type="button" onClick={() => openWorkspaceWidget(key)} style={{ textAlign: "left", background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, minHeight: 130, color: theme.text, cursor: "pointer" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><Icon size={18} color={ac(color, isDark)} /><span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: ac("green", isDark) }}>{status}</span></div>
-              <div style={{ fontWeight: 600, marginTop: 15 }}>{title}</div>
-              <div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 6 }}>{text}</div>
-              <div style={{ color: ac(color, isDark), fontSize: 11, marginTop: 10, fontWeight: 600 }}>Open →</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><Icon size={18} color={ac(color, isDark)} /><span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: key === "team" ? ac("green", isDark) : theme.textFaint }}>{status}</span></div>
+              <div style={{ fontWeight: 600, marginTop: 15 }}>{title}</div><div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 6 }}>{text}</div><div style={{ color: ac(color, isDark), fontSize: 11, marginTop: 10, fontWeight: 600 }}>Open →</div>
             </button>
           ))}
         </div>
@@ -492,19 +673,45 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], onBack, onCustom
                 <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: ac(color, isDark) }}>VANT · PROJECT</div><h2 style={{ margin: "6px 0 0", fontSize: 21 }}>{workspacePanel === "team" ? "Team" : workspacePanel === "space" ? "Project Space" : "Project Dashboard"}</h2></div>
                 <button type="button" onClick={() => setWorkspacePanel(null)} aria-label="Close project panel" style={{ border: "1px solid " + theme.border, background: theme.surface, color: theme.textMuted, borderRadius: 9, width: 32, height: 32, cursor: "pointer" }}><X size={15} /></button>
               </div>
-              {workspacePanel === "dashboard" && <div style={{ marginTop: 20, display: "grid", gap: 10 }}>
-                <div style={{ padding: 14, borderRadius: 12, background: theme.surface, border: "1px solid " + theme.border }}><div style={{ color: theme.textFaint, fontSize: 11 }}>PROJECT STATUS</div><div style={{ fontSize: 18, fontWeight: 600, marginTop: 5 }}>Active</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>{chats.length} project chat{chats.length === 1 ? "" : "s"} currently attached.</div></div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}><button type="button" onClick={onAskVant} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: acBg(color), color: theme.text, cursor: "pointer", textAlign: "left" }}><Sparkles size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>Ask VANT</div></button><button type="button" onClick={onNewChat} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer", textAlign: "left" }}><Plus size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>New Chat</div></button></div>
-              </div>}
-              {workspacePanel === "team" && <div style={{ marginTop: 20 }}><div style={{ padding: 14, borderRadius: 12, background: theme.surface, border: "1px solid " + theme.border, display: "flex", alignItems: "center", gap: 12 }}><div style={{ width: 40, height: 40, borderRadius: 12, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center" }}><Users size={18} color={ac(color, isDark)} /></div><div><div style={{ fontWeight: 600 }}>Project Owner</div><div style={{ color: theme.textMuted, fontSize: 12 }}>You · Owner</div></div></div><div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 12 }}>This workspace currently has one member. Shared invitations and Team Chat will be added in the collaboration phase.</div></div>}
-              {workspacePanel === "space" && <div style={{ marginTop: 20 }}><div style={{ display: "grid", gap: 0 }}>{[["Project", project.name],["Description", project.description || "No description"],["Priority", priority],["Color", color],["Chats", String(chats.length)],["Status", "Active"]].map(([label,value]) => <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 18, padding: "11px 0", borderBottom: "1px solid " + theme.border }}><span style={{ color: theme.textFaint, fontSize: 12 }}>{label}</span><span style={{ color: theme.text, fontSize: 12.5, textAlign: "right", maxWidth: "70%" }}>{value}</span></div>)}</div><button type="button" onClick={() => { setWorkspacePanel(null); onCustomize(project.id); }} style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={14} /> Customize Project</button></div>}
+              {workspacePanel === "dashboard" && <div style={{ marginTop: 20, display: "grid", gap: 10 }}><div style={{ padding: 14, borderRadius: 12, background: theme.surface, border: "1px solid " + theme.border }}><div style={{ color: theme.textFaint, fontSize: 11 }}>PROJECT STATUS</div><div style={{ fontSize: 18, fontWeight: 600, marginTop: 5 }}>Active</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>{chats.length} project chat{chats.length === 1 ? "" : "s"} currently attached.</div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}><button type="button" onClick={onAskVant} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: acBg(color), color: theme.text, cursor: "pointer", textAlign: "left" }}><Sparkles size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>Ask VANT</div></button><button type="button" onClick={onNewChat} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer", textAlign: "left" }}><Plus size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>New Chat</div></button></div></div>}
+              {workspacePanel === "team" && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <div><div style={{ fontWeight: 600 }}>Project members</div><div style={{ color: theme.textMuted, fontSize: 12 }}>Changes update live.</div></div>
+                    <button type="button" onClick={() => setTeamChatOpen(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 9, border: "1px solid " + theme.border, background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontSize: 12, fontWeight: 600 }}><MessageSquare size={13} /> Team Chat</button>
+                  </div>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {members.map((member) => {
+                      const online = member.user_id === user?.id;
+                      return <div key={member.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 11px", border: "1px solid " + theme.border, borderRadius: 11, background: theme.surface }}>
+                        <div style={{ width: 30, height: 30, borderRadius: 9, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center", color: ac(color, isDark), fontWeight: 600, fontSize: 12 }}>{(member.display_name || "V").slice(0,1).toUpperCase()}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{member.display_name || "VANT User"} {member.user_id === user?.id ? "(You)" : ""}</div><div style={{ color: theme.textFaint, fontSize: 11.5 }}>{member.role} · {member.email || "VANT account"}</div></div>
+                        <span style={{ fontSize: 10, color: online ? ac("green", isDark) : theme.textFaint }}>{online ? "● YOU" : "MEMBER"}</span>
+                      </div>;
+                    })}
+                  </div>
+                  {isOwner && <form onSubmit={inviteMember} style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid " + theme.border }}>
+                    <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 8 }}>Invite a VANT user</div>
+                    <div style={{ display: "flex", gap: 7 }}>
+                      <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="their@email.com" type="email" style={{ flex: 1, minWidth: 0, padding: "9px 11px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 12.5 }} />
+                      <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} style={{ width: 112, padding: "9px 7px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, fontSize: 12 }}>
+                        <option value="collaborator">Collaborator</option><option value="viewer">Viewer</option>
+                      </select>
+                      <button type="submit" disabled={inviteBusy || !inviteEmail.trim()} style={{ width: 42, borderRadius: 9, border: "none", background: ac(color, isDark), color: isDark ? "#0b0d13" : "#fff", cursor: inviteBusy ? "wait" : "pointer", opacity: inviteBusy || !inviteEmail.trim() ? 0.5 : 1 }} title="Add member"><UserPlus size={15} /></button>
+                    </div>
+                    {inviteMessage && <div style={{ color: inviteMessage.includes("added") ? ac("green", isDark) : ac("red", isDark), fontSize: 11.5, marginTop: 7 }}>{inviteMessage}</div>}
+                  </form>}
+                </div>
+              )}
+              {workspacePanel === "space" && <div style={{ marginTop: 20 }}><div style={{ display: "grid", gap: 0 }}>{[["Project", project.name],["Description", project.description || "No description"],["Priority", priority],["Color", color],["Chats", String(chats.length)],["Members", String(members.length)],["Status", "Active"]].map(([label,value]) => <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 18, padding: "11px 0", borderBottom: "1px solid " + theme.border }}><span style={{ color: theme.textFaint, fontSize: 12 }}>{label}</span><span style={{ color: theme.text, fontSize: 12.5, textAlign: "right", maxWidth: "70%" }}>{value}</span></div>)}</div>{isOwner && <button type="button" onClick={() => { setWorkspacePanel(null); onCustomize(project.id); }} style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={14} /> Customize Project</button>}</div>}
             </div>
           </div>
         )}
+        {teamChatOpen && <ProjectTeamChat theme={theme} isDark={isDark} project={project} user={user} onClose={() => setTeamChatOpen(false)} />}
 
         <div style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, marginTop: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-            <div><div style={{ fontWeight: 600 }}>Recent Project Chats</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>Conversations that belong to this workspace.</div></div>
+            <div><div style={{ fontWeight: 600 }}>Recent Project Chats</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>Your conversations that belong to this workspace.</div></div>
             <button type="button" onClick={onNewChat} style={{ border: "none", background: acBg(color), color: ac(color, isDark), borderRadius: 9, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}><Plus size={13} /> New Chat</button>
           </div>
           {recentChats.length ? recentChats.map((chat) => <button key={chat.id} type="button" onClick={() => onOpenChat(chat.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "11px 3px", border: "none", borderTop: "1px solid " + theme.border, background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left" }}><MessageSquare size={15} color={ac(color, isDark)} /><span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13.5 }}>{chat.title || "New VANT chat"}</span><ChevronRight size={14} color={theme.textFaint} /></button>) : <div style={{ borderTop: "1px solid " + theme.border, paddingTop: 18, color: theme.textMuted, fontSize: 13, textAlign: "center" }}>No project chats yet. Start one above.</div>}
@@ -513,7 +720,6 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], onBack, onCustom
     </div>
   );
 }
-
 function ProjectsPage({ theme, isDark, projects, onProjectsChange, onOpenProject, onDeleteProject, onCustomizeProject, projectSaving }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -3266,7 +3472,6 @@ export default function VantWorkingPrototype() {
     const { data, error } = await supabase
       .from("projects")
       .select("id, owner_id, name, description, color, icon, priority, created_at, updated_at")
-      .eq("owner_id", authUser.id)
       .order("updated_at", { ascending: false });
     if (error) {
       console.error("VANT: failed to load projects", error);
@@ -3459,7 +3664,7 @@ export default function VantWorkingPrototype() {
     if (active === "projects") {
       const selectedProject = projects.find((item) => item.id === projectChat);
       if (selectedProject && projectConversationId) return <ChatPage key={"project-chat-" + projectConversationId} {...props} projectId={selectedProject.id} projectName={selectedProject.name} projectMode projectId={selectedProject.id} conversations={conversations.filter((item) => item.projectId === selectedProject.id)} activeConversationId={projectConversationId} onGoToIntegrations={() => setActive("integrations")} onNewConversation={() => createProjectConversation(selectedProject.id)} onCreateConversation={(options) => createConversationDraft({ ...options, projectId: selectedProject.id })} onSelectConversation={openProjectConversation} onSaveConversation={(id, messages, projectId) => saveConversation(id, messages, projectId || selectedProject.id)} onTogglePinConversation={togglePinConversation} onDeleteConversation={deleteConversation} onBackToProject={() => { setProjectConversationId(null); setActive("projects"); }} />;
-      if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} chats={conversations.filter((item) => item.projectId === selectedProject.id)} onBack={() => { setProjectChat(null); setProjectConversationId(null); }} onCustomize={customizeProject} onNewChat={() => createProjectConversation(selectedProject.id)} onOpenChat={openProjectConversation} onAskVant={() => askProjectVant(selectedProject.id)} />;
+      if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} user={user} chats={conversations.filter((item) => item.projectId === selectedProject.id)} onBack={() => { setProjectChat(null); setProjectConversationId(null); }} onCustomize={customizeProject} onNewChat={() => createProjectConversation(selectedProject.id)} onOpenChat={openProjectConversation} onAskVant={() => askProjectVant(selectedProject.id)} />;
       return <ProjectsPage {...props} projects={projects} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
     }
     if (active === "tools") return <ToolsPage {...props} />;
