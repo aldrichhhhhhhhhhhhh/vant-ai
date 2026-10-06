@@ -391,7 +391,15 @@ const PROJECT_PRIORITIES = [
 ];
 
 function ProjectWorkspace({ theme, isDark, project, chats = [], onBack, onCustomize, onNewChat, onOpenChat, onAskVant }) {
+  const [workspacePanel, setWorkspacePanel] = useState(null);
   if (!project) return null;
+  function openWorkspaceWidget(widget) {
+    if (widget === "chats") {
+      if (chats.length) onOpenChat(chats[0].id); else onNewChat();
+      return;
+    }
+    setWorkspacePanel(widget);
+  }
   const color = PROJECT_COLORS.includes(project.color) ? project.color : "violet";
   const priority = PROJECT_PRIORITIES.find((item) => item.value === project.priority)?.label || "Moderate";
   const recentChats = chats.slice(0, 5);
@@ -464,16 +472,17 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], onBack, onCustom
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
           {[
-            { icon: LayoutDashboard, title: "Project Dashboard", text: "Your command center for the work happening inside this project.", live: true },
-            { icon: MessageSquare, title: "Chats", text: "Every project conversation stays attached to this workspace.", live: true },
-            { icon: Users, title: "Team", text: "Shared collaboration and Team Chat will plug into this space next.", live: false },
-            { icon: FolderKanban, title: "Project Space", text: "Files, activity, and VANT execution will attach here as the workspace grows.", live: false },
-          ].map(({ icon: Icon, title, text, live }) => (
-            <div key={title} style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, minHeight: 130, position: "relative" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><Icon size={18} color={ac(color, isDark)} /><span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: live ? ac("green", isDark) : theme.textFaint }}>{live ? "READY" : "NEXT"}</span></div>
+            { key: "dashboard", icon: LayoutDashboard, title: "Project Dashboard", text: "Open the project command center and current workspace state.", status: "OPEN" },
+            { key: "chats", icon: MessageSquare, title: "Chats", text: chats.length ? "Open the latest conversation inside this project." : "Start the first conversation inside this project.", status: chats.length ? "OPEN" : "START" },
+            { key: "team", icon: Users, title: "Team", text: "View the people currently assigned to this project workspace.", status: "VIEW" },
+            { key: "space", icon: FolderKanban, title: "Project Space", text: "View this project's identity, priority, ownership, and workspace data.", status: "OPEN" },
+          ].map(({ key, icon: Icon, title, text, status }) => (
+            <button key={title} type="button" onClick={() => openWorkspaceWidget(key)} style={{ textAlign: "left", background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, minHeight: 130, color: theme.text, cursor: "pointer" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><Icon size={18} color={ac(color, isDark)} /><span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: ac("green", isDark) }}>{status}</span></div>
               <div style={{ fontWeight: 600, marginTop: 15 }}>{title}</div>
               <div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 6 }}>{text}</div>
-            </div>
+              <div style={{ color: ac(color, isDark), fontSize: 11, marginTop: 10, fontWeight: 600 }}>Open →</div>
+            </button>
           ))}
         </div>
         <div style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, marginTop: 16 }}>
