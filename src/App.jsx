@@ -398,12 +398,13 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [onlineMembers, setOnlineMembers] = useState([]);
+  const [vantMode, setVantMode] = useState("team");
   const scrollRef = useRef(null);
 
   async function loadMessages() {
     const { data, error } = await supabase
       .from("project_messages")
-      .select("id, project_id, user_id, content, created_at, edited_at")
+      .select("id, project_id, user_id, content, sender_type, created_at, edited_at")
       .eq("project_id", project.id)
       .order("created_at", { ascending: true })
       .limit(200);
@@ -479,16 +480,51 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
     const content = input.trim();
     if (!content || sending) return;
     setSending(true);
+
     const { error } = await supabase.from("project_messages").insert({
       project_id: project.id,
       user_id: user.id,
       content,
+      sender_type: "human",
     });
+
     if (error) {
       console.error("VANT: failed to send team message", error);
       window.alert("VANT couldn't send that message. Please try again.");
-    } else {
-      setInput("");
+      setSending(false);
+      return;
+    }
+
+    setInput("");
+
+    const vantInvocation = /^@vant\b/i.test(content);
+    if (vantMode === "team_vant" && vantInvocation) {
+      const cleanPrompt = content.replace(/^@vant\s*/i, "").trim() || "Join the team conversation and help us move the project forward.";
+      const history = [...messages, { id: "local-" + Date.now(), project_id: project.id, user_id: user.id, content, sender_type: "human", created_at: new Date().toISOString() }];
+      const vantMessages = history.slice(-24).map((message) => ({ role: message.sender_type === "vant" ? "assistant" : "user", content: message.sender_type === "vant" ? message.content : memberName(message.user_id) + ": " + message.content }));
+      vantMessages.push({ role: "user", content: cleanPrompt });
+      const vantPrompt =
+        "You are VANT participating inside a shared project Team Chat.\n\n" +
+        "PROJECT: \"" + project.name + "\"\n" +
+        "PROJECT DESCRIPTION: " + (project.description || "No description provided.") + "\n\n" +
+        "ROLE:\nYou are a participating team member, not the owner of the conversation.\n" +
+        "Only respond to the explicit request made to @VANT.\n" +
+        "Use the team conversation as context.\n" +
+        "Do not invent project facts, decisions, files, or actions.\n" +
+        "Do not claim to have completed external work.\n" +
+        "Be concise enough for a team chat, but provide useful structure when needed.\n" +
+        "If the team asks you to summarize, summarize the visible conversation.\n" +
+        "If the team asks what to do next, give concrete next steps.\n" +
+        "If information is missing, say what is missing.\n\n" +
+        "TEAM CHAT CONTEXT:\n" +
+        vantMessages.slice(0, -1).map((message) => (message.role === "assistant" ? "VANT: " : "TEAM: ") + message.content).join("\n") +
+        "\n\nCURRENT REQUEST:\n" + cleanPrompt;
+      const reply = await askClaude(vantPrompt, vantMessages, null, 58000, null);
+      const { error: vantError } = await supabase.from("project_messages").insert({ project_id: project.id, user_id: user.id, content: reply, sender_type: "vant" });
+      if (vantError) {
+        console.error("VANT: failed to save team VANT response", vantError);
+        window.alert("VANT generated a response but couldn't save it to the team room.");
+      }
     }
     setSending(false);
   }
@@ -510,6 +546,10 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
             <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1.1, color: theme.textFaint }}>VANT · TEAM CHAT</div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{project.name}</div>
           </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: 3, border: "1px solid " + theme.border, borderRadius: 10, background: theme.surface }}>
+            <button type="button" onClick={() => setVantMode("team")} style={{ border: "none", borderRadius: 7, padding: "6px 9px", background: vantMode === "team" ? theme.surfaceStrong : "transparent", color: vantMode === "team" ? theme.text : theme.textMuted, cursor: "pointer", fontSize: 10.5, fontWeight: 600 }}>TEAM ONLY</button>
+            <button type="button" onClick={() => setVantMode("team_vant")} style={{ border: "none", borderRadius: 7, padding: "6px 9px", background: vantMode === "team_vant" ? acBg(project.color) : "transparent", color: vantMode === "team_vant" ? accent : theme.textMuted, cursor: "pointer", fontSize: 10.5, fontWeight: 600 }}>TEAM + VANT</button>
+          </div>
           <div style={{ fontSize: 11.5, color: theme.textMuted }}>{onlineMembers.length} online</div>
           <button type="button" onClick={onClose} aria-label="Close team chat" style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid " + theme.border, background: theme.surface, color: theme.textMuted, cursor: "pointer" }}><X size={15} /></button>
         </div>
@@ -519,11 +559,12 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
               <div><Users size={24} color={accent} /><div style={{ marginTop: 9, fontWeight: 600, color: theme.text }}>Your team room is ready.</div><div style={{ marginTop: 4 }}>Start the first shared project conversation.</div></div>
             </div>
           ) : messages.map((message) => {
-            const own = message.user_id === user?.id;
+            const isVant = message.sender_type === "vant";
+            const own = !isVant && message.user_id === user?.id;
             return (
-              <div key={message.id} style={{ display: "flex", justifyContent: own ? "flex-end" : "flex-start", marginBottom: 12 }}>
-                <div style={{ maxWidth: "78%", padding: "10px 13px", borderRadius: own ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: own ? acBg(project.color) : theme.surface, border: "1px solid " + theme.border }}>
-                  {!own && <div style={{ fontSize: 11, color: accent, fontWeight: 600, marginBottom: 4 }}>{memberName(message.user_id)}</div>}
+              <div key={message.id} style={{ display: "flex", justifyContent: isVant ? "flex-start" : own ? "flex-end" : "flex-start", marginBottom: 12 }}>
+                <div style={{ maxWidth: "78%", padding: "10px 13px", borderRadius: isVant ? "14px 14px 14px 4px" : own ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: isVant ? "rgba(124,58,237,0.10)" : own ? acBg(project.color) : theme.surface, border: "1px solid " + (isVant ? "rgba(167,139,250,0.28)" : theme.border) }}>
+                  <div style={{ fontSize: 11, color: isVant ? ac("violet", isDark) : accent, fontWeight: 700, marginBottom: 4 }}>{isVant ? "VANT" : memberName(message.user_id)}</div>
                   <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5, fontSize: 13.5 }}>{message.content}</div>
                   <div style={{ fontSize: 9.5, color: theme.textFaint, marginTop: 5 }}>{new Date(message.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
                 </div>
@@ -532,7 +573,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
           })}
         </div>
         <form onSubmit={sendMessage} style={{ padding: 12, borderTop: "1px solid " + theme.border, display: "flex", gap: 8 }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Message your project team…" disabled={sending} autoFocus style={{ flex: 1, minWidth: 0, padding: "11px 14px", borderRadius: 12, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 13.5 }} />
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={vantMode === "team_vant" ? "Message team or @VANT to call VANT…" : "Message your project team…"} disabled={sending} autoFocus style={{ flex: 1, minWidth: 0, padding: "11px 14px", borderRadius: 12, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 13.5 }} />
           <button type="submit" disabled={!input.trim() || sending} style={{ width: 44, borderRadius: 12, border: "none", background: accent, color: isDark ? "#0b0d13" : "#fff", cursor: input.trim() && !sending ? "pointer" : "not-allowed", opacity: input.trim() && !sending ? 1 : 0.45 }}><Send size={16} /></button>
         </form>
       </div>
