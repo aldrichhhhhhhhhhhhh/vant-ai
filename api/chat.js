@@ -5,6 +5,7 @@ export const config = {
 import { createClient } from "@supabase/supabase-js";
 
 const MODEL = "google/gemma-4-31b-it";
+const TEAM_VANT_MODEL = "openai/gpt-oss-20b";
 const NVIDIA_URL =
   "https://integrate.api.nvidia.com/v1/chat/completions";
 
@@ -533,7 +534,7 @@ export default async function handler(req, res) {
 
   try {
     payload = {
-      model: MODEL,
+      model: requestedModel,
 
       messages: [
         ...(system
@@ -562,23 +563,21 @@ export default async function handler(req, res) {
        * 4096 was contributing to long-running requests.
        */
       max_tokens:
-        hasImage
-          ? 900
-          : 2048,
+        Number.isFinite(Number(max_tokens))
+          ? Math.max(64, Math.min(2048, Number(max_tokens)))
+          : hasImage
+            ? 900
+            : 2048,
 
       stream,
 
-      /*
-       * Disable internal reasoning for now.
-       *
-       * VANT should prioritize:
-       * fast visible output
-       * stable streaming
-       * predictable latency
-       */
-      chat_template_kwargs: {
-        enable_thinking: false,
-      },
+      ...(requestedModel === MODEL
+        ? {
+            chat_template_kwargs: {
+              enable_thinking: false,
+            },
+          }
+        : {}),
     };
   } catch {
     return json(res, 400, {
