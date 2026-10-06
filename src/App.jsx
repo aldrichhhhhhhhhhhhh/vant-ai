@@ -421,19 +421,56 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], onBack, onCustom
             <button type="button" onClick={onNewChat} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", borderRadius: 10, padding: "9px 13px", background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontWeight: 600 }}><Plus size={15} /> New Chat</button>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 22 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           <span style={{ padding: "6px 10px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 12, fontWeight: 600 }}>Priority · {priority}</span>
           <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: theme.textMuted, fontSize: 12 }}>Owner workspace</span>
+          <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: ac("green", isDark), fontSize: 12 }}>● Active</span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 16 }}>
+          {[
+            { icon: MessageSquare, label: "PROJECT CHATS", value: chats.length, detail: chats.length ? "Conversations in this workspace" : "Ready for your first chat" },
+            { icon: Target, label: "PRIORITY", value: priority, detail: "Attached to this workspace" },
+            { icon: Users, label: "TEAM", value: "1", detail: "Owner · collaboration next" },
+            { icon: FolderKanban, label: "WORKSPACE", value: "Active", detail: "Project foundation ready" },
+          ].map(({ icon: Icon, label, value, detail }) => (
+            <div key={label} style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 15, padding: 15 }}>
+              <Icon size={16} color={ac(color, isDark)} />
+              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: theme.textFaint, marginTop: 10 }}>{label}</div>
+              <div style={{ fontSize: 20, fontWeight: 600, marginTop: 4 }}>{value}</div>
+              <div style={{ color: theme.textFaint, fontSize: 11.5, marginTop: 3 }}>{detail}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, margin: "0 0 9px" }}>
+          <div>
+            <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: theme.textFaint }}>COMMAND CENTER</div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginTop: 3 }}>Move the project forward</div>
+          </div>
+          <div style={{ color: theme.textFaint, fontSize: 11.5 }}>Everything starts here</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10, marginBottom: 16 }}>
+          <button type="button" onClick={onAskVant} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: acBg(color), border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}>
+            <Sparkles size={17} color={ac(color, isDark)} />
+            <div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Ask VANT</div>
+            <div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Work through this project with project-aware context.</div>
+          </button>
+          <button type="button" onClick={onNewChat} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: theme.surface, border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}>
+            <Plus size={17} color={ac("cyan", isDark)} />
+            <div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Start New Chat</div>
+            <div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Open a clean conversation inside this workspace.</div>
+          </button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
           {[
-            { icon: LayoutDashboard, title: "Project Dashboard", text: "Your project command center. Activity, progress, and project intelligence will live here." },
-            { icon: MessageSquare, title: "Chats", text: "Project conversations are linked to this workspace so context stays with the work." },
-            { icon: Users, title: "Team", text: "Invite collaborators and build Team Chat in the next Projects phase." },
-            { icon: FolderKanban, title: "Project Space", text: "Files, tasks, activity, and VANT execution will attach to this project." },
-          ].map(({ icon: Icon, title, text }) => (
-            <div key={title} style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, minHeight: 130 }}>
-              <Icon size={18} color={ac(color, isDark)} />
+            { icon: LayoutDashboard, title: "Project Dashboard", text: "Your command center for the work happening inside this project.", live: true },
+            { icon: MessageSquare, title: "Chats", text: "Every project conversation stays attached to this workspace.", live: true },
+            { icon: Users, title: "Team", text: "Shared collaboration and Team Chat will plug into this space next.", live: false },
+            { icon: FolderKanban, title: "Project Space", text: "Files, activity, and VANT execution will attach here as the workspace grows.", live: false },
+          ].map(({ icon: Icon, title, text, live }) => (
+            <div key={title} style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, minHeight: 130, position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><Icon size={18} color={ac(color, isDark)} /><span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: live ? ac("green", isDark) : theme.textFaint }}>{live ? "READY" : "NEXT"}</span></div>
               <div style={{ fontWeight: 600, marginTop: 15 }}>{title}</div>
               <div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 6 }}>{text}</div>
             </div>
