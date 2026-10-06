@@ -1418,7 +1418,7 @@ Respond naturally like a sharp work partner.
 
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden" }}>
           <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "24px 24px 36px", boxSizing: "border-box", overflow: "auto" }}>
-            <div style={{ width: "min(760px, 100%)", maxWidth: 760, margin: "0 auto" }}>
+            <div style={{ width: "min(1080px, 100%)", maxWidth: 1080, margin: "0 auto" }}>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: acBg("violet"), border: `1px solid ${theme.border}`, color: ac("violet", isDark), fontFamily: "JetBrains Mono, monospace", fontSize: 11.5, letterSpacing: 1.3, marginBottom: 26 }}>
                 <Sparkles size={14} /> VANT · WORK MODE
               </div>
@@ -1426,7 +1426,7 @@ Respond naturally like a sharp work partner.
               <p style={{ color: theme.textMuted, fontSize: 16, margin: "0 auto 34px", maxWidth: 650, lineHeight: 1.55 }}>
                 Drop a task, a messy problem, a spreadsheet, or a half-baked idea. VANT will understand the objective, cut the fluff, and push the work forward — not just answer.
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, width: "100%", maxWidth: 1080, margin: "0 auto" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, width: "100%", maxWidth: 1080, margin: "0 auto" }}>
                 {workCards.map((card) => {
                   const Icon = card.icon;
                   const accent = ac(card.accentKey, isDark);
