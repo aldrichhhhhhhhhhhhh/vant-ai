@@ -501,8 +501,14 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
     if (vantMode === "team_vant" && vantInvocation) {
       const cleanPrompt = content.replace(/^@vant\s*/i, "").trim() || "Join the team conversation and help us move the project forward.";
       const history = [...messages, { id: "local-" + Date.now(), project_id: project.id, user_id: user.id, content, sender_type: "human", created_at: new Date().toISOString() }];
-      const vantMessages = history.slice(-24).map((message) => ({ role: message.sender_type === "vant" ? "assistant" : "user", content: message.sender_type === "vant" ? message.content : memberName(message.user_id) + ": " + message.content }));
-      vantMessages.push({ role: "user", content: cleanPrompt });
+      const vantMessages = history.slice(-24).map((message, index, list) => ({
+        role: message.sender_type === "vant" ? "assistant" : "user",
+        content: message.sender_type === "vant"
+          ? message.content
+          : index === list.length - 1
+            ? cleanPrompt
+            : memberName(message.user_id) + ": " + message.content,
+      }));
       const vantPrompt =
         "You are VANT participating inside a shared project Team Chat.\n\n" +
         "PROJECT: \"" + project.name + "\"\n" +
