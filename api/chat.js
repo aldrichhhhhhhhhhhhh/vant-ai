@@ -461,8 +461,15 @@ export default async function handler(req, res) {
   const {
     system,
     messages,
+    model = MODEL,
+    max_tokens = null,
     stream = false,
   } = req.body || {};
+
+  const requestedModel =
+    model === TEAM_VANT_MODEL
+      ? TEAM_VANT_MODEL
+      : MODEL;
 
   if (
     system !== undefined &&
