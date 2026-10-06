@@ -616,7 +616,7 @@ function ProjectsPage({ theme, isDark, projects, onProjectsChange, onOpenProject
 // ---------------------------------------------------------------------------
 // AI Chat
 // ---------------------------------------------------------------------------
-function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNewConversation, onSelectConversation, onTogglePinConversation, onDeleteConversation }) {
+function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNewConversation, onSelectConversation, onTogglePinConversation, onDeleteConversation, projectMode = false, projectName = "", onBackToProject }) {
     const pinned = conversations.filter((item) => item.pinned);
     const recent = conversations.filter((item) => !item.pinned);
     const renderItem = (item) => (
@@ -631,10 +631,13 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
         <div style={{ padding: "16px 14px 12px", borderBottom: `1px solid ${theme.border}` }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div>
-              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10.5, letterSpacing: 1.2, color: theme.textFaint }}>CHAT HISTORY</div>
-              <div style={{ marginTop: 3, fontSize: 15, fontWeight: 600 }}>Your chats</div>
+              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10.5, letterSpacing: 1.2, color: projectMode ? ac("violet", isDark) : theme.textFaint }}>{projectMode ? "PROJECT CHAT" : "CHAT HISTORY"}</div>
+              <div style={{ marginTop: 3, fontSize: 15, fontWeight: 600 }}>{projectMode ? projectName || "Project workspace" : "Your chats"}</div>
             </div>
-            <button type="button" onClick={onNewConversation} title="New chat" style={{ width: 34, height: 34, borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Plus size={16} /></button>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {projectMode && <button type="button" onClick={onBackToProject} title="Back to project workspace" style={{ height: 34, padding: "0 9px", borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: 11.5 }}><ArrowLeft size={14} /> Project</button>}
+              <button type="button" onClick={onNewConversation} title="New chat" style={{ width: 34, height: 34, borderRadius: 10, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Plus size={16} /></button>
+            </div>
           </div>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "10px 9px 14px" }}>
@@ -642,7 +645,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
           {pinned.map(renderItem)}
           {recent.length > 0 && <div style={{ margin: "16px 6px 6px", fontSize: 11, fontWeight: 600, color: theme.textFaint }}>Recents</div>}
           {recent.map(renderItem)}
-          {!conversations.length && <div style={{ padding: "28px 12px", color: theme.textFaint, fontSize: 12.5, lineHeight: 1.5 }}>Your completed conversations will appear here automatically.</div>}
+          {!conversations.length && <div style={{ padding: "28px 12px", color: theme.textFaint, fontSize: 12.5, lineHeight: 1.5 }}>projectMode ? "Project conversations stay inside this workspace." : "Your completed conversations will appear here automatically."</div>}
         </div>
       </aside>
     );
@@ -981,6 +984,8 @@ function ChatPage({
   onDeleteConversation,
   projectId = null,
   projectName = "",
+  projectMode = false,
+  onBackToProject = null,
 }) {
   const activeConversation = conversations.find((item) => item.id === activeConversationId) || null;
   const [started, setStarted] = useState(Boolean(activeConversation?.messages?.length));
@@ -1575,9 +1580,10 @@ Respond naturally like a sharp work partner.
   if (!started) {
     return (
       <div style={{ height: "100%", display: "flex", minWidth: 0, overflow: "hidden" }}>
-        <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} />
+        <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} projectMode={projectMode} projectName={projectName} onBackToProject={onBackToProject} />
 
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden" }}>
+          {projectMode && <div style={{ padding: "10px 24px", borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", gap: 9, color: theme.textMuted, fontSize: 12.5 }}><FolderKanban size={15} color={ac("violet", isDark)} /><span style={{ fontWeight: 600, color: theme.text }}>{projectName}</span><span>· Project Chat</span><button type="button" onClick={onBackToProject} style={{ marginLeft: "auto", border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, borderRadius: 9, padding: "6px 9px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><ArrowLeft size={13} /> Back to Project</button></div>}
           <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "24px 24px 36px", boxSizing: "border-box", overflow: "auto" }}>
             <div style={{ width: "min(1080px, 100%)", maxWidth: 1080, margin: "0 auto" }}>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: acBg("violet"), border: `1px solid ${theme.border}`, color: ac("violet", isDark), fontFamily: "JetBrains Mono, monospace", fontSize: 11.5, letterSpacing: 1.3, marginBottom: 26 }}>
@@ -1635,8 +1641,9 @@ Respond naturally like a sharp work partner.
     <div style={{ height: "100%", display: "flex", minWidth: 0 }}>
       <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} />
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 24px", borderBottom: `1px solid ${theme.border}` }}>
-        <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>VANT · Work Session</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 24px", borderBottom: `1px solid ${theme.border}` }}>
+        {projectMode && <button type="button" onClick={onBackToProject} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, borderRadius: 9, padding: "6px 9px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5 }}><ArrowLeft size={13} /> Project</button>}
+        <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>{projectMode ? `VANT · ${projectName}` : "VANT · Work Session"}</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
       </div>
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -3019,6 +3026,20 @@ export default function VantWorkingPrototype() {
       if (user?.id) writeLocalChats(user.id, next); else writeLocalChats(null, next);
       return next;
     });
+    if (chatCloudAvailable && user?.id) {
+      supabase.from("chat_conversations").upsert({
+        id,
+        user_id: user.id,
+        title: conversation.title,
+        pinned: false,
+        project_id: projectId,
+        messages: conversation.messages,
+        created_at: now,
+        updated_at: now,
+      }, { onConflict: "id" }).then(({ error }) => {
+        if (error) console.error("VANT: failed to create cloud conversation draft", error);
+      });
+    }
     setActiveConversationId(id);
     return id;
   }
@@ -3108,7 +3129,7 @@ export default function VantWorkingPrototype() {
 
     setUser(profileFromUser(authUser));
     setStateReady(false);
-    await loadChatHistory(authUser);
+    await Promise.all([loadChatHistory(authUser), loadProjects(authUser)]);
 
     const { data, error } = await supabase
       .from("app_state")
@@ -3400,7 +3421,7 @@ export default function VantWorkingPrototype() {
       key={newChatNonce}
       {...props}
       onGoToIntegrations={() => setActive("integrations")}
-      conversations={conversations}
+      conversations={conversations.filter((item) => !item.projectId)}
       activeConversationId={activeConversationId}
       onNewConversation={newConversation}
       onCreateConversation={createConversationDraft}
@@ -3411,7 +3432,7 @@ export default function VantWorkingPrototype() {
     />;
     if (active === "projects") {
       const selectedProject = projects.find((item) => item.id === projectChat);
-      if (selectedProject && projectConversationId) return <ChatPage key={"project-chat-" + projectConversationId} {...props} projectId={selectedProject.id} projectName={selectedProject.name} conversations={conversations} activeConversationId={projectConversationId} onGoToIntegrations={() => setActive("integrations")} onNewConversation={() => createProjectConversation(selectedProject.id)} onCreateConversation={(options) => createConversationDraft({ ...options, projectId: selectedProject.id })} onSelectConversation={openProjectConversation} onSaveConversation={(id, messages, projectId) => saveConversation(id, messages, projectId || selectedProject.id)} onTogglePinConversation={togglePinConversation} onDeleteConversation={deleteConversation} />;
+      if (selectedProject && projectConversationId) return <ChatPage key={"project-chat-" + projectConversationId} {...props} projectId={selectedProject.id} projectName={selectedProject.name} projectMode projectId={selectedProject.id} conversations={conversations.filter((item) => item.projectId === selectedProject.id)} activeConversationId={projectConversationId} onGoToIntegrations={() => setActive("integrations")} onNewConversation={() => createProjectConversation(selectedProject.id)} onCreateConversation={(options) => createConversationDraft({ ...options, projectId: selectedProject.id })} onSelectConversation={openProjectConversation} onSaveConversation={(id, messages, projectId) => saveConversation(id, messages, projectId || selectedProject.id)} onTogglePinConversation={togglePinConversation} onDeleteConversation={deleteConversation} onBackToProject={() => { setProjectConversationId(null); setActive("projects"); }} />;
       if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} chats={conversations.filter((item) => item.projectId === selectedProject.id)} onBack={() => { setProjectChat(null); setProjectConversationId(null); }} onCustomize={customizeProject} onNewChat={() => createProjectConversation(selectedProject.id)} onOpenChat={openProjectConversation} onAskVant={() => askProjectVant(selectedProject.id)} />;
       return <ProjectsPage {...props} projects={projects} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
     }
