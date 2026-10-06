@@ -540,7 +540,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
   );
 }
 
-function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, onCustomize, onNewChat, onOpenChat, onAskVant }) {
+function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, onCustomize, onNewChat, onOpenChat, onAskVant, onProjectLeft }) {
   const [workspacePanel, setWorkspacePanel] = useState(null);
   const [members, setMembers] = useState([]);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -625,6 +625,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
       );
       return;
     }
+    onProjectLeft?.(project.id);
     onBack();
   }
 
@@ -736,21 +737,11 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                         <span style={{ fontSize: 10, color: online ? ac("green", isDark) : theme.textFaint }}>{online ? "● YOU" : "MEMBER"}</span>
                         {isOwner && !isMemberOwner && (
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <select
-                              value={member.role}
-                              onChange={(e) => manageMember(member, "change_role", e.target.value)}
-                              title={`Change role for ${member.display_name || "member"}`}
-                              style={{ width: 112, padding: "6px 7px", borderRadius: 8, border: "1px solid " + theme.border, background: theme.inputBg, color: theme.text, fontSize: 11.5 }}
-                            >
+                            <select value={member.role} onChange={(e) => manageMember(member, "change_role", e.target.value)} title={`Change role for ${member.display_name || "member"}`} style={{ width: 112, padding: "6px 7px", borderRadius: 8, border: "1px solid " + theme.border, background: theme.inputBg, color: theme.text, fontSize: 11.5 }}>
                               <option value="collaborator">Collaborator</option>
                               <option value="viewer">Viewer</option>
                             </select>
-                            <button
-                              type="button"
-                              onClick={() => manageMember(member, "remove")}
-                              title="Remove member"
-                              style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid " + theme.border, background: "transparent", color: ac("red", isDark), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                            ><X size={13} /></button>
+                            <button type="button" onClick={() => manageMember(member, "remove")} title="Remove member" style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid " + theme.border, background: "transparent", color: ac("red", isDark), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={13} /></button>
                           </div>
                         )}
                       </div>;
@@ -3664,3 +3655,128 @@ export default function VantWorkingPrototype() {
 
   async function handleAuth({ mode, name, email, password }) {
     if (mode === "signup") {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
+      });
+
+      if (error) return { error: error.message };
+
+      if (!data.session) {
+        return { message: "Account created. Check your email to confirm your account, then log in." };
+      }
+
+      return {};
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+    return {};
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setSettingsOpen(false);
+  }
+
+  async function handleClearData() {
+    if (!user?.id) return;
+    await persistAppState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
+    if (chatCloudAvailable) {
+      const { error } = await supabase.from("chat_conversations").delete().eq("user_id", user.id);
+      if (error) console.error("VANT: failed to clear cloud chat history", error);
+    }
+    writeLocalChats(user.id, []);
+    setConversations([]);
+    setActiveConversationId(null);
+    setThemeName("dark");
+    setSettingsOpen(false);
+  }
+
+  const toggleTheme = () => setThemeName((t) => (t === "dark" ? "light" : "dark"));
+
+  function toggleIntegration(name) {
+    setConnected((prev) => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  }
+
+  function renderPage() {
+    const props = { theme, isDark };
+    if (active === "chat") return <ChatPage
+      key={newChatNonce}
+      {...props}
+      onGoToIntegrations={() => setActive("integrations")}
+      conversations={conversations.filter((item) => !item.projectId)}
+      activeConversationId={activeConversationId}
+      onNewConversation={newConversation}
+      onCreateConversation={createConversationDraft}
+      onSelectConversation={selectConversation}
+      onSaveConversation={saveConversation}
+      onTogglePinConversation={togglePinConversation}
+      onDeleteConversation={deleteConversation}
+    />;
+    if (active === "projects") {
+      const selectedProject = projects.find((item) => item.id === projectChat);
+      if (selectedProject && projectConversationId) return <ChatPage key={"project-chat-" + projectConversationId} {...props} projectId={selectedProject.id} projectName={selectedProject.name} projectMode projectId={selectedProject.id} conversations={conversations.filter((item) => item.projectId === selectedProject.id)} activeConversationId={projectConversationId} onGoToIntegrations={() => setActive("integrations")} onNewConversation={() => createProjectConversation(selectedProject.id)} onCreateConversation={(options) => createConversationDraft({ ...options, projectId: selectedProject.id })} onSelectConversation={openProjectConversation} onSaveConversation={(id, messages, projectId) => saveConversation(id, messages, projectId || selectedProject.id)} onTogglePinConversation={togglePinConversation} onDeleteConversation={deleteConversation} onBackToProject={() => { setProjectConversationId(null); setActive("projects"); }} />;
+      if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} user={user} chats={conversations.filter((item) => item.projectId === selectedProject.id)} onBack={() => { setProjectChat(null); setProjectConversationId(null); }} onCustomize={customizeProject} onNewChat={() => createProjectConversation(selectedProject.id)} onOpenChat={openProjectConversation} onAskVant={() => askProjectVant(selectedProject.id)} onProjectLeft={(projectId) => setProjects((current) => current.filter((item) => item.id !== projectId))} />;
+      return <ProjectsPage {...props} projects={projects} user={user} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
+    }
+    if (active === "tools") return <ToolsPage {...props} />;
+    if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
+    if (active === "cowork") return <CoworkPage {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
+    return <IntegrationsPage {...props} connected={connected} onToggle={toggleIntegration} />;
+  }
+
+  const pageLabel = (NAV.find((n) => n.id === active) || {}).label || "";
+
+  if (!authReady) {
+    return (
+      <div style={{ height: "100vh", minHeight: 640, display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        <style>{FONT_IMPORT}</style>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: 48, height: 48, margin: "0 auto 16px", borderRadius: 14, background: "rgba(124,58,237,0.22)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ color: "#c4b5fd", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: 19 }}>V</span>
+          </div>
+          <div className="v-pulse" style={{ color: theme.textMuted, fontSize: 13 }}>Checking your VANT session…</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div style={{ height: "100vh", minHeight: 640, display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif", position: "relative", overflow: "hidden" }}>
+        <style>{FONT_IMPORT}</style>
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 20%, rgba(124,58,237,0.14), transparent 38%)", pointerEvents: "none" }} />
+        <div style={{ width: "100%", maxWidth: 430, padding: 24, position: "relative", zIndex: 1 }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <div style={{ width: 52, height: 52, margin: "0 auto 14px", borderRadius: 16, background: "rgba(124,58,237,0.22)", display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${theme.border}` }}>
+              <span style={{ color: "#c4b5fd", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: 20 }}>V</span>
+            </div>
+            <div style={{ fontFamily: "JetBrains Mono, monospace", letterSpacing: 2, fontSize: 11, color: theme.textFaint }}>VANT</div>
+            <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 29, fontWeight: 500, margin: "8px 0 5px" }}>Your work starts here.</h1>
+            <p style={{ color: theme.textMuted, fontSize: 13.5, margin: 0 }}>Sign in to access your VANT workspace.</p>
+          </div>
+          <AuthModal mode={authMode || "login"} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => {}} onAuth={handleAuth} embedded />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height: "100vh", minHeight: 640, display: "flex", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif", overflow: "hidden" }}>
+      <style>{FONT_IMPORT}</style>
+      <Sidebar active={active} onSelect={setActive} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} onOpenSettings={() => setSettingsOpen(true)} />
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={() => setAuthMode("signup")} onOpenSettings={() => setSettingsOpen(true)} />
+        <div style={{ flex: 1, minHeight: 0 }}>{renderPage()}</div>
+      </div>
+      {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
+      {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} accessCode={accessCode} onAccessCodeChange={handleAccessCodeChange} />}
+    </div>
+  );
+}
