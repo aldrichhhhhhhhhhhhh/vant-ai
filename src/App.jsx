@@ -560,7 +560,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
         58000,
         null,
         false,
-        { model: "openai/gpt-oss-20b", max_tokens: 768 }
+        { model: "openai/gpt-oss-20b", max_tokens: 4096 }
       );
 
       const isModelFailure =
