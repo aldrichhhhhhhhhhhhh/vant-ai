@@ -1683,7 +1683,7 @@ Respond naturally like a sharp work partner.
                   </div>
                 )}
               </div>
-            )}}
+            )}
           </div>
         ))}
         {loading && <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 8 }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div><button type="button" onClick={stopGeneration} title="Stop generation" style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Square size={12} fill="currentColor" /></button></div>}
