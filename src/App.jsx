@@ -420,8 +420,8 @@ const PROJECT_PRIORITIES = [
 function detectVantAwarenessCandidate(content) {
   const text = String(content || "").trim();
   if (!text) return false;
-  if (/^@vant\\b/i.test(text)) return true;
-  return /\\b(vant|what do you think|what should we|what's next|whats next|can you|could you|help us|recommend|recommendation|decide|decision|summari[sz]e|analy[sz]e|review|plan|priority|priorities|objective|goal|issue|blocker|risk|problem|next step|next steps|should we|how do we|why is|what is|what's|where are we|status|update|deadline|launch|strategy)\\b/i.test(text);
+  if (/^@vant\b/i.test(text)) return true;
+  return /\b(vant|what do you think|what should we|what's next|whats next|can you|could you|help us|recommend|recommendation|decide|decision|summari[sz]e|analy[sz]e|review|plan|priority|priorities|objective|goal|issue|blocker|risk|problem|next step|next steps|should we|how do we|why is|what is|what's|where are we|status|update|deadline|launch|strategy)\b/i.test(text);
 }
 
 function normalizeProjectContextForVant(context) {
@@ -440,12 +440,12 @@ function normalizeProjectContextForVant(context) {
     "DESCRIPTION: " + (projectInfo.description || "No description provided."),
     "CURRENT USER ROLE: " + (membership.role || "member"),
     "MEMBERS: " + (members.length ? members.map((m) => (m.display_name || m.email || "Member") + " (" + (m.role || "member") + ")").join(", ") : "No member details available."),
-    "KNOWLEDGE: " + (knowledge.length ? knowledge.slice(0, 12).map((k) => "[" + (k.knowledge_type || "knowledge") + "] " + (k.title || "Untitled") + ": " + (k.content || "")).join("\\n") : "No stored project knowledge."),
-    "MEMORY: " + (memory.length ? memory.slice(0, 12).map((m) => "[" + (m.memory_type || m.type || "memory") + "] " + (m.title || m.key || "Memory") + ": " + (m.content || m.value || "")).join("\\n") : "No stored project memory."),
-    "RECENT ACTIVITY: " + (activity.length ? activity.slice(0, 12).map((a) => (a.type || "activity") + ": " + JSON.stringify(a.metadata || {})).join("\\n") : "No recent activity available."),
-    "RECENT TEAM CHAT: " + (teamMessages.length ? teamMessages.slice(-20).map((m) => (m.sender_type === "vant" ? "VANT" : (m.display_name || m.email || "Member")) + ": " + (m.content || "")).join("\\n") : "No recent team messages."),
-    "RECENT PROJECT CHATS: " + (projectChats.length ? projectChats.slice(-12).map((c) => (c.title || "Project chat") + ": " + (c.last_message || c.content || "")).join("\\n") : "No additional project chat context.")
-  ].join("\\n");
+    "KNOWLEDGE: " + (knowledge.length ? knowledge.slice(0, 12).map((k) => "[" + (k.knowledge_type || "knowledge") + "] " + (k.title || "Untitled") + ": " + (k.content || "")).join("\n") : "No stored project knowledge."),
+    "MEMORY: " + (memory.length ? memory.slice(0, 12).map((m) => "[" + (m.memory_type || m.type || "memory") + "] " + (m.title || m.key || "Memory") + ": " + (m.content || m.value || "")).join("\n") : "No stored project memory."),
+    "RECENT ACTIVITY: " + (activity.length ? activity.slice(0, 12).map((a) => (a.type || "activity") + ": " + JSON.stringify(a.metadata || {})).join("\n") : "No recent activity available."),
+    "RECENT TEAM CHAT: " + (teamMessages.length ? teamMessages.slice(-20).map((m) => (m.sender_type === "vant" ? "VANT" : (m.display_name || m.email || "Member")) + ": " + (m.content || "")).join("\n") : "No recent team messages."),
+    "RECENT PROJECT CHATS: " + (projectChats.length ? projectChats.slice(-12).map((c) => (c.title || "Project chat") + ": " + (c.last_message || c.content || "")).join("\n") : "No additional project chat context.")
+  ].join("\n");
 }
 
 function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
