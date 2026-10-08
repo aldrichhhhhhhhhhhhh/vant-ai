@@ -1041,7 +1041,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
             { key: "team", icon: Users, label: "TEAM", value: String(members.length), detail: members.length === 1 ? "You · collaboration ready" : "Project members" },
             { key: "workspace", icon: FolderKanban, label: "WORKSPACE", value: "Active", detail: isOwner ? "Owner-controlled workspace" : "Shared with you" },
           ].map(({ key, icon: Icon, label, value, detail }) => {
-            const clickable = key === "chats" || key === "team";
+            const clickable = key === "chats" || key === "team" || key === "teamChat";
             return clickable ? (
               <button key={label} type="button" onClick={() => key === "teamChat" ? setTeamChatOpen(true) : openWorkspaceWidget(key)} style={{ textAlign: "left", background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 15, padding: 15, color: theme.text, cursor: "pointer" }}>
                 <Icon size={16} color={ac(color, isDark)} />
@@ -1071,7 +1071,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
           {[
             { key: "dashboard", icon: LayoutDashboard, title: "Project Dashboard", text: "Open the project command center and current workspace state.", status: "OPEN" },
             { key: "chats", icon: MessageSquare, title: "Chats", text: chats.length ? "Open the latest conversation inside this project." : "Start the first conversation inside this project.", status: chats.length ? "OPEN" : "START" },
-            { key: "teamChat", icon: MessageSquare, title: "Team Chat", text: "Open the shared team conversation.", status: "LIVE" },
+            { key: "teamChat", icon: MessageSquare, title: "Conference Room", text: "Open the shared team conversation.", status: "LIVE" },
             { key: "space", icon: FolderKanban, title: "Project Space", text: "View this project's identity, priority, ownership, and workspace data.", status: "OPEN" },
           ].map(({ key, icon: Icon, title, text, status }) => (
             <button key={title} type="button" onClick={() => openWorkspaceWidget(key)} style={{ textAlign: "left", background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, minHeight: 130, color: theme.text, cursor: "pointer" }}>
