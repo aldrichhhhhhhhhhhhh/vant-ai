@@ -179,6 +179,7 @@ export default async function handler(req, res) {
       {
         error: "vant_model_unavailable",
         detail,
+        upstream_status: response.status,
       }
     );
   }
