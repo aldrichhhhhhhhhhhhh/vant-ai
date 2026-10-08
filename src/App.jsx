@@ -1043,7 +1043,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
           ].map(({ key, icon: Icon, label, value, detail }) => {
             const clickable = key === "chats" || key === "team";
             return clickable ? (
-              <button key={label} type="button" onClick={() => openWorkspaceWidget(key)} style={{ textAlign: "left", background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 15, padding: 15, color: theme.text, cursor: "pointer" }}>
+              <button key={label} type="button" onClick={() => key === "teamChat" ? setTeamChatOpen(true) : openWorkspaceWidget(key)} style={{ textAlign: "left", background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 15, padding: 15, color: theme.text, cursor: "pointer" }}>
                 <Icon size={16} color={ac(color, isDark)} />
                 <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: theme.textFaint, marginTop: 10 }}>{label}</div>
                 <div style={{ fontSize: 20, fontWeight: 600, marginTop: 4 }}>{value}</div>
@@ -1071,11 +1071,11 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
           {[
             { key: "dashboard", icon: LayoutDashboard, title: "Project Dashboard", text: "Open the project command center and current workspace state.", status: "OPEN" },
             { key: "chats", icon: MessageSquare, title: "Chats", text: chats.length ? "Open the latest conversation inside this project." : "Start the first conversation inside this project.", status: chats.length ? "OPEN" : "START" },
-            { key: "team", icon: Users, title: "Team", text: "View members, invite collaborators, and open the shared Team Chat.", status: "LIVE" },
+            { key: "teamChat", icon: MessageSquare, title: "Team Chat", text: "Open the shared team conversation.", status: "LIVE" },
             { key: "space", icon: FolderKanban, title: "Project Space", text: "View this project's identity, priority, ownership, and workspace data.", status: "OPEN" },
           ].map(({ key, icon: Icon, title, text, status }) => (
             <button key={title} type="button" onClick={() => openWorkspaceWidget(key)} style={{ textAlign: "left", background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, minHeight: 130, color: theme.text, cursor: "pointer" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><Icon size={18} color={ac(color, isDark)} /><span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: key === "team" ? ac("green", isDark) : theme.textFaint }}>{status}</span></div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}><Icon size={18} color={ac(color, isDark)} /><span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: key === "teamChat" ? ac("green", isDark) : theme.textFaint }}>{status}</span></div>
               <div style={{ fontWeight: 600, marginTop: 15 }}>{title}</div><div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 6 }}>{text}</div><div style={{ color: ac(color, isDark), fontSize: 11, marginTop: 10, fontWeight: 600 }}>Open →</div>
             </button>
           ))}
