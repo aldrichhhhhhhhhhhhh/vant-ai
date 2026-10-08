@@ -959,6 +959,11 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
   }
 
   function openWorkspaceWidget(widget) {
+    if (widget === "teamChat") {
+      setWorkspacePanel(null);
+      setTeamChatOpen(true);
+      return;
+    }
     if (widget === "chats") {
       setWorkspacePanel("chats");
       return;
