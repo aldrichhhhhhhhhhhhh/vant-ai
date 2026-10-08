@@ -1079,10 +1079,10 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
           ))}
         </div>
         {workspacePanel && (
-          <div role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) setWorkspacePanel(null); }} style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-            <div style={{ width: "min(560px, 100%)", maxHeight: "80vh", overflowY: "auto", background: theme.surfaceCard, border: "1px solid " + theme.borderStrong, borderRadius: 18, padding: 22 }}>
+          <div role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) setWorkspacePanel(null); }} style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+            <div style={{ width: "min(560px, 100%)", maxHeight: "80vh", overflowY: "auto", background: isDark ? "rgba(14,17,23,0.9)" : "rgba(255,255,255,0.92)", backdropFilter: "blur(18px)", border: "1px solid " + theme.borderStrong, borderRadius: 18, padding: 22 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: ac(color, isDark) }}>VANT · PROJECT</div><h2 style={{ margin: "6px 0 0", fontSize: 21 }}>{workspacePanel === "team" ? "Team" : workspacePanel === "space" ? "Project Space" : "Project Dashboard"}</h2></div>
+                <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: ac(color, isDark) }}>VANT · PROJECT</div><h2 style={{ margin: "6px 0 0", fontSize: 21 }}>{workspacePanel === "team" ? "Team" : workspacePanel === "space" ? "Project Space" : workspacePanel === "chats" ? "Project Chats" : workspacePanel === "activity" ? "Activity Log" : "Project Dashboard"}</h2></div>
                 <button type="button" onClick={() => setWorkspacePanel(null)} aria-label="Close project panel" style={{ border: "1px solid " + theme.border, background: theme.surface, color: theme.textMuted, borderRadius: 9, width: 32, height: 32, cursor: "pointer" }}><X size={15} /></button>
               </div>
               {workspacePanel === "chats" && (
