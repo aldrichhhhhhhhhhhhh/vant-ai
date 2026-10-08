@@ -821,19 +821,63 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteMessage, setInviteMessage] = useState("");
   const [teamChatOpen, setTeamChatOpen] = useState(false);
+  const [activity, setActivity] = useState([]);
+  const [inviteProjectRole, setInviteProjectRole] = useState("Contributor");
   const isOwner = project.ownerId === user?.id;
+
+  const PROJECT_ROLES = [
+    "Project Lead", "Product Owner", "Developer", "Designer",
+    "Operations", "Analyst", "QA / Tester", "Marketing", "Finance", "Stakeholder",
+  ];
   if (!project) return null;
 
   async function loadMembers() {
-    const { data, error } = await supabase.from("project_members").select("id, user_id, role, email, display_name, created_at").eq("project_id", project.id).order("created_at", { ascending: true });
-    if (!error) setMembers(data || []);
-    else console.error("VANT: failed to load project members", error);
+    const withProjectRole = await supabase
+      .from("project_members")
+      .select("id, user_id, role, project_role, email, display_name, created_at")
+      .eq("project_id", project.id)
+      .order("created_at", { ascending: true });
+
+    if (!withProjectRole.error) {
+      setMembers(withProjectRole.data || []);
+      return;
+    }
+
+    const fallback = await supabase
+      .from("project_members")
+      .select("id, user_id, role, email, display_name, created_at")
+      .eq("project_id", project.id)
+      .order("created_at", { ascending: true });
+
+    if (!fallback.error) {
+      setMembers((fallback.data || []).map((member) => ({
+        ...member,
+        project_role: member.role === "owner" ? "Project Lead" : member.role === "viewer" ? "Stakeholder" : "Contributor",
+      })));
+    } else {
+      console.error("VANT: failed to load project members", fallback.error);
+    }
+  }
+
+  async function loadActivity() {
+    const { data, error } = await supabase
+      .from("project_activity")
+      .select("id, user_id, type, metadata, created_at")
+      .eq("project_id", project.id)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (!error) setActivity(data || []);
+    else console.error("VANT: failed to load project activity", error);
   }
 
   useEffect(() => {
     loadMembers();
+    loadActivity();
     const channel = supabase.channel("workspace-members-" + project.id)
-      .on("postgres_changes", { event: "*", schema: "public", table: "project_members", filter: "project_id=eq." + project.id }, () => loadMembers())
+      .on("postgres_changes", { event: "*", schema: "public", table: "project_members", filter: "project_id=eq." + project.id }, () => {
+        loadMembers();
+        loadActivity();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [project.id]);
@@ -854,9 +898,20 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
       setInviteMessage(message);
       return;
     }
+    const addedMember = data?.[0];
+    if (addedMember?.user_id && inviteProjectRole) {
+      const { error: roleError } = await supabase.rpc("manage_project_member", {
+        p_project_id: project.id,
+        p_user_id: addedMember.user_id,
+        p_action: "change_project_role",
+        p_role: inviteProjectRole,
+      });
+      if (roleError) console.error("VANT: failed to set project role after invite", roleError);
+    }
     setInviteEmail("");
-    setInviteMessage(data?.[0]?.display_name ? data[0].display_name + " added to the project." : "Member added.");
+    setInviteMessage(addedMember?.display_name ? addedMember.display_name + " added to the project." : "Member added.");
     loadMembers();
+    loadActivity();
   }
 
   async function manageMember(member, action, role = null) {
@@ -884,6 +939,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
         ? `${member.display_name || "Member"} removed from the project.`
         : `${updated?.display_name || member.display_name || "Member"} is now a ${updated?.role || role}.`
     );
+    loadActivity();
   }
 
   async function leaveProject() {
@@ -904,7 +960,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
 
   function openWorkspaceWidget(widget) {
     if (widget === "chats") {
-      if (chats.length) onOpenChat(chats[0].id); else onNewChat();
+      setWorkspacePanel("chats");
       return;
     }
     if (widget === "team") {
@@ -915,7 +971,37 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
   }
   const color = PROJECT_COLORS.includes(project.color) ? project.color : "violet";
   const priority = PROJECT_PRIORITIES.find((item) => item.value === project.priority)?.label || "Moderate";
-  const recentChats = chats.slice(0, 5);
+  const activityItems = [
+    { id: "project-created", type: "project_created", created_at: project.createdAt, user_id: project.ownerId, metadata: { project_name: project.name } },
+    ...members.map((member) => ({
+      id: "member-" + member.id,
+      type: "member_added",
+      created_at: member.created_at,
+      user_id: member.user_id,
+      metadata: { display_name: member.display_name || "Team member", project_role: member.project_role },
+    })),
+    ...chats.map((chat) => ({
+      id: "chat-" + chat.id,
+      type: "chat_updated",
+      created_at: chat.updatedAt || chat.createdAt,
+      user_id: user?.id,
+      metadata: { title: chat.title || "New VANT chat" },
+    })),
+    ...activity,
+  ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 30);
+
+  function activityLabel(item) {
+    const meta = item?.metadata || {};
+    switch (item?.type) {
+      case "project_created": return "Project workspace created";
+      case "member_added": return (meta.display_name || "A team member") + " joined the project" + (meta.project_role ? " as " + meta.project_role : "");
+      case "chat_updated": return "Project chat updated · " + (meta.title || "New VANT chat");
+      case "chat_created": return "New project chat created · " + (meta.title || "New VANT chat");
+      case "member_removed": return "Team member removed · " + (meta.display_name || "Member");
+      case "member_role_changed": return "Project role changed · " + (meta.display_name || "Member") + (meta.project_role ? " → " + meta.project_role : "");
+      default: return String(meta.description || meta.title || item?.type || "Project activity").replace(/_/g, " ");
+    }
+  }
 
   return (
     <div style={{ height: "100%", overflowY: "auto", padding: "28px 34px 40px" }}>
@@ -989,7 +1075,34 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                 <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: ac(color, isDark) }}>VANT · PROJECT</div><h2 style={{ margin: "6px 0 0", fontSize: 21 }}>{workspacePanel === "team" ? "Team" : workspacePanel === "space" ? "Project Space" : "Project Dashboard"}</h2></div>
                 <button type="button" onClick={() => setWorkspacePanel(null)} aria-label="Close project panel" style={{ border: "1px solid " + theme.border, background: theme.surface, color: theme.textMuted, borderRadius: 9, width: 32, height: 32, cursor: "pointer" }}><X size={15} /></button>
               </div>
-              {workspacePanel === "dashboard" && <div style={{ marginTop: 20, display: "grid", gap: 10 }}><div style={{ padding: 14, borderRadius: 12, background: theme.surface, border: "1px solid " + theme.border }}><div style={{ color: theme.textFaint, fontSize: 11 }}>PROJECT STATUS</div><div style={{ fontSize: 18, fontWeight: 600, marginTop: 5 }}>Active</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>{chats.length} project chat{chats.length === 1 ? "" : "s"} currently attached.</div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}><button type="button" onClick={onAskVant} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: acBg(color), color: theme.text, cursor: "pointer", textAlign: "left" }}><Sparkles size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>Ask VANT</div></button><button type="button" onClick={onNewChat} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer", textAlign: "left" }}><Plus size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>New Chat</div></button></div></div>}
+              {workspacePanel === "chats" && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ color: theme.textMuted, fontSize: 12, marginBottom: 12 }}>Every conversation attached to this project.</div>
+                  {chats.length ? chats.map((chat) => (
+                    <button key={chat.id} type="button" onClick={() => { setWorkspacePanel(null); onOpenChat(chat.id); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "12px 3px", border: "none", borderTop: "1px solid " + theme.border, background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left" }}>
+                      <MessageSquare size={15} color={ac(color, isDark)} />
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13.5 }}>{chat.title || "New VANT chat"}</span>
+                        <span style={{ display: "block", color: theme.textFaint, fontSize: 10.5, marginTop: 3 }}>{new Date(chat.updatedAt || chat.createdAt).toLocaleString()}</span>
+                      </span>
+                      <ChevronRight size={14} color={theme.textFaint} />
+                    </button>
+                  )) : <div style={{ padding: "24px 8px", textAlign: "center", color: theme.textMuted, fontSize: 13 }}>No project chats yet.</div>}
+                  <button type="button" onClick={() => { setWorkspacePanel(null); onNewChat(); }} style={{ marginTop: 12, width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + theme.border, background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontWeight: 600 }}><Plus size={14} /> Start New Chat</button>
+                </div>
+              )}
+              {workspacePanel === "activity" && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ color: theme.textMuted, fontSize: 12, marginBottom: 12 }}>A timeline of work and changes in this project.</div>
+                  {activityItems.length ? activityItems.map((item) => (
+                    <div key={item.id} style={{ display: "flex", gap: 11, padding: "11px 0", borderTop: "1px solid " + theme.border }}>
+                      <div style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 9, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center" }}><History size={14} color={ac(color, isDark)} /></div>
+                      <div style={{ minWidth: 0, flex: 1 }}><div style={{ fontSize: 12.5, lineHeight: 1.45 }}>{activityLabel(item)}</div><div style={{ color: theme.textFaint, fontSize: 10.5, marginTop: 3 }}>{new Date(item.created_at || Date.now()).toLocaleString()}</div></div>
+                    </div>
+                  )) : <div style={{ padding: "24px 8px", textAlign: "center", color: theme.textMuted, fontSize: 13 }}>No activity recorded yet.</div>}
+                </div>
+              )}              {workspacePanel === "dashboard" && <div style={{ marginTop: 20, display: "grid", gap: 10 }}><div style={{ padding: 14, borderRadius: 12, background: theme.surface, border: "1px solid " + theme.border }}><div style={{ color: theme.textFaint, fontSize: 11 }}>PROJECT STATUS</div><div style={{ fontSize: 18, fontWeight: 600, marginTop: 5 }}>Active</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>{chats.length} project chat{chats.length === 1 ? "" : "s"} currently attached.</div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}><button type="button" onClick={onAskVant} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: acBg(color), color: theme.text, cursor: "pointer", textAlign: "left" }}><Sparkles size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>Ask VANT</div></button><button type="button" onClick={onNewChat} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer", textAlign: "left" }}><Plus size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>New Chat</div></button></div></div>}
               {workspacePanel === "team" && (
                 <div style={{ marginTop: 20 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -1005,12 +1118,16 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                         <div style={{ width: 30, height: 30, borderRadius: 9, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center", color: ac(color, isDark), fontWeight: 600, fontSize: 12 }}>{(member.display_name || "V").slice(0,1).toUpperCase()}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600 }}>{member.display_name || "VANT User"} {member.user_id === user?.id ? "(You)" : ""}</div>
-                          <div style={{ color: theme.textFaint, fontSize: 11.5 }}>{member.role} · {member.email || "VANT account"}</div>
+                          <div style={{ color: ac(color, isDark), fontSize: 11.5, fontWeight: 600 }}>{member.project_role || (member.role === "owner" ? "Project Lead" : member.role === "viewer" ? "Stakeholder" : "Contributor")}</div>
+                          <div style={{ color: theme.textFaint, fontSize: 10.5 }}>{member.role === "owner" ? "Owner access" : member.role === "collaborator" ? "Collaborator access" : "Viewer access"} · {member.email || "VANT account"}</div>
                         </div>
                         <span style={{ fontSize: 10, color: online ? ac("green", isDark) : theme.textFaint }}>{online ? "● YOU" : "MEMBER"}</span>
                         {isOwner && !isMemberOwner && (
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <select value={member.role} onChange={(e) => manageMember(member, "change_role", e.target.value)} title={`Change role for ${member.display_name || "member"}`} style={{ width: 112, padding: "6px 7px", borderRadius: 8, border: "1px solid " + theme.border, background: theme.inputBg, color: theme.text, fontSize: 11.5 }}>
+                            <select value={member.project_role || "Contributor"} onChange={(e) => manageMember(member, "change_project_role", e.target.value)} title={"Change project role for " + (member.display_name || "member")} style={{ width: 132, padding: "6px 7px", borderRadius: 8, border: "1px solid " + theme.border, background: theme.inputBg, color: theme.text, fontSize: 11.5 }}>
+                              {PROJECT_ROLES.map((projectRole) => <option key={projectRole} value={projectRole}>{projectRole}</option>)}
+                            </select>
+                            <select value={member.role} onChange={(e) => manageMember(member, "change_role", e.target.value)} title={"Change access for " + (member.display_name || "member")} style={{ width: 100, padding: "6px 7px", borderRadius: 8, border: "1px solid " + theme.border, background: theme.inputBg, color: theme.text, fontSize: 11.5 }}>
                               <option value="collaborator">Collaborator</option>
                               <option value="viewer">Viewer</option>
                             </select>
@@ -1024,8 +1141,11 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                     <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 8 }}>Invite a VANT user</div>
                     <div style={{ display: "flex", gap: 7 }}>
                       <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="their@email.com" type="email" style={{ flex: 1, minWidth: 0, padding: "9px 11px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 12.5 }} />
-                      <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} style={{ width: 112, padding: "9px 7px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, fontSize: 12 }}>
+                      <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} style={{ width: 104, padding: "9px 7px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, fontSize: 12 }}>
                         <option value="collaborator">Collaborator</option><option value="viewer">Viewer</option>
+                      </select>
+                      <select value={inviteProjectRole} onChange={(e) => setInviteProjectRole(e.target.value)} style={{ width: 132, padding: "9px 7px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, fontSize: 12 }}>
+                        {PROJECT_ROLES.map((projectRole) => <option key={projectRole} value={projectRole}>{projectRole}</option>)}
                       </select>
                       <button type="submit" disabled={inviteBusy || !inviteEmail.trim()} style={{ width: 42, borderRadius: 9, border: "none", background: ac(color, isDark), color: isDark ? "#0b0d13" : "#fff", cursor: inviteBusy ? "wait" : "pointer", opacity: inviteBusy || !inviteEmail.trim() ? 0.5 : 1 }} title="Add member"><UserPlus size={15} /></button>
                     </div>
@@ -1041,10 +1161,17 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
 
         <div style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, marginTop: 16 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-            <div><div style={{ fontWeight: 600 }}>Recent Project Chats</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>Your conversations that belong to this workspace.</div></div>
-            <button type="button" onClick={onNewChat} style={{ border: "none", background: acBg(color), color: ac(color, isDark), borderRadius: 9, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}><Plus size={13} /> New Chat</button>
+            <div><div style={{ fontWeight: 600 }}>Activity Log</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>What has been done, changed, or started in this workspace.</div></div>
+            <button type="button" onClick={() => setWorkspacePanel("activity")} style={{ border: "1px solid " + theme.border, background: theme.surface, color: theme.text, borderRadius: 9, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>View All</button>
           </div>
-          {recentChats.length ? recentChats.map((chat) => <button key={chat.id} type="button" onClick={() => onOpenChat(chat.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "11px 3px", border: "none", borderTop: "1px solid " + theme.border, background: "transparent", color: theme.text, cursor: "pointer", textAlign: "left" }}><MessageSquare size={15} color={ac(color, isDark)} /><span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13.5 }}>{chat.title || "New VANT chat"}</span><ChevronRight size={14} color={theme.textFaint} /></button>) : <div style={{ borderTop: "1px solid " + theme.border, paddingTop: 18, color: theme.textMuted, fontSize: 13, textAlign: "center" }}>No project chats yet. Start one above.</div>}
+          {activityItems.slice(0, 6).map((item) => (
+            <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 3px", borderTop: "1px solid " + theme.border }}>
+              <History size={15} color={ac(color, isDark)} />
+              <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activityLabel(item)}</div>
+              <div style={{ color: theme.textFaint, fontSize: 10.5, whiteSpace: "nowrap" }}>{new Date(item.created_at || Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
+            </div>
+          ))}
+          {!activityItems.length && <div style={{ borderTop: "1px solid " + theme.border, paddingTop: 18, color: theme.textMuted, fontSize: 13, textAlign: "center" }}>No activity yet.</div>}
         </div>
       </div>
     </div>
