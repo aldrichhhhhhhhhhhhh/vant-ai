@@ -1034,18 +1034,28 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 16 }}>
           {[
-            { icon: MessageSquare, label: "PROJECT CHATS", value: chats.length, detail: chats.length ? "Your conversations in this workspace" : "Ready for your first chat" },
-            { icon: Target, label: "PRIORITY", value: priority, detail: "Attached to this workspace" },
-            { icon: Users, label: "TEAM", value: String(members.length), detail: members.length === 1 ? "You · collaboration ready" : "Project members" },
-            { icon: FolderKanban, label: "WORKSPACE", value: "Active", detail: isOwner ? "Owner-controlled workspace" : "Shared with you" },
-          ].map(({ icon: Icon, label, value, detail }) => (
-            <div key={label} style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 15, padding: 15 }}>
-              <Icon size={16} color={ac(color, isDark)} />
-              <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: theme.textFaint, marginTop: 10 }}>{label}</div>
-              <div style={{ fontSize: 20, fontWeight: 600, marginTop: 4 }}>{value}</div>
-              <div style={{ color: theme.textFaint, fontSize: 11.5, marginTop: 3 }}>{detail}</div>
-            </div>
-          ))}
+            { key: "chats", icon: MessageSquare, label: "PROJECT CHATS", value: chats.length, detail: chats.length ? "Your conversations in this workspace" : "Ready for your first chat" },
+            { key: "priority", icon: Target, label: "PRIORITY", value: priority, detail: "Attached to this workspace" },
+            { key: "team", icon: Users, label: "TEAM", value: String(members.length), detail: members.length === 1 ? "You · collaboration ready" : "Project members" },
+            { key: "workspace", icon: FolderKanban, label: "WORKSPACE", value: "Active", detail: isOwner ? "Owner-controlled workspace" : "Shared with you" },
+          ].map(({ key, icon: Icon, label, value, detail }) => {
+            const clickable = key === "chats" || key === "team";
+            return clickable ? (
+              <button key={label} type="button" onClick={() => openWorkspaceWidget(key)} style={{ textAlign: "left", background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 15, padding: 15, color: theme.text, cursor: "pointer" }}>
+                <Icon size={16} color={ac(color, isDark)} />
+                <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: theme.textFaint, marginTop: 10 }}>{label}</div>
+                <div style={{ fontSize: 20, fontWeight: 600, marginTop: 4 }}>{value}</div>
+                <div style={{ color: theme.textFaint, fontSize: 11.5, marginTop: 3 }}>{detail}</div>
+              </button>
+            ) : (
+              <div key={label} style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 15, padding: 15 }}>
+                <Icon size={16} color={ac(color, isDark)} />
+                <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1, color: theme.textFaint, marginTop: 10 }}>{label}</div>
+                <div style={{ fontSize: 20, fontWeight: 600, marginTop: 4 }}>{value}</div>
+                <div style={{ color: theme.textFaint, fontSize: 11.5, marginTop: 3 }}>{detail}</div>
+              </div>
+            );
+          })}
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, margin: "0 0 9px" }}>
           <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: theme.textFaint }}>COMMAND CENTER</div><div style={{ fontSize: 15, fontWeight: 600, marginTop: 3 }}>Move the project forward</div></div>
