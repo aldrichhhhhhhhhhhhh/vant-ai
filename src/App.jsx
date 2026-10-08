@@ -421,7 +421,7 @@ function detectVantAwarenessCandidate(content) {
   const text = String(content || "").trim();
   if (!text) return false;
   if (/^@vant\b/i.test(text)) return true;
-  return /\b(vant|what do you think|what should we|what's next|whats next|can you|could you|help us|recommend|recommendation|decide|decision|summari[sz]e|analy[sz]e|review|plan|priority|priorities|objective|goal|issue|blocker|risk|problem|next step|next steps|should we|how do we|why is|what is|what's|where are we|status|update|deadline|launch|strategy)\b/i.test(text);
+  return /\b(hi|hey|hello|morning|afternoon|evening|good morning|good afternoon|good evening|welcome|thanks|thank you|congratulations|congrats|how are you|what do you think|what should we|what's next|whats next|can you|could you|help us|recommend|recommendation|decide|decision|summari[sz]e|analy[sz]e|review|plan|priority|priorities|objective|goal|issue|blocker|risk|problem|next step|next steps|should we|how do we|why is|what is|what's|where are we|status|update|deadline|launch|strategy)\b/i.test(text);
 }
 
 function normalizeProjectContextForVant(context) {
@@ -455,7 +455,6 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [onlineMembers, setOnlineMembers] = useState([]);
-  const [vantMode, setVantMode] = useState("team");
   const scrollRef = useRef(null);
 
   async function loadMessages() {
@@ -555,9 +554,9 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
     setInput("");
 
     const explicitlyAddressed = /^@vant\\b/i.test(content);
-    const shouldConsiderVant = explicitlyAddressed || (vantMode === "team_vant" && detectVantAwarenessCandidate(content));
+    const shouldConsiderVant = explicitlyAddressed || detectVantAwarenessCandidate(content);
 
-    if (vantMode === "team_vant" && shouldConsiderVant) {
+    if (shouldConsiderVant) {
       const cleanPrompt = content.replace(/^@vant\\s*/i, "").trim() || "Join the team conversation and help us move the project forward.";
       let projectContextText = "Project context is currently unavailable.";
       try {
@@ -596,7 +595,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
         "\\n\\nRESPONSE RULE:\\n" +
         (explicitlyAddressed
           ? "This is an explicit @VANT request. Respond directly to the request."
-          : "This is not an explicit @VANT request. Respond only if your contribution is clearly useful to the project conversation. Otherwise return exactly __VANT_SILENT__.");
+          : "This message does not explicitly address VANT. Respond if a natural peer-to-peer contribution would be appropriate or useful. Greetings, thanks, welcomes, congratulations, and direct social engagement should receive a brief natural response. For unrelated conversation where your contribution would not help, return exactly __VANT_SILENT__.");
 
       const reply = await askClaude(
         vantPrompt,
@@ -655,10 +654,6 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
             <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1.1, color: theme.textFaint }}>VANT · TEAM CHAT</div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{project.name}</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: 3, border: "1px solid " + theme.border, borderRadius: 10, background: theme.surface }}>
-            <button type="button" onClick={() => setVantMode("team")} style={{ border: "none", borderRadius: 7, padding: "6px 9px", background: vantMode === "team" ? theme.surfaceStrong : "transparent", color: vantMode === "team" ? theme.text : theme.textMuted, cursor: "pointer", fontSize: 10.5, fontWeight: 600 }}>TEAM ONLY</button>
-            <button type="button" onClick={() => setVantMode("team_vant")} style={{ border: "none", borderRadius: 7, padding: "6px 9px", background: vantMode === "team_vant" ? acBg(project.color) : "transparent", color: vantMode === "team_vant" ? accent : theme.textMuted, cursor: "pointer", fontSize: 10.5, fontWeight: 600 }}>VANT TEAM MEMBER</button>
-          </div>
           <div style={{ fontSize: 11.5, color: theme.textMuted }}>{onlineMembers.length} online</div>
           <button type="button" onClick={onClose} aria-label="Close team chat" style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid " + theme.border, background: theme.surface, color: theme.textMuted, cursor: "pointer" }}><X size={15} /></button>
         </div>
@@ -682,7 +677,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
           })}
         </div>
         <form onSubmit={sendMessage} style={{ padding: 12, borderTop: "1px solid " + theme.border, display: "flex", gap: 8 }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={vantMode === "team_vant" ? "Talk to the team — VANT is listening…" : "Message your project team…"} disabled={sending} autoFocus style={{ flex: 1, minWidth: 0, padding: "11px 14px", borderRadius: 12, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 13.5 }} />
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Talk to your project team — VANT is listening…" disabled={sending} autoFocus style={{ flex: 1, minWidth: 0, padding: "11px 14px", borderRadius: 12, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 13.5 }} />
           <button type="submit" disabled={!input.trim() || sending} style={{ width: 44, borderRadius: 12, border: "none", background: accent, color: isDark ? "#0b0d13" : "#fff", cursor: input.trim() && !sending ? "pointer" : "not-allowed", opacity: input.trim() && !sending ? 1 : 0.45 }}><Send size={16} /></button>
         </form>
       </div>
