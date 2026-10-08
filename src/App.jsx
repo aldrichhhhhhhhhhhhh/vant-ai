@@ -553,7 +553,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
 
     setInput("");
 
-    const explicitlyAddressed = /^@vant\\b/i.test(content);
+    const explicitlyAddressed = /^@?vant\b/i.test(content.trim()) || /\b@?vant[!?.,:]?$/i.test(content.trim()) || /\bwhat do (you|u) think[!?.,\s]*(?:@?vant)?\b/i.test(content);
     const shouldConsiderVant = explicitlyAddressed || detectVantAwarenessCandidate(content);
 
     if (shouldConsiderVant) {
