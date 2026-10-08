@@ -444,9 +444,14 @@ async function askVant(
         return "VANT's GPT-OSS engine returned no answer. Please try again.";
       }
 
-      return data?.detail
-        ? `GPT-OSS engine error: ${data.detail}`
-        : "VANT's GPT-OSS engine couldn't complete the request.";
+      const safeDetail =
+        typeof data?.detail === "string" && data.detail.trim()
+          ? data.detail.trim()
+          : typeof data?.error === "string" && data.error.trim()
+            ? data.error.trim()
+            : "Unknown server error.";
+
+      return `GPT-OSS engine error (HTTP ${response.status}): ${safeDetail}`;
     }
 
     let data = {};
