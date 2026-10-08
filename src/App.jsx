@@ -557,7 +557,10 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
     const shouldConsiderVant = explicitlyAddressed || detectVantAwarenessCandidate(content);
 
     if (shouldConsiderVant) {
-      const cleanPrompt = content.replace(/^@vant\\s*/i, "").trim() || "Join the team conversation and help us move the project forward.";
+      const cleanPrompt = content
+        .replace(/^@vant\s*/i, "")
+        .replace(/,?\s*@?vant[!?.,:]?\s*$/i, "")
+        .trim() || "Join the team conversation and help us move the project forward.";
       let projectContextText = "Project context is currently unavailable.";
       try {
         const { data: contextData, error: contextError } = await supabase.rpc("get_project_context", { p_project_id: project.id });
@@ -597,7 +600,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
           ? "This is an explicit @VANT request. Respond directly to the request."
           : "This message does not explicitly address VANT. Respond if a natural peer-to-peer contribution would be appropriate or useful. Greetings, thanks, welcomes, congratulations, and direct social engagement should receive a brief natural response. For unrelated conversation where your contribution would not help, return exactly __VANT_SILENT__.");
 
-      const reply = await askClaude(
+      let reply = await askClaude(
         vantPrompt,
         [{ role: "user", content: cleanPrompt }],
         null,
@@ -606,6 +609,29 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
         false,
         { model: "openai/gpt-oss-20b", max_tokens: explicitlyAddressed ? 4096 : 1024 }
       );
+
+      const initialModelFailure =
+        !reply ||
+        reply.startsWith("The server had trouble reaching the model.") ||
+        reply.startsWith("Something went wrong reaching the server.") ||
+        reply.startsWith("NVIDIA NIM error:") ||
+        reply.startsWith("VANT's model request timed out");
+
+      if (initialModelFailure) {
+        console.warn("VANT: GPT-OSS Team Member response failed; retrying with primary VANT model.");
+        const fallbackReply = await askClaude(
+          vantPrompt,
+          [{ role: "user", content: cleanPrompt }],
+          null,
+          58000,
+          null,
+          false,
+          { model: "google/gemma-4-31b-it", max_tokens: 2048 }
+        );
+        if (fallbackReply && !fallbackReply.startsWith("The server had trouble reaching the model.") && !fallbackReply.startsWith("Something went wrong reaching the server.") && !fallbackReply.startsWith("NVIDIA NIM error:") && !fallbackReply.startsWith("VANT's model request timed out")) {
+          reply = fallbackReply;
+        }
+      }
 
       const isSilent = String(reply || "").trim() === "__VANT_SILENT__";
       const isModelFailure =
