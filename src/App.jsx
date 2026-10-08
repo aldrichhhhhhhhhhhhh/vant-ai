@@ -1005,7 +1005,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
 
   return (
     <div style={{ height: "100%", overflowY: "auto", padding: "28px 34px 40px" }}>
-      <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+      <div style={{ width: "100%", maxWidth: 1280, margin: "0 auto" }}>
         <button type="button" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", background: "transparent", color: theme.textMuted, cursor: "pointer", padding: 0, marginBottom: 22 }}>
           <ArrowLeft size={15} /> All Projects
         </button>
@@ -1082,7 +1082,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
         </div>
         </div>
           <aside style={{ minWidth: 0, position: "sticky", top: 0 }}>
-            <div style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, marginTop: 16 }}>
+            <div style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
                 <div><div style={{ fontWeight: 600 }}>Activity Log</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>What has been done, changed, or started in this workspace.</div></div>
                 <button type="button" onClick={() => setWorkspacePanel("activity")} style={{ border: "1px solid " + theme.border, background: theme.surface, color: theme.text, borderRadius: 9, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>View All</button>
