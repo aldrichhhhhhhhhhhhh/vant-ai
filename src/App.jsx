@@ -417,6 +417,37 @@ const PROJECT_PRIORITIES = [
   { value: "low", label: "Low" },
 ];
 
+function detectVantAwarenessCandidate(content) {
+  const text = String(content || "").trim();
+  if (!text) return false;
+  if (/^@vant\\b/i.test(text)) return true;
+  return /\\b(vant|what do you think|what should we|what's next|whats next|can you|could you|help us|recommend|recommendation|decide|decision|summari[sz]e|analy[sz]e|review|plan|priority|priorities|objective|goal|issue|blocker|risk|problem|next step|next steps|should we|how do we|why is|what is|what's|where are we|status|update|deadline|launch|strategy)\\b/i.test(text);
+}
+
+function normalizeProjectContextForVant(context) {
+  if (!context || typeof context !== "object") return "Project context is currently unavailable.";
+  const projectInfo = context.project || {};
+  const membership = context.membership || {};
+  const members = Array.isArray(context.members) ? context.members : [];
+  const knowledge = Array.isArray(context.knowledge) ? context.knowledge : [];
+  const memory = Array.isArray(context.memory) ? context.memory : [];
+  const activity = Array.isArray(context.activity) ? context.activity : [];
+  const teamMessages = Array.isArray(context.team_messages) ? context.team_messages : [];
+  const projectChats = Array.isArray(context.project_chats) ? context.project_chats : [];
+
+  return [
+    "PROJECT: " + (projectInfo.name || "Unknown project"),
+    "DESCRIPTION: " + (projectInfo.description || "No description provided."),
+    "CURRENT USER ROLE: " + (membership.role || "member"),
+    "MEMBERS: " + (members.length ? members.map((m) => (m.display_name || m.email || "Member") + " (" + (m.role || "member") + ")").join(", ") : "No member details available."),
+    "KNOWLEDGE: " + (knowledge.length ? knowledge.slice(0, 12).map((k) => "[" + (k.knowledge_type || "knowledge") + "] " + (k.title || "Untitled") + ": " + (k.content || "")).join("\\n") : "No stored project knowledge."),
+    "MEMORY: " + (memory.length ? memory.slice(0, 12).map((m) => "[" + (m.memory_type || m.type || "memory") + "] " + (m.title || m.key || "Memory") + ": " + (m.content || m.value || "")).join("\\n") : "No stored project memory."),
+    "RECENT ACTIVITY: " + (activity.length ? activity.slice(0, 12).map((a) => (a.type || "activity") + ": " + JSON.stringify(a.metadata || {})).join("\\n") : "No recent activity available."),
+    "RECENT TEAM CHAT: " + (teamMessages.length ? teamMessages.slice(-20).map((m) => (m.sender_type === "vant" ? "VANT" : (m.display_name || m.email || "Member")) + ": " + (m.content || "")).join("\\n") : "No recent team messages."),
+    "RECENT PROJECT CHATS: " + (projectChats.length ? projectChats.slice(-12).map((c) => (c.title || "Project chat") + ": " + (c.last_message || c.content || "")).join("\\n") : "No additional project chat context.")
+  ].join("\\n");
+}
+
 function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
   const [messages, setMessages] = useState([]);
   const [members, setMembers] = useState([]);
@@ -523,9 +554,20 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
 
     setInput("");
 
-    const vantInvocation = /^@vant\b/i.test(content);
-    if (vantMode === "team_vant" && vantInvocation) {
-      const cleanPrompt = content.replace(/^@vant\s*/i, "").trim() || "Join the team conversation and help us move the project forward.";
+    const explicitlyAddressed = /^@vant\\b/i.test(content);
+    const shouldConsiderVant = explicitlyAddressed || (vantMode === "team_vant" && detectVantAwarenessCandidate(content));
+
+    if (vantMode === "team_vant" && shouldConsiderVant) {
+      const cleanPrompt = content.replace(/^@vant\\s*/i, "").trim() || "Join the team conversation and help us move the project forward.";
+      let projectContextText = "Project context is currently unavailable.";
+      try {
+        const { data: contextData, error: contextError } = await supabase.rpc("get_project_context", { p_project_id: project.id });
+        if (!contextError) projectContextText = normalizeProjectContextForVant(contextData);
+        else console.warn("VANT: project context unavailable for Team Chat", contextError);
+      } catch (contextError) {
+        console.warn("VANT: project context lookup failed", contextError);
+      }
+
       const history = [...messages, { id: "local-" + Date.now(), project_id: project.id, user_id: user.id, content, sender_type: "human", created_at: new Date().toISOString() }];
       const teamContext = history
         .slice(-24, -1)
@@ -536,22 +578,25 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
         .join("\n");
 
       const vantPrompt =
-        "You are VANT participating inside a shared project Team Chat.\n\n" +
-        "PROJECT: \"" + project.name + "\"\n" +
-        "PROJECT DESCRIPTION: " + (project.description || "No description provided.") + "\n\n" +
-        "ROLE:\nYou are a participating team member, not the owner of the conversation.\n" +
-        "Only respond when explicitly called with @VANT.\n" +
-        "Use the team conversation as context.\n" +
-        "Do not invent project facts, decisions, files, or actions.\n" +
-        "Do not claim to have completed external work.\n" +
-        "Be concise enough for a team chat, but provide useful structure when needed.\n" +
-        "If the team asks you to summarize, summarize only the visible conversation.\n" +
-        "If the team asks what to do next, give concrete next steps.\n" +
-        "If information is missing, say what is missing.\n\n" +
-        "RECENT TEAM CHAT:\n" +
+        "You are VANT, a real participating member of a shared project team.\\n\\n" +
+        projectContextText + "\\n\\n" +
+        "YOUR ROLE IN THE ROOM:\\n" +
+        "- You are aware of the team conversation and project context.\\n" +
+        "- You are not the owner of the conversation and should not dominate it.\\n" +
+        "- If the message explicitly addresses @VANT, you MUST respond.\\n" +
+        "- If the message does not explicitly address you, decide whether your contribution would materially help the team.\\n" +
+        "- If it would not help, return exactly __VANT_SILENT__ and nothing else.\\n" +
+        "- Never say that you cannot respond because you were not explicitly addressed.\\n" +
+        "- Never invent project facts, decisions, files, or completed actions.\\n" +
+        "- Be concise enough for team chat, but provide useful structure when needed.\\n\\n" +
+        "RECENT TEAM CHAT:\\n" +
         (teamContext || "No earlier team messages.") +
-        "\n\nEXPLICIT REQUEST FROM THE TEAM:\n" +
-        cleanPrompt;
+        "\\n\\nCURRENT TEAM MESSAGE:\\n" +
+        content +
+        "\\n\\nRESPONSE RULE:\\n" +
+        (explicitlyAddressed
+          ? "This is an explicit @VANT request. Respond directly to the request."
+          : "This is not an explicit @VANT request. Respond only if your contribution is clearly useful to the project conversation. Otherwise return exactly __VANT_SILENT__.");
 
       const reply = await askClaude(
         vantPrompt,
@@ -560,9 +605,10 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
         58000,
         null,
         false,
-        { model: "openai/gpt-oss-20b", max_tokens: 768 }
+        { model: "openai/gpt-oss-20b", max_tokens: explicitlyAddressed ? 4096 : 1024 }
       );
 
+      const isSilent = String(reply || "").trim() === "__VANT_SILENT__";
       const isModelFailure =
         !reply ||
         reply.startsWith("The server had trouble reaching the model.") ||
@@ -574,7 +620,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
       if (isModelFailure) {
         console.error("VANT: Team + VANT model call failed", reply);
         window.alert(reply === "__VANT_USER_STOPPED__" ? "VANT stopped the response." : reply);
-      } else {
+      } else if (!isSilent) {
         const { error: vantError } = await supabase.from("project_messages").insert({
           project_id: project.id,
           user_id: user.id,
@@ -588,6 +634,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
         }
       }
     }
+
     setSending(false);
   }
 
@@ -610,7 +657,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: 3, border: "1px solid " + theme.border, borderRadius: 10, background: theme.surface }}>
             <button type="button" onClick={() => setVantMode("team")} style={{ border: "none", borderRadius: 7, padding: "6px 9px", background: vantMode === "team" ? theme.surfaceStrong : "transparent", color: vantMode === "team" ? theme.text : theme.textMuted, cursor: "pointer", fontSize: 10.5, fontWeight: 600 }}>TEAM ONLY</button>
-            <button type="button" onClick={() => setVantMode("team_vant")} style={{ border: "none", borderRadius: 7, padding: "6px 9px", background: vantMode === "team_vant" ? acBg(project.color) : "transparent", color: vantMode === "team_vant" ? accent : theme.textMuted, cursor: "pointer", fontSize: 10.5, fontWeight: 600 }}>TEAM + VANT</button>
+            <button type="button" onClick={() => setVantMode("team_vant")} style={{ border: "none", borderRadius: 7, padding: "6px 9px", background: vantMode === "team_vant" ? acBg(project.color) : "transparent", color: vantMode === "team_vant" ? accent : theme.textMuted, cursor: "pointer", fontSize: 10.5, fontWeight: 600 }}>VANT TEAM MEMBER</button>
           </div>
           <div style={{ fontSize: 11.5, color: theme.textMuted }}>{onlineMembers.length} online</div>
           <button type="button" onClick={onClose} aria-label="Close team chat" style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid " + theme.border, background: theme.surface, color: theme.textMuted, cursor: "pointer" }}><X size={15} /></button>
@@ -635,7 +682,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
           })}
         </div>
         <form onSubmit={sendMessage} style={{ padding: 12, borderTop: "1px solid " + theme.border, display: "flex", gap: 8 }}>
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={vantMode === "team_vant" ? "Message team or @VANT to call VANT…" : "Message your project team…"} disabled={sending} autoFocus style={{ flex: 1, minWidth: 0, padding: "11px 14px", borderRadius: 12, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 13.5 }} />
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={vantMode === "team_vant" ? "Talk to the team — VANT is listening…" : "Message your project team…"} disabled={sending} autoFocus style={{ flex: 1, minWidth: 0, padding: "11px 14px", borderRadius: 12, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none", fontSize: 13.5 }} />
           <button type="submit" disabled={!input.trim() || sending} style={{ width: 44, borderRadius: 12, border: "none", background: accent, color: isDark ? "#0b0d13" : "#fff", cursor: input.trim() && !sending ? "pointer" : "not-allowed", opacity: input.trim() && !sending ? 1 : 0.45 }}><Send size={16} /></button>
         </form>
       </div>
