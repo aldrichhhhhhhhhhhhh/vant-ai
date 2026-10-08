@@ -1032,6 +1032,8 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
           <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: ac("green", isDark) }}>● Active</span>
         </div>
 
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", alignItems: "start", gap: 18 }}>
+          <div style={{ minWidth: 0 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 16 }}>
           {[
             { key: "chats", icon: MessageSquare, label: "PROJECT CHATS", value: chats.length, detail: chats.length ? "Your conversations in this workspace" : "Ready for your first chat" },
@@ -1077,6 +1079,24 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
               <div style={{ fontWeight: 600, marginTop: 15 }}>{title}</div><div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 6 }}>{text}</div><div style={{ color: ac(color, isDark), fontSize: 11, marginTop: 10, fontWeight: 600 }}>Open →</div>
             </button>
           ))}
+        </div>
+        </div>
+          <aside style={{ minWidth: 0, position: "sticky", top: 0 }}>
+            <div style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, marginTop: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+                <div><div style={{ fontWeight: 600 }}>Activity Log</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>What has been done, changed, or started in this workspace.</div></div>
+                <button type="button" onClick={() => setWorkspacePanel("activity")} style={{ border: "1px solid " + theme.border, background: theme.surface, color: theme.text, borderRadius: 9, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>View All</button>
+              </div>
+              {activityItems.slice(0, 6).map((item) => (
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 3px", borderTop: "1px solid " + theme.border }}>
+                  <History size={15} color={ac(color, isDark)} />
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activityLabel(item)}</div>
+                  <div style={{ color: theme.textFaint, fontSize: 10.5, whiteSpace: "nowrap" }}>{new Date(item.created_at || Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
+                </div>
+              ))}
+              {!activityItems.length && <div style={{ borderTop: "1px solid " + theme.border, paddingTop: 18, color: theme.textMuted, fontSize: 13, textAlign: "center" }}>No activity yet.</div>}
+            </div>
+          </aside>
         </div>
         {workspacePanel && (
           <div role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) setWorkspacePanel(null); }} style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -1169,20 +1189,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
         )}
         {teamChatOpen && <ProjectTeamChat theme={theme} isDark={isDark} project={project} user={user} onClose={() => setTeamChatOpen(false)} />}
 
-        <div style={{ background: theme.surfaceCard, border: "1px solid " + theme.border, borderRadius: 16, padding: 18, marginTop: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-            <div><div style={{ fontWeight: 600 }}>Activity Log</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>What has been done, changed, or started in this workspace.</div></div>
-            <button type="button" onClick={() => setWorkspacePanel("activity")} style={{ border: "1px solid " + theme.border, background: theme.surface, color: theme.text, borderRadius: 9, padding: "7px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>View All</button>
-          </div>
-          {activityItems.slice(0, 6).map((item) => (
-            <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 3px", borderTop: "1px solid " + theme.border }}>
-              <History size={15} color={ac(color, isDark)} />
-              <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activityLabel(item)}</div>
-              <div style={{ color: theme.textFaint, fontSize: 10.5, whiteSpace: "nowrap" }}>{new Date(item.created_at || Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
-            </div>
-          ))}
-          {!activityItems.length && <div style={{ borderTop: "1px solid " + theme.border, paddingTop: 18, color: theme.textMuted, fontSize: 13, textAlign: "center" }}>No activity yet.</div>}
-        </div>
+
       </div>
     </div>
   );
