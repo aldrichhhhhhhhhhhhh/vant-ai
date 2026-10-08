@@ -358,6 +358,131 @@ async function askClaude(
   }
 }
 
+async function askVant(
+  systemPrompt,
+  messages,
+  timeoutMs = 48000,
+  externalSignal = null
+) {
+  const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener("abort", abortFromCaller, { once: true });
+  }
+
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let accessCode = "";
+  let accessToken = "";
+
+  try {
+    accessCode = localStorage.getItem("vant_access_code") || "";
+  } catch {
+    /* no storage access */
+  }
+
+  try {
+    const { data } = await supabase.auth.getSession();
+    accessToken = data.session?.access_token || "";
+  } catch {
+    /* auth session may be unavailable */
+  }
+
+  if (!accessToken) {
+    clearTimeout(timer);
+    return "Your VANT session has expired. Please log in again.";
+  }
+
+  try {
+    const response = await fetch("/api/vant", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-access-code": accessCode,
+        "Authorization": `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        system: systemPrompt,
+        messages,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      let data = {};
+      try {
+        data = await response.json();
+      } catch {
+        /* ignore invalid error JSON */
+      }
+
+      clearTimeout(timer);
+
+      if (data?.error === "access_not_configured") {
+        return "This deployment hasn't set an access code yet — set APP_ACCESS_CODE in your environment variables.";
+      }
+
+      if (data?.error === "invalid_access_code") {
+        return "Wrong or missing access code. Enter the correct one in Settings.";
+      }
+
+      if (data?.error === "missing_api_key") {
+        return "The server isn't configured with an NVIDIA API key yet — set NVIDIA_API_KEY in your deployment's environment variables.";
+      }
+
+      if (data?.error === "vant_model_timeout") {
+        return "VANT's GPT-OSS engine timed out. Try the request again with a shorter message.";
+      }
+
+      if (data?.error === "vant_model_unavailable") {
+        return "VANT's GPT-OSS engine is temporarily unavailable. Please try again in a moment.";
+      }
+
+      if (data?.error === "vant_model_empty") {
+        return "VANT's GPT-OSS engine returned no answer. Please try again.";
+      }
+
+      return data?.detail
+        ? `GPT-OSS engine error: ${data.detail}`
+        : "VANT's GPT-OSS engine couldn't complete the request.";
+    }
+
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {
+      clearTimeout(timer);
+      return "VANT's GPT-OSS engine returned an invalid response.";
+    }
+
+    clearTimeout(timer);
+    if (externalSignal) externalSignal.removeEventListener("abort", abortFromCaller);
+
+    const text =
+      typeof data?.content?.[0]?.text === "string"
+        ? data.content[0].text
+        : typeof data?.choices?.[0]?.message?.content === "string"
+          ? data.choices[0].message.content
+          : "";
+
+    return text.trim() || "VANT's GPT-OSS engine returned no answer.";
+  } catch (err) {
+    clearTimeout(timer);
+    if (externalSignal) externalSignal.removeEventListener("abort", abortFromCaller);
+
+    if (err?.name === "AbortError") {
+      if (externalSignal?.aborted) return "__VANT_USER_STOPPED__";
+      return "VANT's GPT-OSS engine timed out. Try a shorter request.";
+    }
+
+    console.error("VANT GPT-OSS request error:", err);
+    return "VANT's GPT-OSS engine could not reach the model service.";
+  }
+}
+
+
 
 function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSettings }) {
   return (
@@ -600,38 +725,10 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
           ? "This is an explicit @VANT request. Respond directly to the request."
           : "This message does not explicitly address VANT. Respond if a natural peer-to-peer contribution would be appropriate or useful. Greetings, thanks, welcomes, congratulations, and direct social engagement should receive a brief natural response. For unrelated conversation where your contribution would not help, return exactly __VANT_SILENT__.");
 
-      let reply = await askClaude(
+      const reply = await askVant(
         vantPrompt,
-        [{ role: "user", content: cleanPrompt }],
-        null,
-        58000,
-        null,
-        false,
-        { model: "openai/gpt-oss-20b", max_tokens: explicitlyAddressed ? 4096 : 1024 }
+        [{ role: "user", content: cleanPrompt }]
       );
-
-      const initialModelFailure =
-        !reply ||
-        reply.startsWith("The server had trouble reaching the model.") ||
-        reply.startsWith("Something went wrong reaching the server.") ||
-        reply.startsWith("NVIDIA NIM error:") ||
-        reply.startsWith("VANT's model request timed out");
-
-      if (initialModelFailure) {
-        console.warn("VANT: GPT-OSS Team Member response failed; retrying with primary VANT model.");
-        const fallbackReply = await askClaude(
-          vantPrompt,
-          [{ role: "user", content: cleanPrompt }],
-          null,
-          58000,
-          null,
-          false,
-          { model: "google/gemma-4-31b-it", max_tokens: 2048 }
-        );
-        if (fallbackReply && !fallbackReply.startsWith("The server had trouble reaching the model.") && !fallbackReply.startsWith("Something went wrong reaching the server.") && !fallbackReply.startsWith("NVIDIA NIM error:") && !fallbackReply.startsWith("VANT's model request timed out")) {
-          reply = fallbackReply;
-        }
-      }
 
       const isSilent = String(reply || "").trim() === "__VANT_SILENT__";
       const isModelFailure =
