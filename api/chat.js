@@ -749,64 +749,65 @@ export default async function handler(req, res) {
       return res.end();
     }
 
-    const reader =
-      response.body.getReader();
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let pendingSseText = "";
+    let upstreamDoneMarker = false;
 
-    const decoder =
-      new TextDecoder();
+    // Inspect SSE frames without altering the stream sent to the frontend.
+    function inspectSseText(text, flush = false) {
+      pendingSseText += text;
+      const lines = pendingSseText.split(/\r?\n/);
+      pendingSseText = flush ? "" : (lines.pop() || "");
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const data = trimmed.slice(5).trim();
+        if (data === "[DONE]") {
+          upstreamDoneMarker = true;
+          continue;
+        }
+      }
+    }
 
     try {
       while (true) {
-        const {
-          value,
-          done,
-        } = await reader.read();
+        const { value, done } = await reader.read();
+        if (done) break;
 
-        if (done) {
-          break;
-        }
+        const chunk = decoder.decode(value, { stream: true });
+        inspectSseText(chunk);
+        if (chunk) res.write(chunk);
+      }
 
-        const chunk =
-          decoder.decode(
-            value,
-            {
-              stream: true,
-            }
-          );
+      const finalChunk = decoder.decode();
+      if (finalChunk) {
+        inspectSseText(finalChunk);
+        res.write(finalChunk);
+      }
+      inspectSseText("", true);
 
-        if (chunk) {
-          res.write(chunk);
-        }
+      if (!upstreamDoneMarker) {
+        // Never manufacture [DONE] when the upstream did not confirm completion.
+        res.write(
+          `data: ${JSON.stringify({ error: "stream_interrupted" })}\n\n`
+        );
       }
     } catch (err) {
-      console.error(
-        "VANT stream error:",
-        err
-      );
-
+      console.error("VANT stream error:", err);
       try {
         res.write(
-          `data: ${JSON.stringify({
-            error:
-              "stream_interrupted",
-          })}\n\n`
+          `data: ${JSON.stringify({ error: "stream_interrupted" })}\n\n`
         );
       } catch {
         // Client disconnected.
       }
     } finally {
-      try {
-        res.write(
-          "data: [DONE]\n\n"
-        );
-      } catch {
-        // Client disconnected.
-      }
-
       res.end();
     }
 
-    return;
+    return;    return;
   }
 
   /* =========================================================
