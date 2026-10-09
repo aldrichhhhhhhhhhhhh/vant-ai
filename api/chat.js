@@ -4,8 +4,7 @@ export const config = {
 
 import { createClient } from "@supabase/supabase-js";
 
-const MODEL = "google/gemma-4-31b-it";
-const TEAM_VANT_MODEL = "openai/gpt-oss-20b";
+const MODEL = "openai/gpt-oss-20b";
 const NVIDIA_URL =
   "https://integrate.api.nvidia.com/v1/chat/completions";
 
@@ -466,10 +465,9 @@ export default async function handler(req, res) {
     stream = false,
   } = req.body || {};
 
-  const requestedModel =
-    model === TEAM_VANT_MODEL
-      ? TEAM_VANT_MODEL
-      : MODEL;
+  // Unified VANT engine: all AI Chat requests use GPT-OSS 20B.
+  // Ignore legacy model hints from older clients.
+  const requestedModel = MODEL;
 
   if (
     system !== undefined &&
@@ -555,20 +553,9 @@ export default async function handler(req, res) {
         ...validMessages,
       ],
 
-      temperature:
-        requestedModel === TEAM_VANT_MODEL
-          ? 0.6
-          : getVantTemperature(
-              validMessages,
-              hasImage
-            ),
+      temperature: 0.6,
 
-      top_p:
-        requestedModel === TEAM_VANT_MODEL
-          ? 0.7
-          : 0.95,
-
-      top_k: 64,
+      top_p: 0.7,
 
       /*
        * Keep responses fast enough for Vercel.
@@ -583,17 +570,8 @@ export default async function handler(req, res) {
 
       stream,
 
-      ...(requestedModel === MODEL
-        ? {
-            chat_template_kwargs: {
-              enable_thinking: false,
-            },
-          }
-        : {
-            // Team + VANT uses GPT-OSS for speed; keep reasoning light
-            // so short requests reliably produce visible answer content.
-            reasoning_effort: "low",
-          }),
+      // Keep reasoning light for responsive everyday work.
+      reasoning_effort: "low",
     };
   } catch {
     return json(res, 400, {
