@@ -108,11 +108,6 @@ export default async function handler(req, res) {
     });
   }
 
-  const baseMessages = [
-    ...(system ? [{ role: "system", content: system }] : []),
-    ...messages,
-  ];
-
   // Use the same provider, completion, continuation, and timeout engine as Chat.
   const baseMessages = [
     ...(system ? [{ role: "system", content: system }] : []),
