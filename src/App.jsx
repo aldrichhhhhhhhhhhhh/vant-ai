@@ -2298,7 +2298,9 @@ Respond naturally like a sharp work partner.
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden" }}>
           {projectMode && <div style={{ padding: "10px 24px", borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", gap: 9, color: theme.textMuted, fontSize: 12.5 }}><FolderKanban size={15} color={ac("violet", isDark)} /><span style={{ fontWeight: 600, color: theme.text }}>{projectName}</span><span>· Project Chat</span><button type="button" onClick={onBackToProject} style={{ marginLeft: "auto", border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, borderRadius: 9, padding: "6px 9px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><ArrowLeft size={13} /> Back to Project</button></div>}
           {!chatHistoryReady ? (
-            <div aria-hidden="true" style={{ flex: 1, minHeight: 0 }} />
+            <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", color: theme.textMuted, fontSize: 13 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 9 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: ac("violet", isDark), animation: "vant-pulse 1s ease-in-out infinite" }} />Restoring your workspace…</span>
+            </div>
           ) : (
           <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "24px 24px 36px", boxSizing: "border-box", overflow: "auto" }}>
             <div style={{ width: "min(1080px, 100%)", maxWidth: 1080, margin: "0 auto" }}>
