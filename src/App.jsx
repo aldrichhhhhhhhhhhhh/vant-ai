@@ -254,6 +254,7 @@ async function askClaude(
     let buffer = "";
     let fullText = "";
     let streamFinished = false;
+    let streamError = "";
 
     function processLine(line) {
       const trimmed = line.trim();
@@ -278,6 +279,13 @@ async function askClaude(
 
       try {
         const event = JSON.parse(payload);
+
+        if (event?.error) {
+          streamError =
+            event.detail ||
+            "VANT could not confirm that this response completed.";
+          return false;
+        }
 
         const delta = event?.choices?.[0]?.delta;
 
@@ -337,6 +345,15 @@ async function askClaude(
 
     clearTimeout(timer);
     if (externalSignal) externalSignal.removeEventListener("abort", abortFromCaller);
+
+    if (streamError) {
+      const warning = `\n\n**Response status:** ${streamError}`;
+      const visibleText = fullText.trim()
+        ? `${fullText.trim()}${warning}`
+        : `VANT couldn't complete this response. ${streamError}`;
+      if (typeof onChunk === "function") onChunk(visibleText);
+      return visibleText;
+    }
 
     return (
       fullText.trim() ||
