@@ -17,10 +17,74 @@ function continuationMessages(baseMessages, answer) {
   ];
 }
 
+const MAX_CONTEXT_MESSAGES = 14;
+const MAX_CONTEXT_TEXT_CHARS = 32_000;
+const MAX_MESSAGE_TEXT_CHARS = 12_000;
+
+function contentTextLength(content) {
+  if (typeof content === "string") return content.length;
+  if (!Array.isArray(content)) return 0;
+  return content.reduce((sum, part) => {
+    if (typeof part?.text === "string") return sum + part.text.length;
+    return sum;
+  }, 0);
+}
+
+function trimMessageContent(content, maxChars) {
+  if (typeof content === "string") {
+    return content.length > maxChars
+      ? `[Earlier content trimmed to fit the model context.]\\n${content.slice(-maxChars)}`
+      : content;
+  }
+  if (!Array.isArray(content)) return content;
+
+  // Preserve image_url parts; trim only text parts, starting with the newest text.
+  let remaining = maxChars;
+  const reversed = [...content].reverse().map((part) => {
+    if (part?.type !== "text" || typeof part.text !== "string") return part;
+    const text = part.text;
+    if (text.length <= remaining) {
+      remaining -= text.length;
+      return part;
+    }
+    const kept = text.slice(-Math.max(0, remaining));
+    remaining = 0;
+    return { ...part, text: `[Earlier text trimmed.]\\n${kept}` };
+  });
+  return reversed.reverse();
+}
+
+function fitMessagesToContext(messages) {
+  const systemMessages = messages.filter((message) => message?.role === "system");
+  const conversationMessages = messages.filter((message) => message?.role !== "system");
+  const recentMessages = conversationMessages.slice(-(MAX_CONTEXT_MESSAGES - systemMessages.length));
+  const selected = [...systemMessages, ...recentMessages];
+
+  let remaining = MAX_CONTEXT_TEXT_CHARS - systemMessages.reduce(
+    (sum, message) => sum + contentTextLength(message.content), 0
+  );
+  for (let i = selected.length - 1; i >= systemMessages.length; i -= 1) {
+    if (remaining <= 0) {
+      selected[i] = { ...selected[i], content: trimMessageContent(selected[i].content, 0) };
+      continue;
+    }
+    const length = contentTextLength(selected[i].content);
+    const allowance = Math.min(MAX_MESSAGE_TEXT_CHARS, remaining);
+    if (length > allowance) {
+      selected[i] = {
+        ...selected[i],
+        content: trimMessageContent(selected[i].content, allowance),
+      };
+    }
+    remaining -= Math.min(length, allowance);
+  }
+  return selected;
+}
+
 function providerPayload(messages, options = {}) {
   return {
     model: MODEL,
-    messages,
+    messages: fitMessagesToContext(messages),
     temperature: options.temperature ?? 0.6,
     top_p: options.top_p ?? 0.7,
     max_tokens: options.max_tokens ?? MAX_OUTPUT_TOKENS,
