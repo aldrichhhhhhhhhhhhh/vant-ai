@@ -1710,7 +1710,7 @@ function ChatPage({
       setMessages([]);
       setStarted(false);
     }
-  }, [activeConversationId, chatHistoryReady]);
+  }, [activeConversationId, activeConversation?.messages, chatHistoryReady]);
   const [messages, setMessages] = useState(activeConversation?.messages || []);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
