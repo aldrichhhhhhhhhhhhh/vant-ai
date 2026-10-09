@@ -162,7 +162,8 @@ export async function streamVant(apiKey, messages, res, options = {}) {
 
   const send = (event) => {
     if (!res.destroyed && !res.writableEnded) {
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
+      const data = event === "[DONE]" ? "[DONE]" : JSON.stringify(event);
+      res.write(`data: ${data}\n\n`);
     }
   };
 
