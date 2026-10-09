@@ -9,7 +9,8 @@ const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const MAX_REQUEST_CHARS = 4_000_000;
 const MAX_MESSAGES = 40;
 const NVIDIA_TIMEOUT_MS = 45_000;
-const MAX_OUTPUT_TOKENS = 4096;
+// Deep-work output budget for professional project answers.
+const MAX_OUTPUT_TOKENS = 8192;
 
 function json(res, status, body) {
   return res.status(status).json(body);
