@@ -9,7 +9,7 @@ const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const MAX_REQUEST_CHARS = 4_000_000;
 const MAX_MESSAGES = 40;
 const NVIDIA_TIMEOUT_MS = 45_000;
-const MAX_OUTPUT_TOKENS = 2048;
+const MAX_OUTPUT_TOKENS = 4096;
 
 function json(res, status, body) {
   return res.status(status).json(body);
@@ -210,5 +210,7 @@ export default async function handler(req, res) {
     model: MODEL,
     engine: "gpt-oss",
     reasoning_effort: "low",
+    finish_reason: data?.choices?.[0]?.finish_reason || null,
+    usage: data?.usage || null,
   });
 }
