@@ -558,15 +558,15 @@ export default async function handler(req, res) {
       top_p: 0.7,
 
       /*
-       * Keep responses fast enough for Vercel.
-       * 4096 was contributing to long-running requests.
+       * Remove the old 2048-token ceiling for long-form answers.
+       * Keep image requests smaller for latency; request timeout remains bounded.
        */
       max_tokens:
         Number.isFinite(Number(max_tokens))
-          ? Math.max(64, Math.min(2048, Number(max_tokens)))
+          ? Math.max(64, Math.min(8192, Number(max_tokens)))
           : hasImage
             ? 900
-            : 2048,
+            : 8192,
 
       stream,
 
