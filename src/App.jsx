@@ -23,14 +23,16 @@ const FONT_IMPORT = `
 // ---------------------------------------------------------------------------
 const THEMES = {
   dark: {
-    bg: "#07090f", sidebarBg: "#0a0c12", surface: "rgba(255,255,255,0.04)", surfaceStrong: "rgba(255,255,255,0.08)",
-    surfaceCard: "#0e1117", border: "rgba(255,255,255,0.08)", borderStrong: "rgba(255,255,255,0.15)",
-    text: "#f0f0f8", textMuted: "#8b8fa8", textFaint: "#5b5f74", inputBg: "rgba(255,255,255,0.05)",
+    // VANT dark mode: deep ink workspace, near-black navigation, restrained violet/cyan accents.
+    bg: "#111019", sidebarBg: "#100F18", surface: "rgba(255,255,255,0.035)", surfaceStrong: "rgba(255,255,255,0.075)",
+    surfaceCard: "#191626", border: "rgba(177,164,255,0.11)", borderStrong: "rgba(177,164,255,0.22)",
+    text: "#F5F3FF", textMuted: "#A6A1BC", textFaint: "#77718F", inputBg: "#171522",
   },
   light: {
-    bg: "#f5f5fa", sidebarBg: "#ffffff", surface: "rgba(15,15,35,0.045)", surfaceStrong: "rgba(15,15,35,0.08)",
-    surfaceCard: "#ffffff", border: "rgba(15,15,35,0.10)", borderStrong: "rgba(15,15,35,0.2)",
-    text: "#15151f", textMuted: "#5a5f72", textFaint: "#8a8fa0", inputBg: "rgba(15,15,35,0.04)",
+    // Light mode keeps the same dark navigation while opening the main workspace.
+    bg: "#F4F4F8", sidebarBg: "#17151F", surface: "rgba(24,20,40,0.035)", surfaceStrong: "rgba(24,20,40,0.07)",
+    surfaceCard: "#FFFFFF", border: "rgba(32,26,52,0.10)", borderStrong: "rgba(32,26,52,0.18)",
+    text: "#24212F", textMuted: "#696579", textFaint: "#9994A8", inputBg: "#FFFFFF",
   },
 };
 
@@ -491,38 +493,37 @@ async function askVant(
 
 function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSettings }) {
   return (
-    <div style={{ width: 84, flexShrink: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", gap: 8 }}>
-      <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(124,58,237,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-        <span style={{ color: "#c4b5fd", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: 16 }}>V</span>
+    <aside style={{ width: 224, flexShrink: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", padding: "20px 14px", gap: 7, color: "#F5F3FF" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 10px 22px", marginBottom: 10, borderBottom: "1px solid rgba(177,164,255,0.13)" }}>
+        <div style={{ width: 30, height: 30, borderRadius: 9, background: "linear-gradient(135deg,#9A83FF,#28C7E8)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(74,190,245,0.16)" }}>
+          <span style={{ color: "#111019", fontFamily: "JetBrains Mono, monospace", fontWeight: 700, fontSize: 15 }}>V</span>
+        </div>
+        <span style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 21, fontWeight: 600, letterSpacing: 0.2, color: "#F8F6FF" }}>VANT</span>
       </div>
-      {NAV.map((item) => {
-        const Icon = item.icon;
-        const isActive = active === item.id;
-        return (
-          <button key={item.id} onClick={() => onSelect(item.id)} style={{ width: 64, padding: "8px 4px", borderRadius: 12, border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, background: isActive ? acBg(item.accentKey) : "transparent" }}>
-            <Icon size={18} color={isActive ? ac(item.accentKey, isDark) : theme.textFaint} strokeWidth={1.8} />
-            <span style={{ fontSize: 9.5, color: isActive ? ac(item.accentKey, isDark) : theme.textFaint, textAlign: "center", lineHeight: 1.2 }}>{item.label}</span>
-          </button>
-        );
-      })}
-      <button
-        onClick={onOpenSettings}
-        title="Settings"
-        style={{ marginTop: "auto", width: 44, height: 44, borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-      >
-        <Settings size={17} color={theme.textMuted} />
+      <nav aria-label="Main navigation" style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        {NAV.map((item) => {
+          const Icon = item.icon;
+          const isActive = active === item.id;
+          return (
+            <button key={item.id} onClick={() => onSelect(item.id)} aria-current={isActive ? "page" : undefined} style={{ width: "100%", minHeight: 43, padding: "10px 12px", borderRadius: 12, border: "1px solid " + (isActive ? "rgba(139,123,255,0.16)" : "transparent"), borderLeft: isActive ? "2px solid #35D6EA" : "2px solid transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", background: isActive ? "rgba(126,105,220,0.19)" : "transparent", transition: "background 160ms ease" }}>
+              <Icon size={18} color={isActive ? "#45D9EC" : "#AAA4C2"} strokeWidth={1.8} />
+              <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 500, color: isActive ? "#FFFFFF" : "#C3BED4", lineHeight: 1.2 }}>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+      <div style={{ flex: 1 }} />
+      <button onClick={onOpenSettings} title="Settings" style={{ width: "100%", minHeight: 40, padding: "9px 12px", borderRadius: 10, border: "1px solid transparent", background: "transparent", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
+        <Settings size={17} color="#AAA4C2" />
+        <span style={{ fontSize: 12.5, color: "#C3BED4" }}>Settings</span>
       </button>
-      <button
-        onClick={onToggleTheme}
-        title={isDark ? "Switch to Day theme" : "Switch to Dark theme"}
-        style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.surface, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-      >
-        {isDark ? <Sun size={17} color={theme.textMuted} /> : <Moon size={17} color={theme.textMuted} />}
+      <button onClick={onToggleTheme} title={isDark ? "Switch to Light mode" : "Switch to Dark mode"} style={{ width: "100%", minHeight: 40, padding: "9px 12px", borderRadius: 10, border: "1px solid rgba(177,164,255,0.12)", background: "rgba(255,255,255,0.035)", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
+        {isDark ? <Sun size={17} color="#AAA4C2" /> : <Moon size={17} color="#AAA4C2" />}
+        <span style={{ fontSize: 12.5, color: "#C3BED4" }}>{isDark ? "Light mode" : "Dark mode"}</span>
       </button>
-    </div>
+    </aside>
   );
 }
-
 // ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------
@@ -4190,12 +4191,18 @@ export default function VantWorkingPrototype() {
   }
 
   return (
-    <div style={{ height: "100vh", minHeight: 640, display: "flex", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif", overflow: "hidden" }}>
-      <style>{FONT_IMPORT}</style>
+    <div style={{ height: "100vh", minHeight: 640, display: "flex", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif", overflow: "hidden", border: isDark ? "1px solid rgba(177,164,255,0.08)" : "1px solid rgba(32,26,52,0.08)", boxSizing: "border-box" }}>
+      <style>{FONT_IMPORT + `
+        * { box-sizing: border-box; }
+        button { -webkit-tap-highlight-color: transparent; }
+        @media (max-width: 760px) {
+          .vant-sidebar-label { display: none; }
+        }
+      `}</style>
       <Sidebar active={active} onSelect={setActive} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} onOpenSettings={() => setSettingsOpen(true)} />
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: theme.bg }}> 
         <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={() => setAuthMode("signup")} onOpenSettings={() => setSettingsOpen(true)} />
-        <div style={{ flex: 1, minHeight: 0 }}>{renderPage()}</div>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>{renderPage()}</div>
       </div>
       {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
       {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} accessCode={accessCode} onAccessCodeChange={handleAccessCodeChange} />}
