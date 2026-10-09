@@ -3,6 +3,7 @@ export const config = {
 };
 
 import { createClient } from "@supabase/supabase-js";
+import { completeVant, streamVant } from "./_vant-engine.js";
 
 const MODEL = "openai/gpt-oss-20b";
 const NVIDIA_URL =
@@ -532,333 +533,48 @@ export default async function handler(req, res) {
     );
 
   /* ---------------------------------------------------------
-     BUILD NVIDIA REQUEST
+     UNIFIED GPT-OSS ENGINE
      --------------------------------------------------------- */
 
-  let payload;
+  const engineMessages = [
+    ...(system ? [{ role: "system", content: system }] : []),
+    ...validMessages,
+  ];
 
-  try {
-    payload = {
-      model: requestedModel,
+  const requestedMaxTokens =
+    Number.isFinite(Number(max_tokens))
+      ? Math.max(64, Math.min(8192, Number(max_tokens)))
+      : hasImage
+        ? 900
+        : 8192;
 
-      messages: [
-        ...(system
-          ? [
-              {
-                role: "system",
-                content: system,
-              },
-            ]
-          : []),
-        ...validMessages,
-      ],
-
-      temperature: 0.6,
-
-      top_p: 0.7,
-
-      /*
-       * Remove the old 2048-token ceiling for long-form answers.
-       * Keep image requests smaller for latency; request timeout remains bounded.
-       */
-      max_tokens:
-        Number.isFinite(Number(max_tokens))
-          ? Math.max(64, Math.min(8192, Number(max_tokens)))
-          : hasImage
-            ? 900
-            : 8192,
-
-      stream,
-
-      // Keep reasoning light for responsive everyday work.
-      reasoning_effort: "low",
-    };
-  } catch {
-    return json(res, 400, {
-      error: "invalid_payload",
-    });
-  }
-
-  /* ---------------------------------------------------------
-     PAYLOAD SIZE PROTECTION
-     --------------------------------------------------------- */
-
-  const serialized =
-    JSON.stringify(payload);
-
-  if (
-    serialized.length >
-    MAX_REQUEST_CHARS
-  ) {
-    return json(res, 413, {
-      error: "payload_too_large",
-    });
-  }
-
-  /* ---------------------------------------------------------
-     NVIDIA NIM REQUEST
-     --------------------------------------------------------- */
-
-  let response;
-
-  try {
-    response = await fetch(
-      NVIDIA_URL,
-      {
-        method: "POST",
-
-        headers: {
-          Authorization:
-            `Bearer ${apiKey}`,
-
-          "Content-Type":
-            "application/json",
-
-          Accept: stream
-            ? "text/event-stream"
-            : "application/json",
-        },
-
-        body: serialized,
-
-        signal:
-          AbortSignal.timeout(
-            NVIDIA_TIMEOUT_MS
-          ),
-      }
-    );
-  } catch (err) {
-    if (
-      err?.name ===
-        "TimeoutError" ||
-      err?.name ===
-        "AbortError"
-    ) {
-      console.error(
-        "VANT NVIDIA timeout"
-      );
-
-      return json(res, 504, {
-        error: "nvidia_timeout",
-
-        detail:
-          "NVIDIA NIM did not begin responding within 55 seconds.",
-      });
-    }
-
-    console.error(
-      "VANT NVIDIA connection error:",
-      err
-    );
-
-    return json(res, 502, {
-      error:
-        "nvidia_connection_failed",
-
-      detail:
-        "Could not connect to NVIDIA NIM.",
-    });
-  }
-
-  /* ---------------------------------------------------------
-     NVIDIA ERROR
-     --------------------------------------------------------- */
-
-  if (!response.ok) {
-    let data = {};
-
-    try {
-      data =
-        await response.json();
-    } catch {
-      // Ignore JSON parse failure.
-    }
-
-    const detail =
-      data?.error?.message ||
-      data?.detail ||
-      data?.message ||
-      `NVIDIA NIM returned HTTP ${response.status}.`;
-
-    console.error(
-      "VANT NVIDIA API error:",
-      response.status,
-      data
-    );
-
-    return json(
-      res,
-      response.status >= 400 &&
-        response.status < 500
-        ? response.status
-        : 502,
-      {
-        error:
-          "nvidia_api_error",
-
-        detail,
-      }
-    );
-  }
-
-  /* =========================================================
-     STREAMING RESPONSE
-     ========================================================= */
+  const engineOptions = {
+    temperature: 0.6,
+    top_p: 0.7,
+    max_tokens: requestedMaxTokens,
+    reasoning_effort: "low",
+  };
 
   if (stream) {
-    res.statusCode = 200;
-
-    res.setHeader(
-      "Content-Type",
-      "text/event-stream; charset=utf-8"
-    );
-
-    res.setHeader(
-      "Cache-Control",
-      "no-cache, no-transform"
-    );
-
-    res.setHeader(
-      "Connection",
-      "keep-alive"
-    );
-
-    res.setHeader(
-      "X-Accel-Buffering",
-      "no"
-    );
-
-    if (
-      typeof res.flushHeaders ===
-      "function"
-    ) {
-      res.flushHeaders();
-    }
-
-    if (!response.body) {
-      res.write(
-        `data: ${JSON.stringify({
-          error: "empty_stream",
-        })}\n\n`
-      );
-
-      res.write(
-        "data: [DONE]\n\n"
-      );
-
-      return res.end();
-    }
-
-    const reader =
-      response.body.getReader();
-
-    const decoder =
-      new TextDecoder();
-
-    try {
-      while (true) {
-        const {
-          value,
-          done,
-        } = await reader.read();
-
-        if (done) {
-          break;
-        }
-
-        const chunk =
-          decoder.decode(
-            value,
-            {
-              stream: true,
-            }
-          );
-
-        if (chunk) {
-          res.write(chunk);
-        }
-      }
-    } catch (err) {
-      console.error(
-        "VANT stream error:",
-        err
-      );
-
-      try {
-        res.write(
-          `data: ${JSON.stringify({
-            error:
-              "stream_interrupted",
-          })}\n\n`
-        );
-      } catch {
-        // Client disconnected.
-      }
-    } finally {
-      try {
-        res.write(
-          "data: [DONE]\n\n"
-        );
-      } catch {
-        // Client disconnected.
-      }
-
-      res.end();
-    }
-
-    return;
+    return streamVant(apiKey, engineMessages, res, engineOptions);
   }
-
-  /* =========================================================
-     NON-STREAMING FALLBACK
-     ========================================================= */
-
-  let data;
 
   try {
-    data =
-      await response.json();
-  } catch {
-    return json(res, 502, {
-      error:
-        "invalid_nvidia_response",
-
-      detail:
-        "NVIDIA NIM returned a response that could not be parsed as JSON.",
+    const result = await completeVant(apiKey, engineMessages, engineOptions);
+    return json(res, 200, {
+      content: [{ type: "text", text: result.text }],
+      model: result.model,
+      engine: "gpt-oss",
+      finish_reason: result.finish_reason,
+      completion_passes: result.completion_passes,
+      usage: result.usage,
+    });
+  } catch (error) {
+    console.error("VANT unified completion error:", error);
+    const incomplete = error?.code === "response_incomplete";
+    return json(res, incomplete ? 502 : error?.status || 502, {
+      error: incomplete ? "vant_response_incomplete" : "vant_model_unavailable",
+      detail: error?.message || "The model could not complete the request.",
     });
   }
-
-  const content =
-    data?.choices?.[0]
-      ?.message?.content;
-
-  if (
-    typeof content !==
-      "string" ||
-    !content.trim()
-  ) {
-    console.error(
-      "VANT empty NVIDIA response:",
-      data
-    );
-
-    return json(res, 502, {
-      error:
-        "empty_model_response",
-
-      detail:
-        "The model returned no text content.",
-    });
-  }
-
-  return json(res, 200, {
-    content: [
-      {
-        type: "text",
-        text: content,
-      },
-    ],
-
-    model: requestedModel,
-  });
 }
