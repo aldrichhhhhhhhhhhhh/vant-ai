@@ -3680,6 +3680,18 @@ export default function VantWorkingPrototype() {
     try { localStorage.setItem("vant_access_code", value); } catch { /* storage unavailable */ }
   }
 
+  function activeChatStorageKey(userId) {
+    return `vant_active_chat_${userId || "guest"}`;
+  }
+
+  function rememberActiveChat(userId, conversationId) {
+    try {
+      const key = activeChatStorageKey(userId);
+      if (conversationId) localStorage.setItem(key, conversationId);
+      else localStorage.removeItem(key);
+    } catch { /* storage unavailable */ }
+  }
+
   function loadLocalChats(userId) {
     try {
       const raw = localStorage.getItem(chatStorageKey(userId));
@@ -3705,7 +3717,12 @@ export default function VantWorkingPrototype() {
     setChatCloudAvailable(false);
 
     if (!authUser) {
-      setConversations(loadLocalChats(null));
+      const localChats = loadLocalChats(null);
+      setConversations(localChats);
+      try {
+        const rememberedId = localStorage.getItem(activeChatStorageKey(null));
+        setActiveConversationId(localChats.some((chat) => chat.id === rememberedId) ? rememberedId : null);
+      } catch { setActiveConversationId(null); }
       setChatHistoryReady(true);
       return;
     }
@@ -3723,9 +3740,18 @@ export default function VantWorkingPrototype() {
       setConversations(cloudChats);
       setChatCloudAvailable(true);
       writeLocalChats(authUser.id, cloudChats);
+      try {
+        const rememberedId = localStorage.getItem(activeChatStorageKey(authUser.id));
+        setActiveConversationId(cloudChats.some((chat) => chat.id === rememberedId) ? rememberedId : null);
+      } catch { setActiveConversationId(null); }
     } else {
       console.error("VANT: cloud chat history unavailable; using local history", error);
-      setConversations(loadLocalChats(authUser.id));
+      const localChats = loadLocalChats(authUser.id);
+      setConversations(localChats);
+      try {
+        const rememberedId = localStorage.getItem(activeChatStorageKey(authUser.id));
+        setActiveConversationId(localChats.some((chat) => chat.id === rememberedId) ? rememberedId : null);
+      } catch { setActiveConversationId(null); }
     }
 
     setChatHistoryReady(true);
@@ -3733,6 +3759,7 @@ export default function VantWorkingPrototype() {
 
   function newConversation() {
     setActiveConversationId(null);
+    rememberActiveChat(user?.id || null, null);
     setNewChatNonce((value) => value + 1);
     setActive("chat");
   }
@@ -3769,6 +3796,7 @@ export default function VantWorkingPrototype() {
       });
     }
     setActiveConversationId(id);
+    rememberActiveChat(user?.id || null, id);
     return id;
   }
 
@@ -3824,7 +3852,10 @@ export default function VantWorkingPrototype() {
       if (user?.id) writeLocalChats(user.id, next); else writeLocalChats(null, next);
       return next;
     });
-    if (activeConversationId === id) setActiveConversationId(null);
+    if (activeConversationId === id) {
+      setActiveConversationId(null);
+      rememberActiveChat(user?.id || null, null);
+    }
     if (chatCloudAvailable && user?.id) {
       supabase.from("chat_conversations").delete().eq("id", id).eq("user_id", user.id).then(({ error }) => {
         if (error) console.error("VANT: failed to delete cloud conversation", error);
@@ -3834,6 +3865,7 @@ export default function VantWorkingPrototype() {
 
   function selectConversation(id) {
     setActiveConversationId(id);
+    rememberActiveChat(user?.id || null, id);
     setActive("chat");
   }
 
