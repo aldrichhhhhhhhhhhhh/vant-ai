@@ -541,12 +541,17 @@ export default async function handler(req, res) {
     ...validMessages,
   ];
 
-  const requestedMaxTokens =
-    Number.isFinite(Number(max_tokens))
-      ? Math.max(64, Math.min(8192, Number(max_tokens)))
-      : hasImage
-        ? 900
-        : 8192;
+  const hasExplicitMaxTokens =
+    max_tokens !== null &&
+    max_tokens !== undefined &&
+    max_tokens !== "" &&
+    Number.isFinite(Number(max_tokens));
+
+  const requestedMaxTokens = hasExplicitMaxTokens
+    ? Math.max(64, Math.min(8192, Number(max_tokens)))
+    : hasImage
+      ? 900
+      : 8192;
 
   const engineOptions = {
     temperature: 0.6,
