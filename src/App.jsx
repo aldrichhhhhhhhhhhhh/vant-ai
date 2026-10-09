@@ -1702,6 +1702,15 @@ function ChatPage({
 }) {
   const activeConversation = conversations.find((item) => item.id === activeConversationId) || null;
   const [started, setStarted] = useState(Boolean(activeConversation?.messages?.length));
+  useEffect(() => {
+    if (activeConversation?.messages?.length) {
+      setMessages(activeConversation.messages);
+      setStarted(true);
+    } else if (chatHistoryReady && !activeConversationId) {
+      setMessages([]);
+      setStarted(false);
+    }
+  }, [activeConversationId, chatHistoryReady]);
   const [messages, setMessages] = useState(activeConversation?.messages || []);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
