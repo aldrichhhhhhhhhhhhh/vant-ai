@@ -3,7 +3,7 @@ export const config = {
 };
 
 import { createClient } from "@supabase/supabase-js";
-import { completeVant, streamVant } from "./_vant-engine.js";
+import { completeVant } from "./_vant-engine.js";
 
 const MODEL = "openai/gpt-oss-20b";
 const NVIDIA_URL =
@@ -560,12 +560,33 @@ export default async function handler(req, res) {
     reasoning_effort: "low",
   };
 
-  if (stream) {
-    return streamVant(apiKey, engineMessages, res, engineOptions);
-  }
-
   try {
+    // Main Chat now uses the same completion/continuation path as Projects.
+    // For streaming clients, preserve the existing SSE contract and only
+    // signal completion after the shared engine confirms a complete answer.
     const result = await completeVant(apiKey, engineMessages, engineOptions);
+
+    if (stream) {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      if (typeof res.flushHeaders === "function") res.flushHeaders();
+
+      res.write(`data: ${JSON.stringify({
+        choices: [{ delta: { content: result.text }, finish_reason: null }],
+      })}\n\n`);
+      res.write(`data: ${JSON.stringify({
+        choices: [{ delta: {}, finish_reason: result.finish_reason || "stop" }],
+        model: result.model,
+        completion_passes: result.completion_passes,
+        usage: result.usage,
+      })}\n\n`);
+      res.write("data: [DONE]\n\n");
+      return res.end();
+    }
+
     return json(res, 200, {
       content: [{ type: "text", text: result.text }],
       model: result.model,
