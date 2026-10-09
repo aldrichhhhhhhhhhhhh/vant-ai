@@ -366,6 +366,10 @@ async function askClaude(
       return "VANT detected that the model reached its output-token limit before finishing. The partial text was not saved as a completed answer. Please retry with a narrower request.";
     }
 
+    if (providerFinishReason == null) {
+      return "VANT received no confirmed model finish status. The partial text was not saved as a completed answer. Please retry.";
+    }
+
     return (
       fullText.trim() ||
       "I couldn't generate a response — try rephrasing."
