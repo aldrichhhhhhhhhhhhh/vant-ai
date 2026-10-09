@@ -270,7 +270,7 @@ export async function streamVant(apiKey, messages, res, options = {}) {
           usage,
           completion_passes: passes,
         });
-        sendDone = true;
+        sentDone = true;
         send("[DONE]");
         return;
       }
@@ -288,10 +288,10 @@ export async function streamVant(apiKey, messages, res, options = {}) {
       detail: error.message || "The response was interrupted before completion.",
       partial: answerParts.length > 0,
     });
-    sendDone = true;
+    sentDone = true;
     send("[DONE]");
   } finally {
-    if (!sendDone) send("[DONE]");
+    if (!sentDone) send("[DONE]");
     if (!res.writableEnded) res.end();
   }
 }
