@@ -1340,7 +1340,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
       </div>
     );
     return (
-      <aside style={{ width: 270, flexShrink: 0, borderRight: `1px solid ${theme.border}`, background: theme.sidebarBg, display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <aside style={{ width: 270, flexShrink: 0, borderRight: `1px solid ${theme.border}`, background: isDark ? theme.sidebarBg : theme.surfaceCard, color: theme.text, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div style={{ padding: "16px 14px 12px", borderBottom: `1px solid ${theme.border}` }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div>
