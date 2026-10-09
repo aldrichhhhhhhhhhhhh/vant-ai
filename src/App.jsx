@@ -1699,6 +1699,7 @@ function ChatPage({
   projectName = "",
   projectMode = false,
   onBackToProject = null,
+  chatHistoryReady = true,
 }) {
   const activeConversation = conversations.find((item) => item.id === activeConversationId) || null;
   const [started, setStarted] = useState(Boolean(activeConversation?.messages?.length));
@@ -4194,6 +4195,7 @@ export default function VantWorkingPrototype() {
     if (active === "chat") return <ChatPage
       key={newChatNonce}
       {...props}
+      chatHistoryReady={chatHistoryReady}
       onGoToIntegrations={() => setActive("integrations")}
       conversations={conversations.filter((item) => !item.projectId)}
       activeConversationId={activeConversationId}
