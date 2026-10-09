@@ -254,6 +254,9 @@ async function askClaude(
     let buffer = "";
     let fullText = "";
     let streamFinished = false;
+    let doneMarkerReceived = false;
+    let providerFinishReason = null;
+    let streamError = null;
 
     function processLine(line) {
       const trimmed = line.trim();
@@ -273,19 +276,30 @@ async function askClaude(
       }
 
       if (payload === "[DONE]") {
+        doneMarkerReceived = true;
         return true;
       }
 
       try {
         const event = JSON.parse(payload);
 
-        const delta = event?.choices?.[0]?.delta;
+        if (event?.error) {
+          streamError = event.error;
+          return false;
+        }
+
+        const choice = event?.choices?.[0];
+        if (choice?.finish_reason != null) {
+          providerFinishReason = choice.finish_reason;
+        }
+
+        const delta = choice?.delta;
 
         const piece =
           typeof delta?.content === "string"
             ? delta.content
-            : typeof event?.choices?.[0]?.text === "string"
-              ? event.choices[0].text
+            : typeof choice?.text === "string"
+              ? choice.text
               : "";
 
         if (piece) {
@@ -332,11 +346,25 @@ async function askClaude(
     }
 
     if (buffer.trim()) {
-      processLine(buffer);
+      if (processLine(buffer)) {
+        streamFinished = true;
+      }
     }
 
     clearTimeout(timer);
     if (externalSignal) externalSignal.removeEventListener("abort", abortFromCaller);
+
+    if (streamError) {
+      return "VANT detected an interrupted model response. The partial text was not saved as a completed answer. Please retry.";
+    }
+
+    if (!doneMarkerReceived) {
+      return "VANT detected that the model stream ended before completion was confirmed. The partial text was not saved as a completed answer. Please retry or shorten the request.";
+    }
+
+    if (providerFinishReason === "length") {
+      return "VANT detected that the model reached its output-token limit before finishing. The partial text was not saved as a completed answer. Please retry with a narrower request.";
+    }
 
     return (
       fullText.trim() ||
