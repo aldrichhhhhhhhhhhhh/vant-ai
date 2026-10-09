@@ -2353,20 +2353,35 @@ Respond naturally like a sharp work partner.
   return (
     <div style={{ height: "100%", display: "flex", minWidth: 0 }}>
       <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} />
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <div className="vant-chat-workspace" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <style>{`
+        .vant-chat-workspace .vant-message-list { gap: 22px !important; padding: 28px clamp(20px, 4vw, 56px) 30px !important; scroll-behavior: smooth; }
+        .vant-chat-workspace .vant-message-row { width: 100%; }
+        .vant-chat-workspace .vant-message-bubble { max-width: min(82%, 900px) !important; padding: 15px 18px !important; border-radius: 18px !important; font-size: 14px !important; line-height: 1.72 !important; overflow-wrap: anywhere; }
+        .vant-chat-workspace .vant-message-row:not(.vant-user-row) .vant-message-bubble { border: 1px solid ${theme.border}; box-shadow: ${isDark ? "0 3px 16px rgba(0,0,0,.12)" : "0 3px 16px rgba(30,25,60,.035)"}; }
+        .vant-chat-workspace .vant-user-row .vant-message-bubble { border-bottom-right-radius: 6px !important; }
+        .vant-chat-workspace .vant-message-row:not(.vant-user-row) .vant-message-bubble { border-bottom-left-radius: 6px !important; }
+        .vant-chat-workspace .vant-response-actions { opacity: 0; transform: translateY(-3px); pointer-events: none; transition: opacity .16s ease, transform .16s ease; margin-top: 3px !important; }
+        .vant-chat-workspace .vant-message-row:hover .vant-response-actions, .vant-chat-workspace .vant-message-row:focus-within .vant-response-actions, .vant-chat-workspace .vant-response-actions:has(+ .vant-response-panel) { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .vant-chat-workspace .vant-response-actions button { border: 0 !important; background: transparent !important; border-radius: 8px !important; padding: 7px 8px !important; color: ${theme.textMuted} !important; }
+        .vant-chat-workspace .vant-response-actions button:hover { background: ${theme.surfaceStrong} !important; color: ${theme.text} !important; }
+        .vant-chat-workspace .vant-response-actions .vant-response-label { font-size: 9px !important; letter-spacing: 1.25px !important; }
+        @media (hover: none) { .vant-chat-workspace .vant-response-actions { opacity: 1; transform: none; pointer-events: auto; } }
+        @media (max-width: 700px) { .vant-chat-workspace .vant-message-list { padding: 18px 14px 22px !important; gap: 18px !important; } .vant-chat-workspace .vant-message-bubble { max-width: 94% !important; } }
+      `}</style>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 24px", borderBottom: `1px solid ${theme.border}` }}>
         {projectMode && <button type="button" onClick={onBackToProject} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, borderRadius: 9, padding: "6px 9px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5 }}><ArrowLeft size={13} /> Project</button>}
         <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>{projectMode ? `VANT · ${projectName}` : "VANT · Work Session"}</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
       </div>
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div ref={scrollRef} className="vant-message-list" style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
         {messages.map((m, i) => (
-          <div key={i} className="v-fade" style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, background: m.role === "user" ? theme.surfaceStrong : acBg("violet"), color: m.role === "user" ? theme.text : (isDark ? "#e9e0ff" : "#3b1f6b") }}><ChatMessageContent message={m} theme={theme} isDark={isDark} /></div>
+          <div key={i} className={`v-fade vant-message-row ${m.role === "user" ? "vant-user-row" : "vant-assistant-row"}`} style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
+            <div className="vant-message-bubble" style={{ maxWidth: "78%", padding: "12px 16px", borderRadius: 14, fontSize: 14.5, lineHeight: 1.55, background: m.role === "user" ? theme.surfaceStrong : theme.surface, color: theme.text }}><ChatMessageContent message={m} theme={theme} isDark={isDark} /></div>
             {m.content && (
-              <div data-vant-response-actions="true" style={{ position: "relative", marginTop: 6, maxWidth: "78%", width: "fit-content" }}>
-                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5, color: theme.textFaint }}>
-                  <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1.1, marginRight: 2, opacity: 0.9 }}>VANT RESPONSE</span>
+              <div data-vant-response-actions="true" className="vant-response-actions" style={{ position: "relative", marginTop: 6, maxWidth: "82%", width: "fit-content" }}>
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 3, color: theme.textFaint }}>
+                  <span className="vant-response-label" style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1.1, marginRight: 2, opacity: 0.9 }}>VANT RESPONSE</span>
                   <button type="button" onClick={() => copyMessage(m)} title="Copy response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><Copy size={13} />Copy</button>
                   {!loading && i > 0 && <button type="button" onClick={() => regenerateAssistant(i)} title="Regenerate response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><RefreshCw size={13} />Regenerate</button>}
                   <button type="button" onClick={() => setResponsePanel((current) => current?.index === i && current.type === "react" ? null : { index: i, type: "react" })} title="React to response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${responseFeedback[i] ? ac("violet", isDark) : theme.border}`, background: responseFeedback[i] ? acBg("violet") : theme.surface, color: responseFeedback[i] ? ac("violet", isDark) : theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><ThumbsUp size={13} />React</button>
