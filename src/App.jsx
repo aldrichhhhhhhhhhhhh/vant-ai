@@ -1706,11 +1706,11 @@ function ChatPage({
     if (activeConversation?.messages?.length) {
       setMessages(activeConversation.messages);
       setStarted(true);
-    } else if (chatHistoryReady && !activeConversationId) {
+    } else if (!activeConversationId) {
       setMessages([]);
       setStarted(false);
     }
-  }, [activeConversationId, activeConversation?.messages, chatHistoryReady]);
+  }, [activeConversationId, activeConversation?.messages]);
   const [messages, setMessages] = useState(activeConversation?.messages || []);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
