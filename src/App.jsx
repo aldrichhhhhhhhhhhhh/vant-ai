@@ -181,11 +181,17 @@ async function askClaude(
 
     if (!response.ok) {
       let data = {};
+      let responseBody = "";
 
       try {
-        data = await response.json();
+        responseBody = await response.text();
+        try {
+          data = responseBody ? JSON.parse(responseBody) : {};
+        } catch {
+          /* Keep non-JSON gateway/build errors available for diagnosis. */
+        }
       } catch {
-        /* ignore invalid error JSON */
+        /* Response body may be unavailable on a gateway failure. */
       }
 
       if (data?.error === "access_not_configured") {
@@ -215,9 +221,14 @@ async function askClaude(
 
       clearTimeout(timer);
 
-      return data?.detail
-        ? `NVIDIA NIM error: ${data.detail}`
-        : "The server had trouble reaching the model. Try again in a moment.";
+      if (data?.detail) {
+        return `VANT Main Chat API error (${response.status}): ${data.detail}`;
+      }
+
+      const safeBody = responseBody.replace(/\s+/g, " ").trim().slice(0, 500);
+      return safeBody
+        ? `VANT Main Chat API returned HTTP ${response.status}: ${safeBody}`
+        : `VANT Main Chat API returned HTTP ${response.status} with no error details. Check the deployment logs.`;
     }
 
     if (!stream) {
