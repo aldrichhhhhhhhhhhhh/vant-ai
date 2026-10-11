@@ -417,31 +417,6 @@ export default async function handler(req, res) {
   }
 
   /* ---------------------------------------------------------
-     ACCESS CODE
-     --------------------------------------------------------- */
-
-  const expectedAccessCode =
-    process.env.APP_ACCESS_CODE;
-
-  const providedAccessCode =
-    req.headers["x-access-code"] || "";
-
-  if (!expectedAccessCode) {
-    return json(res, 500, {
-      error: "access_not_configured",
-    });
-  }
-
-  if (
-    providedAccessCode !==
-    expectedAccessCode
-  ) {
-    return json(res, 401, {
-      error: "invalid_access_code",
-    });
-  }
-
-  /* ---------------------------------------------------------
      NVIDIA API KEY
      --------------------------------------------------------- */
 
