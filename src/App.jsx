@@ -4363,7 +4363,6 @@ export default function VantWorkingPrototype() {
               {authReady ? "Start with a guest chat—your first five successful replies are on us." : "Preparing your guest session…"}
             </div>
             <button onClick={async () => {
-              setComposerNotice?.("");
               const { data, error } = await supabase.auth.signInAnonymously();
               if (error) { console.error("VANT guest sign-in failed", error); alert("Guest access is temporarily unavailable. Please try again shortly."); return; }
               await loadUserState(data.user || data.session?.user);
