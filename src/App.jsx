@@ -7,6 +7,7 @@ import {
   buildVantSystemPrompt,
 } from "./vantEngine";
 import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Target, Image as ImageIcon, Link2, FolderKanban, Users, UserPlus, ThumbsUp, ThumbsDown, Flag, MoreHorizontal } from "lucide-react";
+import VantMemoryPage from "./VantMemoryPage";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -492,6 +493,7 @@ async function askVant(
 
 
 function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSettings }) {
+  const [moreOpen, setMoreOpen] = useState(false);
   const sidebarText = isDark ? "#F5F3FF" : "#191919";
   const sidebarMuted = isDark ? "#C3BED4" : "#666666";
   const sidebarIcon = isDark ? "#AAA4C2" : "#77736A";
@@ -516,6 +518,19 @@ function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSetting
           );
         })}
       </nav>
+      <div style={{ position: "relative" }}>
+        <button type="button" onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-label="More VANT features" style={{ width: "100%", minHeight: 43, padding: "10px 12px", borderRadius: 12, border: "1px solid " + (moreOpen || active === "memory" ? (isDark ? "rgba(208,166,80,0.26)" : "rgba(185,145,63,0.30)") : "transparent"), cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", background: moreOpen || active === "memory" ? "rgba(208,166,80,0.10)" : "transparent", color: sidebarMuted }}>
+          <MoreHorizontal size={18} color={moreOpen || active === "memory" ? gold : sidebarIcon} />
+          <span style={{ flex: 1, fontSize: 13, fontWeight: moreOpen || active === "memory" ? 600 : 500 }}>More</span>
+          <ChevronRight size={14} style={{ transform: moreOpen ? "rotate(90deg)" : "none", transition: "transform 160ms ease" }} color={sidebarIcon} />
+        </button>
+        {moreOpen && <div className="v-fade" style={{ marginTop: 5, marginLeft: 8, paddingLeft: 9, borderLeft: "1px solid " + theme.border, display: "flex", flexDirection: "column", gap: 4 }}>
+          <button type="button" onClick={() => { onSelect("memory"); setMoreOpen(false); }} aria-current={active === "memory" ? "page" : undefined} style={{ width: "100%", minHeight: 39, padding: "9px 10px", borderRadius: 10, border: "1px solid " + (active === "memory" ? "rgba(208,166,80,0.28)" : "transparent"), background: active === "memory" ? "rgba(208,166,80,0.10)" : "transparent", color: active === "memory" ? sidebarText : sidebarMuted, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left", fontSize: 12.5 }}>
+            <span style={{ width: 25, height: 25, borderRadius: 8, background: "rgba(208,166,80,0.14)", display: "flex", alignItems: "center", justifyContent: "center" }}><Sparkles size={14} color={gold} /></span>
+            <span>VANT Memory</span>
+          </button>
+        </div>}
+      </div>
       <div style={{ flex: 1 }} />
       <button onClick={onOpenSettings} title="Settings" style={{ width: "100%", minHeight: 40, padding: "9px 12px", borderRadius: 10, border: "1px solid transparent", background: "transparent", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
         <Settings size={17} color={sidebarIcon} />
@@ -4363,13 +4378,14 @@ export default function VantWorkingPrototype() {
       if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} user={user} chats={conversations.filter((item) => item.projectId === selectedProject.id)} onBack={() => { setProjectChat(null); setProjectConversationId(null); }} onCustomize={customizeProject} onNewChat={() => createProjectConversation(selectedProject.id)} onOpenChat={openProjectConversation} onAskVant={() => askProjectVant(selectedProject.id)} onProjectLeft={(projectId) => setProjects((current) => current.filter((item) => item.id !== projectId))} />;
       return <ProjectsPage {...props} projects={projects} user={user} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
     }
+    if (active === "memory") return <VantMemoryPage {...props} user={user} />;
     if (active === "tools") return <ToolsPage {...props} />;
     if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
     if (active === "cowork") return <CoworkPage {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
     return <IntegrationsPage {...props} connected={connected} onToggle={toggleIntegration} />;
   }
 
-  const pageLabel = (NAV.find((n) => n.id === active) || {}).label || "";
+  const pageLabel = active === "memory" ? "VANT Memory" : (NAV.find((n) => n.id === active) || {}).label || "";
 
   if (!authReady) {
     return (
