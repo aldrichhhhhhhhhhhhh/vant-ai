@@ -37,14 +37,14 @@ const THEMES = {
 };
 
 const ACCENTS = {
-  violet: { dark: "#a78bfa", light: "#B9913F", bg: "rgba(208,166,80,0.14)" },
-  cyan: { dark: "#67e8f9", light: "#B9913F", bg: "rgba(208,166,80,0.14)" },
-  green: { dark: "#6ee7b7", light: "#B9913F", bg: "rgba(208,166,80,0.14)" },
-  amber: { dark: "#fcd34d", light: "#B9913F", bg: "rgba(208,166,80,0.14)" },
-  red: { dark: "#fca5a5", light: "#B9913F", bg: "rgba(208,166,80,0.14)" },
+  violet: { dark: "#a78bfa", light: "#7C3AED", bgDark: "rgba(167,139,250,0.16)", bgLight: "rgba(124,58,237,0.10)" },
+  cyan: { dark: "#67e8f9", light: "#0E7490", bgDark: "rgba(103,232,249,0.15)", bgLight: "rgba(14,116,144,0.10)" },
+  green: { dark: "#6ee7b7", light: "#047857", bgDark: "rgba(110,231,183,0.15)", bgLight: "rgba(4,120,87,0.10)" },
+  amber: { dark: "#fcd34d", light: "#B45309", bgDark: "rgba(252,211,77,0.15)", bgLight: "rgba(180,83,9,0.10)" },
+  red: { dark: "#fca5a5", light: "#B91C1C", bgDark: "rgba(252,165,165,0.15)", bgLight: "rgba(185,28,28,0.10)" },
 };
 const ac = (key, isDark) => (isDark ? ACCENTS[key].dark : ACCENTS[key].light);
-const acBg = (key) => ACCENTS[key].bg;
+const acBg = (key, isDark = true) => (isDark ? ACCENTS[key].bgDark : ACCENTS[key].bgLight);
 
 const NAV = [
   { id: "chat", label: "AI Chat", icon: MessageSquare, accentKey: "violet" },
@@ -782,7 +782,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
     <div role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.62)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
       <div style={{ width: "min(760px, 100%)", height: "min(720px, 88vh)", background: theme.surfaceCard, border: "1px solid " + theme.borderStrong, borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.35)" }}>
         <div style={{ padding: "15px 18px", borderBottom: "1px solid " + theme.border, display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 11, background: acBg(project.color), display: "flex", alignItems: "center", justifyContent: "center" }}><Users size={17} color={accent} /></div>
+          <div style={{ width: 36, height: 36, borderRadius: 11, background: acBg(project.color, isDark), display: "flex", alignItems: "center", justifyContent: "center" }}><Users size={17} color={accent} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 9.5, letterSpacing: 1.1, color: theme.textFaint }}>VANT · TEAM CHAT</div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{project.name}</div>
@@ -800,7 +800,7 @@ function ProjectTeamChat({ theme, isDark, project, user, onClose }) {
             const own = !isVant && message.user_id === user?.id;
             return (
               <div key={message.id} style={{ display: "flex", justifyContent: isVant ? "flex-start" : own ? "flex-end" : "flex-start", marginBottom: 12 }}>
-                <div style={{ maxWidth: "78%", padding: "10px 13px", borderRadius: isVant ? "14px 14px 14px 4px" : own ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: isVant ? "rgba(124,58,237,0.10)" : own ? acBg(project.color) : theme.surface, border: "1px solid " + (isVant ? "rgba(167,139,250,0.28)" : theme.border) }}>
+                <div style={{ maxWidth: "78%", padding: "10px 13px", borderRadius: isVant ? "14px 14px 14px 4px" : own ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: isVant ? "rgba(124,58,237,0.10)" : own ? acBg(project.color, isDark) : theme.surface, border: "1px solid " + (isVant ? "rgba(167,139,250,0.28)" : theme.border) }}>
                   <div style={{ fontSize: 11, color: isVant ? ac("violet", isDark) : accent, fontWeight: 700, marginBottom: 4 }}>{isVant ? "VANT" : memberName(message.user_id)}</div>
                   <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5, fontSize: 13.5 }}>{message.content}</div>
                   <div style={{ fontSize: 9.5, color: theme.textFaint, marginTop: 5 }}>{new Date(message.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
@@ -1034,7 +1034,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
         </button>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, marginBottom: 24 }}>
           <div style={{ display: "flex", gap: 15, alignItems: "flex-start" }}>
-            <div style={{ width: 52, height: 52, borderRadius: 15, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid " + theme.border }}>
+            <div style={{ width: 52, height: 52, borderRadius: 15, background: acBg(color, isDark), display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid " + theme.border }}>
               <FolderKanban size={23} color={ac(color, isDark)} />
             </div>
             <div>
@@ -1046,11 +1046,11 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
           <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
             {isOwner && <button type="button" onClick={() => openWorkspaceWidget("customize")} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={15} /> Customize</button>}
             <button type="button" onClick={onAskVant} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}><Sparkles size={15} /> Ask VANT</button>
-            <button type="button" onClick={onNewChat} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", borderRadius: 10, padding: "9px 13px", background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontWeight: 600 }}><Plus size={15} /> New Chat</button>
+            <button type="button" onClick={onNewChat} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", borderRadius: 10, padding: "9px 13px", background: acBg(color, isDark), color: ac(color, isDark), cursor: "pointer", fontWeight: 600 }}><Plus size={15} /> New Chat</button>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-          <span style={{ padding: "6px 10px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 12, fontWeight: 600 }}>Priority · {priority}</span>
+          <span style={{ padding: "6px 10px", borderRadius: 999, background: acBg(color, isDark), color: ac(color, isDark), fontSize: 12, fontWeight: 600 }}>Priority · {priority}</span>
           <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: theme.textMuted, fontSize: 12 }}>{isOwner ? "Owner workspace" : "Shared workspace"}</span>
           <span style={{ padding: "6px 10px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: ac("green", isDark) }}>● Active</span>
         </div>
@@ -1087,7 +1087,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
           <div style={{ color: theme.textFaint, fontSize: 11.5 }}>Everything starts here</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 10, marginBottom: 16 }}>
-          <button type="button" onClick={onAskVant} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: acBg(color), border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}><Sparkles size={17} color={ac(color, isDark)} /><div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Ask VANT</div><div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Work through this project with project-aware context.</div></button>
+          <button type="button" onClick={onAskVant} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: acBg(color, isDark), border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}><Sparkles size={17} color={ac(color, isDark)} /><div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Ask VANT</div><div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Work through this project with project-aware context.</div></button>
           <button type="button" onClick={onNewChat} style={{ textAlign: "left", padding: 14, borderRadius: 14, background: theme.surface, border: "1px solid " + theme.border, color: theme.text, cursor: "pointer" }}><Plus size={17} color={ac("cyan", isDark)} /><div style={{ fontWeight: 600, marginTop: 10, fontSize: 13.5 }}>Start New Chat</div><div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Open a clean conversation inside this workspace.</div></button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
@@ -1158,7 +1158,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                   <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 9 }}>Workspace color</div>
                   <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 18 }}>
                     {PROJECT_COLORS.map((key) => (
-                      <button key={key} type="button" onClick={() => setWorkspaceEditColor(key)} aria-label={key + " project color"} aria-pressed={workspaceEditColor === key} style={{ width: 34, height: 34, borderRadius: 10, border: workspaceEditColor === key ? "2px solid " + ac(key, isDark) : "1px solid " + theme.border, background: acBg(key), color: ac(key, isDark), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{workspaceEditColor === key ? <Check size={16} /> : "●"}</button>
+                      <button key={key} type="button" onClick={() => setWorkspaceEditColor(key)} aria-label={key + " project color"} aria-pressed={workspaceEditColor === key} style={{ width: 34, height: 34, borderRadius: 10, border: workspaceEditColor === key ? "2px solid " + ac(key, isDark) : "1px solid " + theme.border, background: acBg(key, isDark), color: ac(key, isDark), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{workspaceEditColor === key ? <Check size={16} /> : "●"}</button>
                     ))}
                   </div>
                   <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Project priority</label>
@@ -1167,7 +1167,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                   </select>
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                     <button type="button" onClick={() => setWorkspacePanel(null)} disabled={workspaceSaveBusy} style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid " + theme.border, background: "transparent", color: theme.textMuted, cursor: workspaceSaveBusy ? "wait" : "pointer" }}>Cancel</button>
-                    <button type="submit" disabled={workspaceSaveBusy} style={{ padding: "9px 13px", borderRadius: 9, border: "none", background: acBg(color), color: ac(color, isDark), cursor: workspaceSaveBusy ? "wait" : "pointer", opacity: workspaceSaveBusy ? 0.65 : 1 }}>{workspaceSaveBusy ? "Saving…" : "Save changes"}</button>
+                    <button type="submit" disabled={workspaceSaveBusy} style={{ padding: "9px 13px", borderRadius: 9, border: "none", background: acBg(color, isDark), color: ac(color, isDark), cursor: workspaceSaveBusy ? "wait" : "pointer", opacity: workspaceSaveBusy ? 0.65 : 1 }}>{workspaceSaveBusy ? "Saving…" : "Save changes"}</button>
                   </div>
                 </form>
               )}
@@ -1185,7 +1185,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                       <ChevronRight size={14} color={theme.textFaint} />
                     </button>
                   )) : <div style={{ padding: "24px 8px", textAlign: "center", color: theme.textMuted, fontSize: 13 }}>No project chats yet.</div>}
-                  <button type="button" onClick={() => { setWorkspacePanel(null); onNewChat(); }} style={{ marginTop: 12, width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + theme.border, background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontWeight: 600 }}><Plus size={14} /> Start New Chat</button>
+                  <button type="button" onClick={() => { setWorkspacePanel(null); onNewChat(); }} style={{ marginTop: 12, width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid " + theme.border, background: acBg(color, isDark), color: ac(color, isDark), cursor: "pointer", fontWeight: 600 }}><Plus size={14} /> Start New Chat</button>
                 </div>
               )}
               {workspacePanel === "activity" && (
@@ -1193,7 +1193,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                   <div style={{ color: theme.textMuted, fontSize: 12, marginBottom: 12 }}>A timeline of work and changes in this project.</div>
                   {activityItems.length ? activityItems.map((item) => (
                     <div key={item.id} style={{ display: "flex", gap: 11, padding: "11px 0", borderTop: "1px solid " + theme.border }}>
-                      <div style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 9, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center" }}><History size={14} color={ac(color, isDark)} /></div>
+                      <div style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 9, background: acBg(color, isDark), display: "flex", alignItems: "center", justifyContent: "center" }}><History size={14} color={ac(color, isDark)} /></div>
                       <div style={{ minWidth: 0, flex: 1 }}><div style={{ fontSize: 12.5, lineHeight: 1.45 }}>{activityLabel(item)}</div><div style={{ color: theme.textFaint, fontSize: 10.5, marginTop: 3 }}>{new Date(item.created_at || Date.now()).toLocaleString()}</div></div>
                     </div>
                   )) : <div style={{ padding: "24px 8px", textAlign: "center", color: theme.textMuted, fontSize: 13 }}>No activity recorded yet.</div>}
@@ -1208,7 +1208,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                         <div style={{ fontSize: 18, fontWeight: 650, marginTop: 6, overflowWrap: "anywhere" }}>{project.name}</div>
                         <div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 6 }}>{project.description || "No description has been added yet."}</div>
                       </div>
-                      <span style={{ flexShrink: 0, padding: "5px 8px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 11, fontWeight: 600 }}>{priority} priority</span>
+                      <span style={{ flexShrink: 0, padding: "5px 8px", borderRadius: 999, background: acBg(color, isDark), color: ac(color, isDark), fontSize: 11, fontWeight: 600 }}>{priority} priority</span>
                     </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
@@ -1229,7 +1229,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                     <div style={{ fontWeight: 650, fontSize: 13.5 }}>Take action</div>
                     <div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4, marginBottom: 11 }}>Start work or get help based on this project's context.</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
-                      <button type="button" onClick={() => { setWorkspacePanel(null); onAskVant(); }} style={{ padding: 11, borderRadius: 10, border: "1px solid " + theme.border, background: acBg(color), color: theme.text, cursor: "pointer", textAlign: "left" }}><Sparkles size={15} /><div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 6 }}>Ask VANT</div><div style={{ color: theme.textMuted, fontSize: 10.5, marginTop: 3 }}>Plan the next step</div></button>
+                      <button type="button" onClick={() => { setWorkspacePanel(null); onAskVant(); }} style={{ padding: 11, borderRadius: 10, border: "1px solid " + theme.border, background: acBg(color, isDark), color: theme.text, cursor: "pointer", textAlign: "left" }}><Sparkles size={15} /><div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 6 }}>Ask VANT</div><div style={{ color: theme.textMuted, fontSize: 10.5, marginTop: 3 }}>Plan the next step</div></button>
                       <button type="button" onClick={() => { setWorkspacePanel(null); onNewChat(); }} style={{ padding: 11, borderRadius: 10, border: "1px solid " + theme.border, background: theme.surfaceCard, color: theme.text, cursor: "pointer", textAlign: "left" }}><Plus size={15} /><div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 6 }}>New Chat</div><div style={{ color: theme.textMuted, fontSize: 10.5, marginTop: 3 }}>Start a conversation</div></button>
                       <button type="button" onClick={() => setWorkspacePanel("team")} style={{ padding: 11, borderRadius: 10, border: "1px solid " + theme.border, background: theme.surfaceCard, color: theme.text, cursor: "pointer", textAlign: "left" }}><Users size={15} /><div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 6 }}>Manage Team</div><div style={{ color: theme.textMuted, fontSize: 10.5, marginTop: 3 }}>Members and access</div></button>
                       <button type="button" onClick={() => setWorkspacePanel("activity")} style={{ padding: 11, borderRadius: 10, border: "1px solid " + theme.border, background: theme.surfaceCard, color: theme.text, cursor: "pointer", textAlign: "left" }}><History size={15} /><div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 6 }}>View Activity</div><div style={{ color: theme.textMuted, fontSize: 10.5, marginTop: 3 }}>Recent recorded changes</div></button>
@@ -1254,7 +1254,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                 <div style={{ marginTop: 20 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <div><div style={{ fontWeight: 600 }}>Project members</div><div style={{ color: theme.textMuted, fontSize: 12 }}>Changes update live.</div></div>
-                    <button type="button" onClick={() => setTeamChatOpen(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 9, border: "1px solid " + theme.border, background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontSize: 12, fontWeight: 600 }}><MessageSquare size={13} /> Team Chat</button>
+                    <button type="button" onClick={() => setTeamChatOpen(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 9, border: "1px solid " + theme.border, background: acBg(color, isDark), color: ac(color, isDark), cursor: "pointer", fontSize: 12, fontWeight: 600 }}><MessageSquare size={13} /> Team Chat</button>
                     {!isOwner && <button type="button" onClick={leaveProject} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 10px", borderRadius: 9, border: "1px solid " + theme.border, background: "transparent", color: ac("red", isDark), cursor: "pointer", fontSize: 12, fontWeight: 600 }}><ArrowLeft size={13} /> Leave Project</button>}
                   </div>
                   <div style={{ display: "grid", gap: 8 }}>
@@ -1262,7 +1262,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                       const online = member.user_id === user?.id;
                       const isMemberOwner = member.role === "owner";
                       return <div key={member.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 11px", border: "1px solid " + theme.border, borderRadius: 11, background: theme.surface }}>
-                        <div style={{ width: 30, height: 30, borderRadius: 9, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center", color: ac(color, isDark), fontWeight: 600, fontSize: 12 }}>{(member.display_name || "V").slice(0,1).toUpperCase()}</div>
+                        <div style={{ width: 30, height: 30, borderRadius: 9, background: acBg(color, isDark), display: "flex", alignItems: "center", justifyContent: "center", color: ac(color, isDark), fontWeight: 600, fontSize: 12 }}>{(member.display_name || "V").slice(0,1).toUpperCase()}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600 }}>{member.display_name || "VANT User"} {member.user_id === user?.id ? "(You)" : ""}</div>
                           <div style={{ color: ac(color, isDark), fontSize: 11.5, fontWeight: 600 }}>{member.project_role || (member.role === "owner" ? "Project Lead" : member.role === "viewer" ? "Stakeholder" : "Contributor")}</div>
@@ -1358,7 +1358,7 @@ function ProjectsPage({ theme, isDark, projects, user, onProjectsChange, onOpenP
             <h1 style={{ margin: 0, fontFamily: "Fraunces, serif", fontSize: 32, fontWeight: 500 }}>Your workspaces</h1>
             <p style={{ margin: "8px 0 0", color: theme.textMuted, fontSize: 14.5 }}>Every project is its own VANT workspace — persistent, organized, and ready to grow with the work.</p>
           </div>
-          <button type="button" onClick={() => setCreating(true)} style={{ display: "flex", alignItems: "center", gap: 8, border: "none", borderRadius: 11, padding: "10px 14px", background: acBg("violet"), color: ac("violet", isDark), cursor: "pointer", fontWeight: 600 }}>
+          <button type="button" onClick={() => setCreating(true)} style={{ display: "flex", alignItems: "center", gap: 8, border: "none", borderRadius: 11, padding: "10px 14px", background: acBg("violet", isDark), color: ac("violet", isDark), cursor: "pointer", fontWeight: 600 }}>
             <FolderPlus size={16} /> New Project
           </button>
         </div>
@@ -1370,14 +1370,14 @@ function ProjectsPage({ theme, isDark, projects, user, onProjectsChange, onOpenP
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this project about?" rows={3} style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: "11px 12px", borderRadius: 10, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, outline: "none" }} />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
               <button type="button" onClick={() => { setCreating(false); setName(""); setDescription(""); }} style={{ padding: "9px 13px", borderRadius: 9, border: "1px solid " + theme.border, background: "transparent", color: theme.textMuted, cursor: "pointer" }}>Cancel</button>
-              <button type="submit" disabled={!name.trim() || projectSaving} style={{ padding: "9px 13px", borderRadius: 9, border: "none", background: acBg("violet"), color: ac("violet", isDark), cursor: name.trim() && !projectSaving ? "pointer" : "not-allowed", opacity: name.trim() && !projectSaving ? 1 : 0.5 }}>{projectSaving ? "Saving…" : "Create Project"}</button>
+              <button type="submit" disabled={!name.trim() || projectSaving} style={{ padding: "9px 13px", borderRadius: 9, border: "none", background: acBg("violet", isDark), color: ac("violet", isDark), cursor: name.trim() && !projectSaving ? "pointer" : "not-allowed", opacity: name.trim() && !projectSaving ? 1 : 0.5 }}>{projectSaving ? "Saving…" : "Create Project"}</button>
             </div>
           </form>
         )}
 
         {!projects.length ? (
           <div style={{ ...card, textAlign: "center", padding: "64px 24px" }}>
-            <div style={{ width: 58, height: 58, borderRadius: 17, background: acBg("violet"), margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center" }}><FolderKanban size={27} color={ac("violet", isDark)} /></div>
+            <div style={{ width: 58, height: 58, borderRadius: 17, background: acBg("violet", isDark), margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center" }}><FolderKanban size={27} color={ac("violet", isDark)} /></div>
             <h3 style={{ margin: "16px 0 6px", fontWeight: 600 }}>No projects yet</h3>
             <p style={{ margin: 0, color: theme.textMuted, fontSize: 14 }}>Create a project and VANT will give it a persistent workspace of its own.</p>
           </div>
@@ -1391,13 +1391,13 @@ function ProjectsPage({ theme, isDark, projects, user, onProjectsChange, onOpenP
               return (
                 <div key={project.id} style={{ ...card, cursor: "pointer", transition: "transform .15s ease, border-color .15s ease", boxShadow: isDark ? "0 12px 32px rgba(0,0,0,0.16)" : "0 12px 32px rgba(0,0,0,0.06)" }} onClick={() => onOpenProject(project.id)}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 12, background: acBg(color), display: "flex", alignItems: "center", justifyContent: "center" }}><FolderKanban size={20} color={ac(color, isDark)} /></div>
+                    <div style={{ width: 42, height: 42, borderRadius: 12, background: acBg(color, isDark), display: "flex", alignItems: "center", justifyContent: "center" }}><FolderKanban size={20} color={ac(color, isDark)} /></div>
                     {isOwner && <button type="button" onClick={(e) => { e.stopPropagation(); onDeleteProject(project.id); }} title="Delete project" style={{ border: "none", background: "transparent", color: theme.textFaint, cursor: "pointer", padding: 4 }}><Trash2 size={16} /></button>}
                   </div>
                   <div style={{ fontWeight: 600, fontSize: 16, marginTop: 17 }}>{project.name}</div>
                   <div style={{ color: theme.textMuted, fontSize: 13, lineHeight: 1.5, marginTop: 6, minHeight: 39 }}>{project.description || "No description"}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 15, flexWrap: "wrap" }}>
-                    <span style={{ padding: "4px 8px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 11, fontWeight: 600 }}>● {priority}</span>
+                    <span style={{ padding: "4px 8px", borderRadius: 999, background: acBg(color, isDark), color: ac(color, isDark), fontSize: 11, fontWeight: 600 }}>● {priority}</span>
                     <span style={{ padding: "4px 8px", borderRadius: 999, background: theme.surface, border: "1px solid " + theme.border, color: theme.textFaint, fontSize: 11 }}>{isOwner ? "Owner" : "Shared"}</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, color: theme.textFaint, fontSize: 12 }}>
@@ -1414,7 +1414,7 @@ function ProjectsPage({ theme, isDark, projects, user, onProjectsChange, onOpenP
                         <div style={{ fontSize: 11, color: theme.textFaint, marginBottom: 8, fontFamily: "JetBrains Mono, monospace", letterSpacing: 1 }}>PROJECT SETTINGS</div>
                         <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 9 }}>
                           {PROJECT_COLORS.map((key) => (
-                            <button key={key} type="button" title={key} onClick={() => setEditColor(key)} style={{ width: 25, height: 25, borderRadius: 8, border: editColor === key ? "2px solid " + ac(key, isDark) : "1px solid " + theme.border, background: acBg(key), color: ac(key, isDark), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>●</button>
+                            <button key={key} type="button" title={key} onClick={() => setEditColor(key)} style={{ width: 25, height: 25, borderRadius: 8, border: editColor === key ? "2px solid " + ac(key, isDark) : "1px solid " + theme.border, background: acBg(key, isDark), color: ac(key, isDark), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>●</button>
                           ))}
                         </div>
                         <select value={editPriority} onChange={(e) => setEditPriority(e.target.value)} style={{ width: "100%", padding: "8px 9px", borderRadius: 9, border: "1px solid " + theme.border, background: theme.inputBg, color: theme.text, marginBottom: 9 }}>
@@ -1422,7 +1422,7 @@ function ProjectsPage({ theme, isDark, projects, user, onProjectsChange, onOpenP
                         </select>
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: 7 }}>
                           <button type="button" onClick={() => setEditingId(null)} style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid " + theme.border, background: "transparent", color: theme.textMuted, cursor: "pointer" }}>Cancel</button>
-                          <button type="button" onClick={() => saveCustomize(project)} style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: acBg("violet"), color: ac("violet", isDark), cursor: "pointer" }}>Save</button>
+                          <button type="button" onClick={() => saveCustomize(project)} style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: acBg("violet", isDark), color: ac("violet", isDark), cursor: "pointer" }}>Save</button>
                         </div>
                       </div>
                     )}
@@ -1713,33 +1713,33 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
         {composerOpen && (
           <div className="v-fade" style={{ position: "absolute", bottom: 50, left: 0, width: 286, padding: 8, borderRadius: 16, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 18px 50px rgba(0,0,0,.45)" : "0 18px 50px rgba(15,15,35,.16)", zIndex: 30 }}>
             <button type="button" onClick={() => fileInputRef.current?.click()} style={itemStyle}>
-              <span style={iconBox(acBg("violet"))}><Paperclip size={17} color={ac("violet", isDark)} /></span>
+              <span style={iconBox(acBg("violet", isDark))}><Paperclip size={17} color={ac("violet", isDark)} /></span>
               <span><strong style={{ display: "block", fontSize: 13.5, fontWeight: 500 }}>Add files or photos</strong><span style={{ display: "block", fontSize: 11.5, color: theme.textFaint }}>PDF, Excel, CSV, Word, images</span></span>
               <span style={sub}>Ctrl+U</span>
             </button>
             <button type="button" onClick={takeScreenshot} style={itemStyle}>
-              <span style={iconBox(acBg("cyan"))}><Camera size={17} color={ac("cyan", isDark)} /></span>
+              <span style={iconBox(acBg("cyan", isDark))}><Camera size={17} color={ac("cyan", isDark)} /></span>
               <span style={{ fontSize: 13.5 }}>Take a screenshot</span>
             </button>
             <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
             <button type="button" onClick={() => composerAction("Projects")} style={itemStyle}>
-              <span style={iconBox(acBg("green"))}><FolderPlus size={17} color={ac("green", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add to project</span><ChevronRight size={16} style={sub} />
+              <span style={iconBox(acBg("green", isDark))}><FolderPlus size={17} color={ac("green", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add to project</span><ChevronRight size={16} style={sub} />
             </button>
             <button type="button" onClick={() => composerAction("Skills")} style={itemStyle}>
-              <span style={iconBox(acBg("violet"))}><Sparkles size={17} color={ac("violet", isDark)} /></span><span style={{ fontSize: 13.5 }}>Skills</span><ChevronRight size={16} style={sub} />
+              <span style={iconBox(acBg("violet", isDark))}><Sparkles size={17} color={ac("violet", isDark)} /></span><span style={{ fontSize: 13.5 }}>Skills</span><ChevronRight size={16} style={sub} />
             </button>
             <button type="button" onClick={() => onGoToIntegrations?.()} style={itemStyle}>
-              <span style={iconBox(acBg("amber"))}><Link2 size={17} color={ac("amber", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add connector</span><ChevronRight size={16} style={sub} />
+              <span style={iconBox(acBg("amber", isDark))}><Link2 size={17} color={ac("amber", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add connector</span><ChevronRight size={16} style={sub} />
             </button>
             <button type="button" onClick={() => composerAction("Design system")} style={itemStyle}>
-              <span style={iconBox(acBg("red"))}><Palette size={17} color={ac("red", isDark)} /></span><span style={{ fontSize: 13.5 }}>Design system</span><ChevronRight size={16} style={sub} />
+              <span style={iconBox(acBg("red", isDark))}><Palette size={17} color={ac("red", isDark)} /></span><span style={{ fontSize: 13.5 }}>Design system</span><ChevronRight size={16} style={sub} />
             </button>
             <button type="button" onClick={() => composerAction("Plugins")} style={itemStyle}>
-              <span style={iconBox(acBg("cyan"))}><Puzzle size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add plugins</span><ChevronRight size={16} style={sub} />
+              <span style={iconBox(acBg("cyan", isDark))}><Puzzle size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Add plugins</span><ChevronRight size={16} style={sub} />
             </button>
             <div style={{ height: 1, background: theme.border, margin: "6px 4px" }} />
             <button type="button" onClick={() => { setWebSearch((v) => !v); setComposerOpen(false); setComposerNotice(!webSearch ? "Web search mode selected. Live search wiring will be connected in the web/integration layer." : "Web search mode turned off."); }} style={itemStyle}>
-              <span style={iconBox(acBg("cyan"))}><Globe size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Web search</span><span style={{ ...sub, color: webSearch ? ac("cyan", isDark) : theme.textFaint }}>{webSearch ? "✓" : ""}</span>
+              <span style={iconBox(acBg("cyan", isDark))}><Globe size={17} color={ac("cyan", isDark)} /></span><span style={{ fontSize: 13.5 }}>Web search</span><span style={{ ...sub, color: webSearch ? ac("cyan", isDark) : theme.textFaint }}>{webSearch ? "✓" : ""}</span>
             </button>
           </div>
         )}
@@ -1795,7 +1795,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
             setWebSearch={setWebSearch}
           />
           <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder={guestLimitReached ? "Guest limit reached for today" : "Ask VANT to do something…"} disabled={loading || guestLimitReached} autoFocus rows={1} style={{ color: theme.text, fontSize: 14.5, outline: "none", textAlign: "left", direction: "ltr", lineHeight: 1.4, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
-          <button type="submit" disabled={loading || guestLimitReached || !input.trim()} title={guestLimitReached ? "Guest limit reached" : "Send"} style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || guestLimitReached || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
+          <button type="submit" disabled={loading || guestLimitReached || !input.trim()} title={guestLimitReached ? "Guest limit reached" : "Send"} style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet", isDark), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || guestLimitReached || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
         </form>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, padding: "0 4px", fontSize: 10.5, color: theme.textFaint }}>
           <span>{webSearch ? "WEB SEARCH MODE" : attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} ready` : "VANT WORK MODE"}</span>
@@ -2451,7 +2451,7 @@ Respond naturally like a sharp work partner.
           ) : (
           <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "24px 24px 36px", boxSizing: "border-box", overflow: "auto" }}>
             <div style={{ width: "min(1080px, 100%)", maxWidth: 1080, margin: "0 auto" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: acBg("violet"), border: `1px solid ${theme.border}`, color: ac("violet", isDark), fontFamily: "JetBrains Mono, monospace", fontSize: 11.5, letterSpacing: 1.3, marginBottom: 26 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: acBg("violet", isDark), border: `1px solid ${theme.border}`, color: ac("violet", isDark), fontFamily: "JetBrains Mono, monospace", fontSize: 11.5, letterSpacing: 1.3, marginBottom: 26 }}>
                 <Sparkles size={14} /> VANT · WORK MODE
               </div>
               <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 42, fontWeight: 500, margin: "0 0 12px", color: theme.text }}>What are we working on?</h1>
@@ -2465,7 +2465,7 @@ Respond naturally like a sharp work partner.
                   return (
                     <div key={card.title} style={{ textAlign: "left", padding: 16, borderRadius: 18, background: theme.surface, border: `1px solid ${theme.border}`, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 14 }}>
-                        <div style={{ width: 45, height: 45, borderRadius: 12, background: acBg(card.accentKey), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <div style={{ width: 45, height: 45, borderRadius: 12, background: acBg(card.accentKey, isDark), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                           <Icon size={21} color={accent} />
                         </div>
                         <span style={{ fontSize: 16, fontWeight: 600, color: theme.text }}>{card.title}</span>
@@ -2537,14 +2537,14 @@ Respond naturally like a sharp work partner.
                   
                   <button type="button" onClick={() => copyMessage(m)} title="Copy response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><Copy size={15} /></button>
                   {!loading && i > 0 && <button type="button" onClick={() => regenerateAssistant(i)} title="Regenerate response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><RefreshCw size={15} /></button>}
-                  <button type="button" onClick={() => setResponsePanel((current) => current?.index === i && current.type === "react" ? null : { index: i, type: "react" })} title="React to response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${responseFeedback[i] ? ac("violet", isDark) : theme.border}`, background: responseFeedback[i] ? acBg("violet") : theme.surface, color: responseFeedback[i] ? ac("violet", isDark) : theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><ThumbsUp size={15} /></button>
+                  <button type="button" onClick={() => setResponsePanel((current) => current?.index === i && current.type === "react" ? null : { index: i, type: "react" })} title="React to response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${responseFeedback[i] ? ac("violet", isDark) : theme.border}`, background: responseFeedback[i] ? acBg("violet", isDark) : theme.surface, color: responseFeedback[i] ? ac("violet", isDark) : theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><ThumbsUp size={15} /></button>
                   <button type="button" onClick={() => setResponsePanel((current) => current?.index === i && current.type === "bad" ? null : { index: i, type: "bad" })} title="Report a bad response" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><ThumbsDown size={15} /></button>
                   <button type="button" onClick={() => setResponsePanel((current) => current?.index === i && current.type === "more" ? null : { index: i, type: "more" })} title="More response actions" style={{ display: "inline-flex", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", padding: "5px 8px", borderRadius: 8, fontSize: 11.5 }}><MoreHorizontal size={16} /></button>
                 </div>
                 {responsePanel?.index === i && responsePanel.type === "react" && (
                   <div className="v-fade" style={{ display: "flex", gap: 6, marginTop: 7, padding: 7, borderRadius: 11, background: theme.surfaceCard, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 12px 30px rgba(0,0,0,.28)" : "0 12px 30px rgba(15,15,35,.10)" }}>
-                    <button type="button" onClick={() => reactToResponse(i, "up")} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${responseFeedback[i] === "up" ? ac("green", isDark) : theme.border}`, background: responseFeedback[i] === "up" ? acBg("green") : theme.surface, color: responseFeedback[i] === "up" ? ac("green", isDark) : theme.textMuted, borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 11.5 }}><ThumbsUp size={13} />Helpful</button>
-                    <button type="button" onClick={() => reactToResponse(i, "down")} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${responseFeedback[i] === "down" ? ac("red", isDark) : theme.border}`, background: responseFeedback[i] === "down" ? acBg("red") : theme.surface, color: responseFeedback[i] === "down" ? ac("red", isDark) : theme.textMuted, borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 11.5 }}><ThumbsDown size={13} />Not helpful</button>
+                    <button type="button" onClick={() => reactToResponse(i, "up")} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${responseFeedback[i] === "up" ? ac("green", isDark) : theme.border}`, background: responseFeedback[i] === "up" ? acBg("green", isDark) : theme.surface, color: responseFeedback[i] === "up" ? ac("green", isDark) : theme.textMuted, borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 11.5 }}><ThumbsUp size={13} />Helpful</button>
+                    <button type="button" onClick={() => reactToResponse(i, "down")} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${responseFeedback[i] === "down" ? ac("red", isDark) : theme.border}`, background: responseFeedback[i] === "down" ? acBg("red", isDark) : theme.surface, color: responseFeedback[i] === "down" ? ac("red", isDark) : theme.textMuted, borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 11.5 }}><ThumbsDown size={13} />Not helpful</button>
                   </div>
                 )}
                 {responsePanel?.index === i && responsePanel.type === "bad" && (
@@ -2567,7 +2567,7 @@ Respond naturally like a sharp work partner.
             )}
           </div>
         ))}
-        {loading && <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 8 }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div><button type="button" onClick={stopGeneration} title="Stop generation" style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Square size={12} fill="currentColor" /></button></div>}
+        {loading && <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 8 }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet", isDark), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div><button type="button" onClick={stopGeneration} title="Stop generation" style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Square size={12} fill="currentColor" /></button></div>}
       </div>
       <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} guestLimitReached={guestLimitReached} onSignIn={() => onOpenAuth?.("login")} onSignUp={() => onOpenAuth?.("signup")} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} /></div>
       </div>
@@ -2581,7 +2581,7 @@ Respond naturally like a sharp work partner.
 function ToolCard({ icon: Icon, accentKey, isDark, theme, title, desc, onClick }) {
   return (
     <button onClick={onClick} style={{ textAlign: "left", padding: 20, borderRadius: 16, background: theme.surface, border: `1px solid ${theme.border}`, cursor: "pointer", display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ width: 38, height: 38, borderRadius: 10, background: acBg(accentKey), display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 38, height: 38, borderRadius: 10, background: acBg(accentKey, isDark), display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Icon size={19} color={ac(accentKey, isDark)} />
       </div>
       <p style={{ fontSize: 15.5, fontWeight: 500, color: theme.text, margin: 0 }}>{title}</p>
@@ -2654,7 +2654,7 @@ function OpsAssistantTool({ onBack, theme, isDark }) {
       <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, fontWeight: 500, margin: "0 0 6px", color: theme.text }}>Upload real operational data.</h1>
       <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 20px" }}>A shipment log, inventory sheet, delivery schedule — then ask it directly.</p>
 
-      <div onClick={() => fileInputRef.current?.click()} style={{ border: `1.5px dashed ${fileName ? successColor : theme.borderStrong}`, borderRadius: 14, padding: "18px 20px", textAlign: "center", cursor: "pointer", background: fileName ? acBg("green") : theme.surface, marginBottom: 16 }}>
+      <div onClick={() => fileInputRef.current?.click()} style={{ border: `1.5px dashed ${fileName ? successColor : theme.borderStrong}`, borderRadius: 14, padding: "18px 20px", textAlign: "center", cursor: "pointer", background: fileName ? acBg("green", isDark) : theme.surface, marginBottom: 16 }}>
         <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFile} style={{ display: "none" }} />
         {fileName ? <p style={{ color: successColor, fontSize: 14, margin: 0 }}>✓ {fileName} — {rows.length} rows · click to replace</p> : <p style={{ color: theme.text, fontSize: 14, margin: 0 }}>Click to upload a .csv file</p>}
       </div>
@@ -2682,7 +2682,7 @@ function OpsAssistantTool({ onBack, theme, isDark }) {
           )}
           {messages.map((m, i) => (
             <div key={i} className="v-fade" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-              <div style={{ maxWidth: "85%", padding: "10px 14px", borderRadius: 12, fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap", background: m.role === "user" ? theme.surfaceStrong : acBg("red"), color: m.role === "user" ? theme.text : (isDark ? "#fecaca" : "#7f1d1d") }}>{m.content}</div>
+              <div style={{ maxWidth: "85%", padding: "10px 14px", borderRadius: 12, fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap", background: m.role === "user" ? theme.surfaceStrong : acBg("red", isDark), color: m.role === "user" ? theme.text : (isDark ? "#fecaca" : "#7f1d1d") }}>{m.content}</div>
             </div>
           ))}
           {loading && <p style={{ color: ac("red", isDark), fontSize: 12.5, fontFamily: "JetBrains Mono, monospace" }}>Analyzing…</p>}
@@ -2744,7 +2744,7 @@ function ChargeableWeightTool({ onBack, theme, isDark }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {DIVISORS.map((d) => (
             <button key={d.label} onClick={() => setDivisorChoice(d.value)}
-              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${divisorChoice === d.value ? amber : theme.borderStrong}`, background: divisorChoice === d.value ? acBg("amber") : theme.surface, color: divisorChoice === d.value ? amber : theme.textMuted }}>
+              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${divisorChoice === d.value ? amber : theme.borderStrong}`, background: divisorChoice === d.value ? acBg("amber", isDark) : theme.surface, color: divisorChoice === d.value ? amber : theme.textMuted }}>
               {d.label}
             </button>
           ))}
@@ -2815,7 +2815,7 @@ function FreightCostTool({ onBack, theme, isDark }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {FREIGHT_ZONES.map((z, i) => (
             <button key={z.label} onClick={() => setZoneIdx(i)}
-              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${zoneIdx === i ? cyan : theme.borderStrong}`, background: zoneIdx === i ? acBg("cyan") : theme.surface, color: zoneIdx === i ? cyan : theme.textMuted }}>
+              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${zoneIdx === i ? cyan : theme.borderStrong}`, background: zoneIdx === i ? acBg("cyan", isDark) : theme.surface, color: zoneIdx === i ? cyan : theme.textMuted }}>
               {z.label} (${z.rate.toFixed(2)}/kg)
             </button>
           ))}
@@ -2883,7 +2883,7 @@ function LoadOptimizerTool({ onBack, theme, isDark }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {LOAD_UNITS.map((u, i) => (
             <button key={u.label} onClick={() => setUnitIdx(i)}
-              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${unitIdx === i ? violet : theme.borderStrong}`, background: unitIdx === i ? acBg("violet") : theme.surface, color: unitIdx === i ? violet : theme.textMuted }}>
+              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${unitIdx === i ? violet : theme.borderStrong}`, background: unitIdx === i ? acBg("violet", isDark) : theme.surface, color: unitIdx === i ? violet : theme.textMuted }}>
               {u.label}
             </button>
           ))}
@@ -2950,7 +2950,7 @@ function UnitConverterTool({ onBack, theme, isDark }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {CONVERSION_GROUPS.map((g, i) => (
             <button key={g.label} onClick={() => selectGroup(i)}
-              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${groupIdx === i ? green : theme.borderStrong}`, background: groupIdx === i ? acBg("green") : theme.surface, color: groupIdx === i ? green : theme.textMuted }}>
+              style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, cursor: "pointer", border: `1px solid ${groupIdx === i ? green : theme.borderStrong}`, background: groupIdx === i ? acBg("green", isDark) : theme.surface, color: groupIdx === i ? green : theme.textMuted }}>
               {g.label}
             </button>
           ))}
@@ -3096,7 +3096,7 @@ function VendorScorecardTool({ onBack, theme, isDark }) {
       <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, fontWeight: 500, margin: "0 0 6px", color: theme.text }}>Rank vendors by reliability.</h1>
       <p style={{ color: theme.textMuted, fontSize: 14.5, margin: "0 0 20px" }}>Upload a shipment log with a vendor/supplier column and either a status column or a delay-days column.</p>
 
-      <div onClick={() => fileInputRef.current?.click()} style={{ border: `1.5px dashed ${fileName ? amber : theme.borderStrong}`, borderRadius: 14, padding: "18px 20px", textAlign: "center", cursor: "pointer", background: fileName ? acBg("amber") : theme.surface, marginBottom: 16 }}>
+      <div onClick={() => fileInputRef.current?.click()} style={{ border: `1.5px dashed ${fileName ? amber : theme.borderStrong}`, borderRadius: 14, padding: "18px 20px", textAlign: "center", cursor: "pointer", background: fileName ? acBg("amber", isDark) : theme.surface, marginBottom: 16 }}>
         <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFile} style={{ display: "none" }} />
         {fileName ? <p style={{ color: amber, fontSize: 14, margin: 0 }}>{fileName} loaded — click to replace</p> : <p style={{ color: theme.text, fontSize: 14, margin: 0 }}>Click to upload a .csv file</p>}
       </div>
@@ -3172,7 +3172,7 @@ function PoTrackerTool({ onBack, theme, isDark }) {
     const active = po.status === s;
     const key = PO_STATUS_KEYS[s];
     const color = key ? ac(key, isDark) : theme.textFaint;
-    return { padding: "4px 10px", borderRadius: 999, border: `1px solid ${active ? color : theme.border}`, background: active ? (key ? acBg(key) : theme.surfaceStrong) : "transparent", color: active ? color : theme.textFaint, fontSize: 11, fontFamily: "JetBrains Mono, monospace", cursor: "pointer" };
+    return { padding: "4px 10px", borderRadius: 999, border: `1px solid ${active ? color : theme.border}`, background: active ? (key ? acBg(key, isDark) : theme.surfaceStrong) : "transparent", color: active ? color : theme.textFaint, fontSize: 11, fontFamily: "JetBrains Mono, monospace", cursor: "pointer" };
   }
 
   return (
@@ -3184,7 +3184,7 @@ function PoTrackerTool({ onBack, theme, isDark }) {
       <form onSubmit={addPo} style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         <input value={newPoName} onChange={(e) => setNewPoName(e.target.value)} placeholder="PO number or name…" style={{ ...fieldStyle, flex: 2, minWidth: 160 }} />
         <input value={newVendor} onChange={(e) => setNewVendor(e.target.value)} placeholder="Vendor" style={{ ...fieldStyle, flex: 1, minWidth: 120 }} />
-        <button type="submit" style={{ width: 42, height: 42, borderRadius: 999, background: acBg("cyan"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Plus size={18} color={cyan} /></button>
+        <button type="submit" style={{ width: 42, height: 42, borderRadius: 999, background: acBg("cyan", isDark), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Plus size={18} color={cyan} /></button>
       </form>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
@@ -3347,7 +3347,7 @@ function DashboardPage({ theme, isDark, connected, coworkTasks = [], onGoToInteg
           ) : (
             <div style={{ textAlign: "center", padding: "12px 0" }}>
               <p style={{ color: theme.textMuted, fontSize: 13.5, margin: "0 0 12px" }}>Gmail isn't connected.</p>
-              <button onClick={onGoToIntegrations} style={{ padding: "8px 16px", borderRadius: 999, background: acBg("amber"), border: "none", color: ac("amber", isDark), fontSize: 13, cursor: "pointer" }}>Connect in Integrations</button>
+              <button onClick={onGoToIntegrations} style={{ padding: "8px 16px", borderRadius: 999, background: acBg("amber", isDark), border: "none", color: ac("amber", isDark), fontSize: 13, cursor: "pointer" }}>Connect in Integrations</button>
             </div>
           )}
         </div>
@@ -3387,7 +3387,7 @@ function DashboardPage({ theme, isDark, connected, coworkTasks = [], onGoToInteg
           ) : (
             <div style={{ textAlign: "center", padding: "12px 0" }}>
               <p style={{ color: theme.textMuted, fontSize: 13.5, margin: "0 0 12px" }}>Calendar isn't connected.</p>
-              <button onClick={onGoToIntegrations} style={{ padding: "8px 16px", borderRadius: 999, background: acBg("amber"), border: "none", color: ac("amber", isDark), fontSize: 13, cursor: "pointer" }}>Connect in Integrations</button>
+              <button onClick={onGoToIntegrations} style={{ padding: "8px 16px", borderRadius: 999, background: acBg("amber", isDark), border: "none", color: ac("amber", isDark), fontSize: 13, cursor: "pointer" }}>Connect in Integrations</button>
             </div>
           )}
         </div>
@@ -3412,7 +3412,7 @@ function DashboardPage({ theme, isDark, connected, coworkTasks = [], onGoToInteg
         <div style={{ display: "flex", alignItems: "flex-end", gap: 14, height: 110 }}>
           {bars.map((h, i) => (
             <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              <div style={{ width: "100%", borderRadius: 4, height: grown ? `${h}%` : "0%", background: i === 5 ? acBg("violet") : theme.surfaceStrong, transition: `height 0.7s ease ${i * 0.05}s` }} />
+              <div style={{ width: "100%", borderRadius: 4, height: grown ? `${h}%` : "0%", background: i === 5 ? acBg("violet", isDark) : theme.surfaceStrong, transition: `height 0.7s ease ${i * 0.05}s` }} />
               <span style={{ fontSize: 11, color: theme.textFaint }}>{days[i]}</span>
             </div>
           ))}
@@ -3540,7 +3540,7 @@ function CoworkPage({ theme, isDark, initialTasks = [], initialHistory = [], sta
                 disabled={planning || !!activeGoalText}
                 style={{ flex: 1, padding: "12px 18px", borderRadius: 999, background: theme.inputBg, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 14.5, outline: "none" }} />
               <button type="submit" disabled={planning || !!activeGoalText || !goalInput.trim()}
-                style={{ padding: "0 20px", borderRadius: 999, background: acBg("green"), border: "none", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: ac("green", isDark), fontSize: 13.5, fontWeight: 500, opacity: planning || !!activeGoalText || !goalInput.trim() ? 0.5 : 1 }}>
+                style={{ padding: "0 20px", borderRadius: 999, background: acBg("green", isDark), border: "none", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: ac("green", isDark), fontSize: 13.5, fontWeight: 500, opacity: planning || !!activeGoalText || !goalInput.trim() ? 0.5 : 1 }}>
                 <Sparkles size={15} /> {planning ? "Planning…" : "Delegate"}
               </button>
             </div>
@@ -3674,7 +3674,7 @@ function TopBar({ theme, isDark, user, pageLabel, onOpenAuth, onOpenSettings }) 
             <button onClick={() => onOpenAuth("login")} style={{ padding: "8px 14px", borderRadius: 999, border: `1px solid ${theme.border}`, background: "transparent", color: theme.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
               Log in
             </button>
-            <button onClick={() => onOpenAuth("signup")} style={{ padding: "8px 14px", borderRadius: 999, background: acBg("violet"), border: "none", color: ac("violet", isDark), fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <button onClick={() => onOpenAuth("signup")} style={{ padding: "8px 14px", borderRadius: 999, background: acBg("violet", isDark), border: "none", color: ac("violet", isDark), fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               Sign Up
             </button>
           </>
@@ -3686,7 +3686,7 @@ function TopBar({ theme, isDark, user, pageLabel, onOpenAuth, onOpenSettings }) 
             </button>
           </>
         ) : (
-          <button onClick={onOpenAuth} style={{ padding: "8px 16px", borderRadius: 999, background: acBg("violet"), border: "none", color: ac("violet", isDark), fontSize: 13.5, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+          <button onClick={onOpenAuth} style={{ padding: "8px 16px", borderRadius: 999, background: acBg("violet", isDark), border: "none", color: ac("violet", isDark), fontSize: 13.5, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
             <LogIn size={14} /> Sign up / Log in
           </button>
         )}
@@ -3790,7 +3790,7 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
 
       <div>
         <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>DATA</p>
-        <button onClick={onClearData} style={{ padding: "9px 16px", borderRadius: 999, background: acBg("red"), border: "none", color: ac("red", isDark), fontSize: 13.5, cursor: "pointer" }}>
+        <button onClick={onClearData} style={{ padding: "9px 16px", borderRadius: 999, background: acBg("red", isDark), border: "none", color: ac("red", isDark), fontSize: 13.5, cursor: "pointer" }}>
           Reset my VANT data
         </button>
         <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 8 }}>Resets this account's saved theme, chats, tasks, and Cowork history.</p>
