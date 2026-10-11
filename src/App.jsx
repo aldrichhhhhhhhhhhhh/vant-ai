@@ -4363,9 +4363,23 @@ export default function VantWorkingPrototype() {
               {authReady ? "Start with a guest chat—your first five successful replies are on us." : "Preparing your guest session…"}
             </div>
             <button onClick={async () => {
-              const { data, error } = await supabase.auth.signInAnonymously();
-              if (error) { console.error("VANT guest sign-in failed", error); alert("Guest access is temporarily unavailable. Please try again shortly."); return; }
-              await loadUserState(data.user || data.session?.user);
+              try {
+                const { data, error } = await supabase.auth.signInAnonymously();
+                if (error) {
+                  console.error("VANT guest sign-in failed", { message: error.message, status: error.status, code: error.code });
+                  alert("Guest sign-in failed: " + (error.message || "Unknown Supabase error") + (error.code ? " (code: " + error.code + ")" : "") + (error.status ? " (status: " + error.status + ")" : ""));
+                  return;
+                }
+                const guestUser = data?.user || data?.session?.user;
+                if (!guestUser) {
+                  alert("Guest sign-in returned no user. Please refresh and try again.");
+                  return;
+                }
+                await loadUserState(guestUser);
+              } catch (err) {
+                console.error("VANT guest sign-in exception", err);
+                alert("Guest sign-in error: " + (err?.message || String(err)));
+              }
             }} style={{ width: "100%", border: 0, background: "#191919", color: "#FFFFFF", borderRadius: 999, padding: "15px 20px", fontWeight: 600, cursor: "pointer" }}>Continue as Guest</button>
             <p style={{ color: "#77736A", fontSize: 12, lineHeight: 1.5, textAlign: "center", margin: "12px 0 0" }}>5 successful VANT replies per day · Resets at 00:00 Philippine time</p>
           </div>
