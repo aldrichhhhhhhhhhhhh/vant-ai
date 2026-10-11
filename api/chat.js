@@ -422,19 +422,6 @@ export default async function handler(req, res) {
      REQUEST BODY
      --------------------------------------------------------- */
 
-  const apiKey =
-    process.env.NVIDIA_API_KEY;
-
-  if (!apiKey) {
-    return json(res, 500, {
-      error: "missing_api_key",
-    });
-  }
-
-  /* ---------------------------------------------------------
-     REQUEST BODY
-     --------------------------------------------------------- */
-
   const {
     system,
     messages,
@@ -446,12 +433,12 @@ export default async function handler(req, res) {
   if (isGuest) {
     // Guest access is intentionally text-only, small, and restricted to Main Chat.
     const rawMessages = Array.isArray(messages) ? messages : [];
-    const userMessages = rawMessages.filter((message) => message?.role === "user");
+    const latestMessage = rawMessages[rawMessages.length - 1];
     const containsNonText = rawMessages.some((message) =>
       Array.isArray(message?.content) && message.content.some((part) => part?.type !== "text")
     );
-    if (userMessages.length !== 1 || containsNonText ||
-        userMessages.some((message) => typeof message.content !== "string" || message.content.length > 4000)) {
+    if (latestMessage?.role !== "user" || containsNonText ||
+        typeof latestMessage.content !== "string" || latestMessage.content.length > 4000) {
       return json(res, 400, { error: "guest_text_only", message: "Guest mode supports one text message at a time, up to 4,000 characters." });
     }
 
