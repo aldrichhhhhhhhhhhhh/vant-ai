@@ -3977,6 +3977,7 @@ export default function VantWorkingPrototype() {
       id: authUser.id,
       name: authUser.user_metadata?.name || authUser.email?.split("@")[0] || "User",
       email: authUser.email || "",
+      isGuest: authUser.is_anonymous === true,
     };
   }
 
@@ -3991,6 +3992,16 @@ export default function VantWorkingPrototype() {
     }
 
     setUser(profileFromUser(authUser));
+    if (authUser.is_anonymous === true) {
+      // Guests use browser-local chat history only and never load account workspaces.
+      setAppState({ theme: "light", cowork_tasks: [], cowork_history: [] });
+      setThemeName("light");
+      setStateReady(true);
+      await loadChatHistory(null);
+      setProjects([]);
+      setProjectChat(null);
+      return;
+    }
     setStateReady(false);
     await Promise.all([loadChatHistory(authUser), loadProjects(authUser)]);
 
@@ -4036,7 +4047,17 @@ export default function VantWorkingPrototype() {
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        if (activeSubscription) await loadUserState(data.session?.user || null);
+        let sessionUser = data.session?.user || null;
+        // First-time visitors receive an anonymous Supabase session so Main Chat can be used without signup.
+        if (!sessionUser) {
+          const { data: guestData, error: guestError } = await supabase.auth.signInAnonymously();
+          if (guestError) {
+            console.error("VANT: anonymous guest sign-in unavailable", guestError);
+          } else {
+            sessionUser = guestData.user || guestData.session?.user || null;
+          }
+        }
+        if (activeSubscription) await loadUserState(sessionUser);
       } catch (error) {
         console.error("VANT: failed to initialize auth session", error);
       } finally {
