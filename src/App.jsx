@@ -138,14 +138,7 @@ async function askClaude(
   }
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  let accessCode = "";
   let accessToken = "";
-
-  try {
-    accessCode = localStorage.getItem("vant_access_code") || "";
-  } catch {
-    /* no storage access */
-  }
 
   try {
     const { data } = await supabase.auth.getSession();
@@ -165,7 +158,6 @@ async function askClaude(
 
       headers: {
         "Content-Type": "application/json",
-        "x-access-code": accessCode,
         "Authorization": `Bearer ${accessToken}`,
       },
 
@@ -192,16 +184,6 @@ async function askClaude(
         }
       } catch {
         /* Response body may be unavailable on a gateway failure. */
-      }
-
-      if (data?.error === "access_not_configured") {
-        clearTimeout(timer);
-        return "This deployment hasn't set an access code yet — set APP_ACCESS_CODE in your environment variables.";
-      }
-
-      if (data?.error === "invalid_access_code") {
-        clearTimeout(timer);
-        return "Wrong or missing access code. Enter the correct one in Settings.";
       }
 
       if (data?.error === "payload_too_large") {
@@ -404,14 +386,7 @@ async function askVant(
 
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  let accessCode = "";
   let accessToken = "";
-
-  try {
-    accessCode = localStorage.getItem("vant_access_code") || "";
-  } catch {
-    /* no storage access */
-  }
 
   try {
     const { data } = await supabase.auth.getSession();
@@ -430,7 +405,6 @@ async function askVant(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-access-code": accessCode,
         "Authorization": `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
@@ -449,14 +423,6 @@ async function askVant(
       }
 
       clearTimeout(timer);
-
-      if (data?.error === "access_not_configured") {
-        return "This deployment hasn't set an access code yet — set APP_ACCESS_CODE in your environment variables.";
-      }
-
-      if (data?.error === "invalid_access_code") {
-        return "Wrong or missing access code. Enter the correct one in Settings.";
-      }
 
       if (data?.error === "missing_api_key") {
         return "The server isn't configured with an NVIDIA API key yet — set NVIDIA_API_KEY in your deployment's environment variables.";
@@ -3753,7 +3719,7 @@ function AuthModal({ mode, setMode, theme, isDark, onClose, onAuth }) {
   );
 }
 
-function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, onClearData, accessCode, onAccessCodeChange }) {
+function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, onClearData }) {
   return (
     <Overlay onClose={onClose} theme={theme} width={420}>
       <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 21, fontWeight: 500, margin: "0 0 18px", color: theme.text }}>Settings</h2>
@@ -3774,18 +3740,6 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
         <button onClick={onToggleTheme} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>
           {isDark ? <Sun size={14} /> : <Moon size={14} />} Switch to {isDark ? "Day" : "Dark"} theme
         </button>
-      </div>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>SECURITY</p>
-        <p style={{ fontSize: 12.5, color: theme.textMuted, margin: "0 0 8px", lineHeight: 1.5 }}>AI features need an access code to work — ask whoever's running this deployment for it.</p>
-        <input
-          value={accessCode}
-          onChange={(e) => onAccessCodeChange(e.target.value)}
-          placeholder="Access code"
-          type="password"
-          style={{ width: "100%", padding: "9px 14px", borderRadius: 10, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, color: theme.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}
-        />
       </div>
 
       <div>
@@ -3817,7 +3771,6 @@ export default function VantWorkingPrototype() {
   const [authMode, setAuthMode] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [connected, setConnected] = useState(() => new Set(INTEGRATIONS.map((i) => i.name)));
-  const [accessCode, setAccessCode] = useState(() => { try { return localStorage.getItem("vant_access_code") || ""; } catch { return ""; } });
   const [appState, setAppState] = useState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
   const [stateReady, setStateReady] = useState(false);
   const appStateRef = useRef(appState);
@@ -3825,11 +3778,6 @@ export default function VantWorkingPrototype() {
   useEffect(() => {
     appStateRef.current = appState;
   }, [appState]);
-
-  function handleAccessCodeChange(value) {
-    setAccessCode(value);
-    try { localStorage.setItem("vant_access_code", value); } catch { /* storage unavailable */ }
-  }
 
   function activeChatStorageKey(userId) {
     return `vant_active_chat_${userId || "guest"}`;
@@ -4404,7 +4352,7 @@ export default function VantWorkingPrototype() {
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>{renderPage()}</div>
       </div>
       {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
-      {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} accessCode={accessCode} onAccessCodeChange={handleAccessCodeChange} />}
+      {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} />}
     </div>
   );
 }
