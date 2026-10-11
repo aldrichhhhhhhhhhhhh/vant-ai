@@ -1222,7 +1222,58 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                     </div>
                   )) : <div style={{ padding: "24px 8px", textAlign: "center", color: theme.textMuted, fontSize: 13 }}>No activity recorded yet.</div>}
                 </div>
-              )}              {workspacePanel === "dashboard" && <div style={{ marginTop: 20, display: "grid", gap: 10 }}><div style={{ padding: 14, borderRadius: 12, background: theme.surface, border: "1px solid " + theme.border }}><div style={{ color: theme.textFaint, fontSize: 11 }}>PROJECT STATUS</div><div style={{ fontSize: 18, fontWeight: 600, marginTop: 5 }}>Active</div><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>{chats.length} project chat{chats.length === 1 ? "" : "s"} currently attached.</div></div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}><button type="button" onClick={onAskVant} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: acBg(color), color: theme.text, cursor: "pointer", textAlign: "left" }}><Sparkles size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>Ask VANT</div></button><button type="button" onClick={onNewChat} style={{ padding: 13, borderRadius: 11, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer", textAlign: "left" }}><Plus size={15} /><div style={{ fontWeight: 600, marginTop: 7 }}>New Chat</div></button></div></div>}
+              )}
+              {workspacePanel === "dashboard" && (
+                <div style={{ marginTop: 20, display: "grid", gap: 14 }}>
+                  <div style={{ padding: 16, borderRadius: 13, background: theme.surface, border: "1px solid " + theme.border }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ color: theme.textFaint, fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1 }}>PROJECT OVERVIEW</div>
+                        <div style={{ fontSize: 18, fontWeight: 650, marginTop: 6, overflowWrap: "anywhere" }}>{project.name}</div>
+                        <div style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, marginTop: 6 }}>{project.description || "No description has been added yet."}</div>
+                      </div>
+                      <span style={{ flexShrink: 0, padding: "5px 8px", borderRadius: 999, background: acBg(color), color: ac(color, isDark), fontSize: 11, fontWeight: 600 }}>{priority} priority</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+                    {[
+                      { label: "PROJECT CHATS", value: chats.length, detail: "Available to you", icon: MessageSquare },
+                      { label: "TEAM MEMBERS", value: members.length, detail: "Project access list", icon: Users },
+                      { label: "ACTIVITY EVENTS", value: activityItems.length, detail: "Recorded in workspace", icon: History },
+                    ].map(({ label, value, detail, icon: Icon }) => (
+                      <div key={label} style={{ minWidth: 0, padding: 11, borderRadius: 11, border: "1px solid " + theme.border, background: theme.surface }}>
+                        <Icon size={15} color={ac(color, isDark)} />
+                        <div style={{ color: theme.textFaint, fontSize: 9, letterSpacing: .6, marginTop: 8 }}>{label}</div>
+                        <div style={{ fontSize: 21, fontWeight: 650, marginTop: 3 }}>{value}</div>
+                        <div style={{ color: theme.textMuted, fontSize: 10, marginTop: 2 }}>{detail}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding: 15, borderRadius: 13, border: "1px solid " + theme.border, background: theme.surface }}>
+                    <div style={{ fontWeight: 650, fontSize: 13.5 }}>Take action</div>
+                    <div style={{ color: theme.textMuted, fontSize: 12, marginTop: 4, marginBottom: 11 }}>Start work or get help based on this project's context.</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                      <button type="button" onClick={() => { setWorkspacePanel(null); onAskVant(); }} style={{ padding: 11, borderRadius: 10, border: "1px solid " + theme.border, background: acBg(color), color: theme.text, cursor: "pointer", textAlign: "left" }}><Sparkles size={15} /><div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 6 }}>Ask VANT</div><div style={{ color: theme.textMuted, fontSize: 10.5, marginTop: 3 }}>Plan the next step</div></button>
+                      <button type="button" onClick={() => { setWorkspacePanel(null); onNewChat(); }} style={{ padding: 11, borderRadius: 10, border: "1px solid " + theme.border, background: theme.surfaceCard, color: theme.text, cursor: "pointer", textAlign: "left" }}><Plus size={15} /><div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 6 }}>New Chat</div><div style={{ color: theme.textMuted, fontSize: 10.5, marginTop: 3 }}>Start a conversation</div></button>
+                      <button type="button" onClick={() => setWorkspacePanel("team")} style={{ padding: 11, borderRadius: 10, border: "1px solid " + theme.border, background: theme.surfaceCard, color: theme.text, cursor: "pointer", textAlign: "left" }}><Users size={15} /><div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 6 }}>Manage Team</div><div style={{ color: theme.textMuted, fontSize: 10.5, marginTop: 3 }}>Members and access</div></button>
+                      <button type="button" onClick={() => setWorkspacePanel("activity")} style={{ padding: 11, borderRadius: 10, border: "1px solid " + theme.border, background: theme.surfaceCard, color: theme.text, cursor: "pointer", textAlign: "left" }}><History size={15} /><div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 6 }}>View Activity</div><div style={{ color: theme.textMuted, fontSize: 10.5, marginTop: 3 }}>Recent recorded changes</div></button>
+                    </div>
+                  </div>
+                  <div style={{ padding: 15, borderRadius: 13, border: "1px solid " + theme.border, background: theme.surface }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+                      <div><div style={{ fontWeight: 650, fontSize: 13.5 }}>Recent activity</div><div style={{ color: theme.textMuted, fontSize: 11.5, marginTop: 3 }}>Based on events recorded for this project.</div></div>
+                      <button type="button" onClick={() => setWorkspacePanel("activity")} style={{ border: "1px solid " + theme.border, background: "transparent", color: theme.text, borderRadius: 8, padding: "6px 8px", cursor: "pointer", fontSize: 11 }}>View all</button>
+                    </div>
+                    {activityItems.length ? activityItems.slice(0, 4).map((item) => (
+                      <div key={item.id} style={{ padding: "9px 0", borderTop: "1px solid " + theme.border }}>
+                        <div style={{ fontSize: 12, lineHeight: 1.45 }}>{activityLabel(item)}</div>
+                        <div style={{ color: theme.textFaint, fontSize: 10.5, marginTop: 3 }}>{new Date(item.created_at || Date.now()).toLocaleString()}</div>
+                      </div>
+                    )) : <div style={{ padding: "12px 0 2px", borderTop: "1px solid " + theme.border, color: theme.textMuted, fontSize: 12 }}>No activity events are recorded yet.</div>}
+                  </div>
+                  {isOwner && <button type="button" onClick={() => openWorkspaceWidget("customize")} style={{ justifySelf: "start", display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 10px", borderRadius: 9, border: "1px solid " + theme.border, background: "transparent", color: theme.text, cursor: "pointer", fontSize: 12 }}><Palette size={14} /> Customize project</button>}
+                </div>
+              )}
               {workspacePanel === "team" && (
                 <div style={{ marginTop: 20 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
