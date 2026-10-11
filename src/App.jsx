@@ -852,6 +852,8 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
   const [teamChatOpen, setTeamChatOpen] = useState(false);
   const [activity, setActivity] = useState([]);
   const [inviteProjectRole, setInviteProjectRole] = useState("Contributor");
+  const [workspaceEditTitle, setWorkspaceEditTitle] = useState(project.name || "");
+  const [workspaceEditDescription, setWorkspaceEditDescription] = useState(project.description || "");
   const [workspaceEditColor, setWorkspaceEditColor] = useState(project.color || "violet");
   const [workspaceEditPriority, setWorkspaceEditPriority] = useState(project.priority || "moderate");
   const [workspaceSaveBusy, setWorkspaceSaveBusy] = useState(false);
@@ -992,6 +994,8 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
 
   function openWorkspaceWidget(widget) {
     if (widget === "customize") {
+      setWorkspaceEditTitle(project.name || "");
+      setWorkspaceEditDescription(project.description || "");
       setWorkspaceEditColor(project.color || "violet");
       setWorkspaceEditPriority(project.priority || "moderate");
       setWorkspacePanel("customize");
@@ -1154,13 +1158,27 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                   if (workspaceSaveBusy) return;
                   setWorkspaceSaveBusy(true);
                   try {
-                    await onCustomize(project.id, { color: workspaceEditColor, priority: workspaceEditPriority });
+                    const cleanTitle = workspaceEditTitle.trim();
+                    if (!cleanTitle) {
+                      window.alert("Please enter a project title.");
+                      return;
+                    }
+                    await onCustomize(project.id, {
+                      name: cleanTitle,
+                      description: workspaceEditDescription.trim(),
+                      color: workspaceEditColor,
+                      priority: workspaceEditPriority,
+                    });
                     setWorkspacePanel(null);
                   } finally {
                     setWorkspaceSaveBusy(false);
                   }
                 }} style={{ marginTop: 20 }}>
-                  <div style={{ color: theme.textMuted, fontSize: 12, marginBottom: 14 }}>Update this workspace's appearance and priority. Changes apply to the project after saving.</div>
+                  <div style={{ color: theme.textMuted, fontSize: 12, marginBottom: 14 }}>Update your project details, appearance, and priority. Changes apply after saving.</div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 7 }} htmlFor="workspace-project-title">Project title</label>
+                  <input id="workspace-project-title" value={workspaceEditTitle} onChange={(e) => setWorkspaceEditTitle(e.target.value)} maxLength={120} required placeholder="Project title" style={{ width: "100%", boxSizing: "border-box", padding: "10px 11px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, marginBottom: 14 }} />
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 7 }} htmlFor="workspace-project-description">Description</label>
+                  <textarea id="workspace-project-description" value={workspaceEditDescription} onChange={(e) => setWorkspaceEditDescription(e.target.value)} maxLength={2000} rows={3} placeholder="What is this project about?" style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: "10px 11px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, marginBottom: 16, font: "inherit", fontSize: 12.5 }} />
                   <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 9 }}>Workspace color</div>
                   <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 18 }}>
                     {PROJECT_COLORS.map((key) => (
