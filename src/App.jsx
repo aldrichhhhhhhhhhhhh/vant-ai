@@ -4434,7 +4434,23 @@ export default function VantWorkingPrototype() {
       <Sidebar active={active} onSelect={setActive} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} onOpenSettings={() => setSettingsOpen(true)} />
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: theme.bg }}> 
         <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={() => setAuthMode("signup")} onOpenSettings={() => setSettingsOpen(true)} />
-        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>{renderPage()}</div>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto", position: "relative" }}>
+          {renderPage()}
+          {(user?.is_anonymous === true || user?.app_metadata?.provider === "anonymous") && active !== "chat" && (
+            <div role="dialog" aria-modal="false" aria-label="Unlock the full VANT platform" style={{ position: "absolute", inset: 0, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: isDark ? "rgba(10,9,15,0.68)" : "rgba(250,249,246,0.72)", backdropFilter: "blur(7px)", WebkitBackdropFilter: "blur(7px)" }}>
+              <div className="v-fade" style={{ width: "100%", maxWidth: 440, textAlign: "center", padding: "34px 30px 30px", borderRadius: 24, border: "1px solid " + (isDark ? "rgba(208,166,80,0.30)" : "rgba(185,145,63,0.34)"), background: isDark ? "linear-gradient(145deg,rgba(31,28,39,0.98),rgba(19,18,25,0.98))" : "rgba(255,255,255,0.97)", boxShadow: isDark ? "0 24px 80px rgba(0,0,0,0.38), 0 0 0 1px rgba(208,166,80,0.04)" : "0 24px 70px rgba(25,25,25,0.13)" }}>
+                <div style={{ width: 54, height: 54, margin: "0 auto 18px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 17, background: "linear-gradient(135deg,#D0A650,#9D762D)", boxShadow: "0 8px 24px rgba(208,166,80,0.20)" }}>
+                  <Sparkles size={25} color="#191919" strokeWidth={1.8} />
+                </div>
+                <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 2.2, textTransform: "uppercase", color: "#C49A43", marginBottom: 12 }}>Your next level starts here</div>
+                <h2 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 29, lineHeight: 1.18, fontWeight: 500, color: theme.text, margin: "0 auto 12px", maxWidth: 350 }}>Unlock VANT’s full potential.</h2>
+                <p style={{ color: theme.textMuted, fontSize: 14, lineHeight: 1.75, margin: "0 auto 24px", maxWidth: 340 }}>Log in or create your free account to turn on the full VANT work platform—from projects and productivity tools to your connected workspace.</p>
+                <button type="button" onClick={() => setAuthMode("signup")} style={{ width: "100%", maxWidth: 290, minHeight: 48, border: "1px solid #B9913F", borderRadius: 999, padding: "13px 22px", background: "linear-gradient(135deg,#D0A650,#B9913F)", color: "#191919", fontSize: 13, fontWeight: 700, letterSpacing: 0.15, cursor: "pointer", boxShadow: "0 8px 24px rgba(208,166,80,0.16)" }}>Experience VANT Now <span aria-hidden="true" style={{ marginLeft: 7 }}>→</span></button>
+                <button type="button" onClick={() => setAuthMode("login")} style={{ display: "block", margin: "13px auto 0", border: 0, background: "transparent", color: theme.textMuted, fontSize: 12.5, cursor: "pointer", padding: "6px 10px" }}>Already have an account? <span style={{ color: "#C49A43", fontWeight: 600 }}>Log in</span></button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
       {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} />}
