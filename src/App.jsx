@@ -1748,7 +1748,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
     );
   }
 
-  function Composer({ theme, isDark, compact = false, attachments, composerNotice, guestLimitReached = false, input, setInput, loading, handleSubmit, composerRef, composerOpen, setComposerOpen, setComposerNotice, fileInputRef, addFiles, takeScreenshot, composerAction, onGoToIntegrations, webSearch, setWebSearch, removeAttachment }) {
+  function Composer({ theme, isDark, compact = false, attachments, composerNotice, guestLimitReached = false, onSignIn, onSignUp, input, setInput, loading, handleSubmit, composerRef, composerOpen, setComposerOpen, setComposerNotice, fileInputRef, addFiles, takeScreenshot, composerAction, onGoToIntegrations, webSearch, setWebSearch, removeAttachment }) {
     return (
       <div style={{ width: "100%", maxWidth: compact ? 920 : 760, margin: compact ? "0 auto" : "0 auto", boxSizing: "border-box" }}>
         {attachments.length > 0 && (
@@ -1772,6 +1772,10 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
             <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 2, color: "#B9913F", marginBottom: 7 }}>VANT</div>
             <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.4, color: theme.text, marginBottom: 7 }}>Limit reached, will reset after 00:00</div>
             <div style={{ fontSize: 12.5, lineHeight: 1.6, color: theme.textMuted }}>You've used all 5 guest messages for today. Come back after midnight or sign up to unlock the full VANT Work Platform.</div>
+            <div style={{ display: "flex", gap: 9, marginTop: 14, flexWrap: "wrap" }}>
+              <button type="button" onClick={onSignIn} style={{ flex: "1 1 120px", minHeight: 39, borderRadius: 999, border: `1px solid ${theme.borderStrong}`, background: "transparent", color: theme.text, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Sign in</button>
+              <button type="button" onClick={onSignUp} style={{ flex: "1 1 120px", minHeight: 39, borderRadius: 999, border: "1px solid #B9913F", background: "linear-gradient(135deg,#D0A650,#B9913F)", color: "#191919", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Sign up</button>
+            </div>
           </div>
         )}
         <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 7, borderRadius: 18, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 8px 30px rgba(0,0,0,.16)" : "0 8px 30px rgba(15,15,35,.06)" }}>
@@ -1818,6 +1822,7 @@ function ChatPage({
   projectMode = false,
   onBackToProject = null,
   chatHistoryReady = true,
+  onOpenAuth,
 }) {
   const activeConversation = conversations.find((item) => item.id === activeConversationId) || null;
   const [started, setStarted] = useState(Boolean(activeConversation?.messages?.length));
@@ -2490,7 +2495,7 @@ Respond naturally like a sharp work partner.
 
           <div style={{ flex: "0 0 auto", width: "100%", boxSizing: "border-box", padding: "0 24px 24px", background: theme.bg }}>
             <div style={{ width: "min(760px, 100%)", maxWidth: 760, margin: "0 auto" }}>
-              <Composer theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} guestLimitReached={guestLimitReached} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} />
+              <Composer theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} guestLimitReached={guestLimitReached} onSignIn={() => onOpenAuth?.("login")} onSignUp={() => onOpenAuth?.("signup")} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} />
             </div>
           </div>
         </div>
@@ -2564,7 +2569,7 @@ Respond naturally like a sharp work partner.
         ))}
         {loading && <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 8 }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div><button type="button" onClick={stopGeneration} title="Stop generation" style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Square size={12} fill="currentColor" /></button></div>}
       </div>
-      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} guestLimitReached={guestLimitReached} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} /></div>
+      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} guestLimitReached={guestLimitReached} onSignIn={() => onOpenAuth?.("login")} onSignUp={() => onOpenAuth?.("signup")} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} /></div>
       </div>
     </div>
   );
@@ -4331,6 +4336,7 @@ export default function VantWorkingPrototype() {
       key={newChatNonce}
       {...props}
       chatHistoryReady={chatHistoryReady}
+      onOpenAuth={setAuthMode}
       onGoToIntegrations={() => setActive("integrations")}
       conversations={conversations.filter((item) => !item.projectId)}
       activeConversationId={activeConversationId}
