@@ -3668,7 +3668,17 @@ function TopBar({ theme, isDark, user, pageLabel, onOpenAuth, onOpenSettings }) 
     <div style={{ height: 56, flexShrink: 0, borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 12 }}>
       <span style={{ fontSize: 13, color: theme.textFaint, fontFamily: "JetBrains Mono, monospace", letterSpacing: 1 }}>{pageLabel?.toUpperCase()}</span>
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-        {user ? (
+        {user?.isGuest === true ? (
+          <>
+            <span style={{ fontSize: 13.5, color: theme.text, fontWeight: 600 }}>Guest Mode</span>
+            <button onClick={() => onOpenAuth("login")} style={{ padding: "8px 14px", borderRadius: 999, border: `1px solid ${theme.border}`, background: "transparent", color: theme.text, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+              Log in
+            </button>
+            <button onClick={() => onOpenAuth("signup")} style={{ padding: "8px 14px", borderRadius: 999, background: acBg("violet"), border: "none", color: ac("violet", isDark), fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              Sign Up
+            </button>
+          </>
+        ) : user ? (
           <>
             <span style={{ fontSize: 13.5, color: theme.text }}>Hi, {user.name}</span>
             <button onClick={onOpenSettings} title="Settings" style={{ width: 34, height: 34, borderRadius: 999, border: `1px solid ${theme.border}`, background: theme.surface, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
@@ -4433,7 +4443,7 @@ export default function VantWorkingPrototype() {
       `}</style>
       <Sidebar active={active} onSelect={setActive} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} onOpenSettings={() => setSettingsOpen(true)} />
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: theme.bg }}> 
-        <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={() => setAuthMode("signup")} onOpenSettings={() => setSettingsOpen(true)} />
+        <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={(mode) => setAuthMode(mode || "signup")} onOpenSettings={() => setSettingsOpen(true)} />
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", position: "relative" }}>
           {renderPage()}
           {user?.isGuest === true && active !== "chat" && (
