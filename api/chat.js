@@ -431,15 +431,28 @@ export default async function handler(req, res) {
   } = req.body || {};
 
   if (isGuest) {
-    // Guest access is intentionally text-only, small, and restricted to Main Chat.
+    // Guest access is text-only and limited to 4,000 characters per user turn.
+    // Older conversation turns may use structured content; validate the latest
+    // user turn only so harmless prior history doesn't block a normal reply.
     const rawMessages = Array.isArray(messages) ? messages : [];
-    const latestMessage = rawMessages[rawMessages.length - 1];
-    const containsNonText = rawMessages.some((message) =>
-      Array.isArray(message?.content) && message.content.some((part) => part?.type !== "text")
-    );
-    if (latestMessage?.role !== "user" || containsNonText ||
-        typeof latestMessage.content !== "string" || latestMessage.content.length > 4000) {
-      return json(res, 400, { error: "guest_text_only", message: "Guest mode supports one text message at a time, up to 4,000 characters." });
+    const latestMessage = [...rawMessages].reverse().find((message) => message?.role === "user");
+    let latestText = "";
+
+    if (typeof latestMessage?.content === "string") {
+      latestText = latestMessage.content;
+    } else if (Array.isArray(latestMessage?.content)) {
+      const parts = latestMessage.content;
+      const textOnly = parts.length > 0 && parts.every(
+        (part) => part && part.type === "text" && typeof part.text === "string"
+      );
+      if (textOnly) latestText = parts.map((part) => part.text).join("\\n");
+    }
+
+    if (!latestMessage || !latestText.trim() || latestText.length > 4000) {
+      return json(res, 400, {
+        error: "guest_text_only",
+        message: "Guest mode supports text messages up to 4,000 characters. Attachments aren't available in guest mode.",
+      });
     }
 
     const usageDate = new Intl.DateTimeFormat("en-CA", {
