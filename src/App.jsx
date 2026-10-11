@@ -852,6 +852,9 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
   const [teamChatOpen, setTeamChatOpen] = useState(false);
   const [activity, setActivity] = useState([]);
   const [inviteProjectRole, setInviteProjectRole] = useState("Contributor");
+  const [workspaceEditColor, setWorkspaceEditColor] = useState(project.color || "violet");
+  const [workspaceEditPriority, setWorkspaceEditPriority] = useState(project.priority || "moderate");
+  const [workspaceSaveBusy, setWorkspaceSaveBusy] = useState(false);
   const isOwner = project.ownerId === user?.id;
 
   const PROJECT_ROLES = [
@@ -988,6 +991,12 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
   }
 
   function openWorkspaceWidget(widget) {
+    if (widget === "customize") {
+      setWorkspaceEditColor(project.color || "violet");
+      setWorkspaceEditPriority(project.priority || "moderate");
+      setWorkspacePanel("customize");
+      return;
+    }
     if (widget === "teamChat") {
       setWorkspacePanel(null);
       setTeamChatOpen(true);
@@ -1055,7 +1064,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
-            {isOwner && <button type="button" onClick={() => onCustomize(project.id)} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={15} /> Customize</button>}
+            {isOwner && <button type="button" onClick={() => openWorkspaceWidget("customize")} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={15} /> Customize</button>}
             <button type="button" onClick={onAskVant} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "1px solid " + theme.border, borderRadius: 10, padding: "9px 12px", background: theme.surface, color: theme.text, cursor: "pointer" }}><Sparkles size={15} /> Ask VANT</button>
             <button type="button" onClick={onNewChat} style={{ display: "inline-flex", alignItems: "center", gap: 7, border: "none", borderRadius: 10, padding: "9px 13px", background: acBg(color), color: ac(color, isDark), cursor: "pointer", fontWeight: 600 }}><Plus size={15} /> New Chat</button>
           </div>
@@ -1136,9 +1145,38 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
           <div role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) setWorkspacePanel(null); }} style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
             <div style={{ width: "min(560px, 100%)", maxHeight: "80vh", overflowY: "auto", background: isDark ? "rgba(14,17,23,0.9)" : "rgba(255,255,255,0.92)", backdropFilter: "blur(18px)", border: "1px solid " + theme.borderStrong, borderRadius: 18, padding: 22 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: ac(color, isDark) }}>VANT · PROJECT</div><h2 style={{ margin: "6px 0 0", fontSize: 21 }}>{workspacePanel === "team" ? "Team" : workspacePanel === "space" ? "Project Space" : workspacePanel === "chats" ? "Project Chats" : workspacePanel === "activity" ? "Activity Log" : "Project Dashboard"}</h2></div>
+                <div><div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.2, color: ac(color, isDark) }}>VANT · PROJECT</div><h2 style={{ margin: "6px 0 0", fontSize: 21 }}>{workspacePanel === "team" ? "Team" : workspacePanel === "space" ? "Project Space" : workspacePanel === "chats" ? "Project Chats" : workspacePanel === "activity" ? "Activity Log" : workspacePanel === "customize" ? "Customize Project" : "Project Dashboard"}</h2></div>
                 <button type="button" onClick={() => setWorkspacePanel(null)} aria-label="Close project panel" style={{ border: "1px solid " + theme.border, background: theme.surface, color: theme.textMuted, borderRadius: 9, width: 32, height: 32, cursor: "pointer" }}><X size={15} /></button>
               </div>
+              {workspacePanel === "customize" && isOwner && (
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (workspaceSaveBusy) return;
+                  setWorkspaceSaveBusy(true);
+                  try {
+                    await onCustomize(project.id, { color: workspaceEditColor, priority: workspaceEditPriority });
+                    setWorkspacePanel(null);
+                  } finally {
+                    setWorkspaceSaveBusy(false);
+                  }
+                }} style={{ marginTop: 20 }}>
+                  <div style={{ color: theme.textMuted, fontSize: 12, marginBottom: 14 }}>Update this workspace's appearance and priority. Changes apply to the project after saving.</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 9 }}>Workspace color</div>
+                  <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 18 }}>
+                    {PROJECT_COLORS.map((key) => (
+                      <button key={key} type="button" onClick={() => setWorkspaceEditColor(key)} aria-label={key + " project color"} aria-pressed={workspaceEditColor === key} style={{ width: 34, height: 34, borderRadius: 10, border: workspaceEditColor === key ? "2px solid " + ac(key, isDark) : "1px solid " + theme.border, background: acBg(key), color: ac(key, isDark), cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{workspaceEditColor === key ? <Check size={16} /> : "●"}</button>
+                    ))}
+                  </div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Project priority</label>
+                  <select value={workspaceEditPriority} onChange={(e) => setWorkspaceEditPriority(e.target.value)} style={{ width: "100%", padding: "10px 11px", borderRadius: 9, border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text, marginBottom: 18 }}>
+                    {PROJECT_PRIORITIES.map((item) => <option key={item.value} value={item.value}>{item.label} priority</option>)}
+                  </select>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                    <button type="button" onClick={() => setWorkspacePanel(null)} disabled={workspaceSaveBusy} style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid " + theme.border, background: "transparent", color: theme.textMuted, cursor: workspaceSaveBusy ? "wait" : "pointer" }}>Cancel</button>
+                    <button type="submit" disabled={workspaceSaveBusy} style={{ padding: "9px 13px", borderRadius: 9, border: "none", background: acBg(color), color: ac(color, isDark), cursor: workspaceSaveBusy ? "wait" : "pointer", opacity: workspaceSaveBusy ? 0.65 : 1 }}>{workspaceSaveBusy ? "Saving…" : "Save changes"}</button>
+                  </div>
+                </form>
+              )}
               {workspacePanel === "chats" && (
                 <div style={{ marginTop: 20 }}>
                   <div style={{ color: theme.textMuted, fontSize: 12, marginBottom: 12 }}>Every conversation attached to this project.</div>
@@ -1217,7 +1255,7 @@ function ProjectWorkspace({ theme, isDark, project, chats = [], user, onBack, on
                   </form>}
                 </div>
               )}
-              {workspacePanel === "space" && <div style={{ marginTop: 20 }}><div style={{ display: "grid", gap: 0 }}>{[["Project", project.name],["Description", project.description || "No description"],["Priority", priority],["Color", color],["Chats", String(chats.length)],["Members", String(members.length)],["Status", "Active"]].map(([label,value]) => <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 18, padding: "11px 0", borderBottom: "1px solid " + theme.border }}><span style={{ color: theme.textFaint, fontSize: 12 }}>{label}</span><span style={{ color: theme.text, fontSize: 12.5, textAlign: "right", maxWidth: "70%" }}>{value}</span></div>)}</div>{isOwner && <button type="button" onClick={() => { setWorkspacePanel(null); onCustomize(project.id); }} style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={14} /> Customize Project</button>}</div>}
+              {workspacePanel === "space" && <div style={{ marginTop: 20 }}><div style={{ display: "grid", gap: 0 }}>{[["Project", project.name],["Description", project.description || "No description"],["Priority", priority],["Color", color],["Chats", String(chats.length)],["Members", String(members.length)],["Status", "Active"]].map(([label,value]) => <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 18, padding: "11px 0", borderBottom: "1px solid " + theme.border }}><span style={{ color: theme.textFaint, fontSize: 12 }}>{label}</span><span style={{ color: theme.text, fontSize: 12.5, textAlign: "right", maxWidth: "70%" }}>{value}</span></div>)}</div>{isOwner && <button type="button" onClick={() => openWorkspaceWidget("customize")} style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, cursor: "pointer" }}><Palette size={14} /> Customize Project</button>}</div>}
             </div>
           </div>
         )}
