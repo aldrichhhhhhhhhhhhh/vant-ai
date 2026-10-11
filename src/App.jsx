@@ -186,6 +186,12 @@ async function askClaude(
         /* Response body may be unavailable on a gateway failure. */
       }
 
+      if (data?.error === "guest_limit_reached") {
+        clearTimeout(timer);
+        if (externalSignal) externalSignal.removeEventListener("abort", abortFromCaller);
+        return "__VANT_GUEST_LIMIT_REACHED__";
+      }
+
       if (data?.error === "payload_too_large") {
         clearTimeout(timer);
         return "That request was too large — try a smaller image or fewer attachments.";
@@ -1742,7 +1748,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
     );
   }
 
-  function Composer({ theme, isDark, compact = false, attachments, composerNotice, input, setInput, loading, handleSubmit, composerRef, composerOpen, setComposerOpen, setComposerNotice, fileInputRef, addFiles, takeScreenshot, composerAction, onGoToIntegrations, webSearch, setWebSearch, removeAttachment }) {
+  function Composer({ theme, isDark, compact = false, attachments, composerNotice, guestLimitReached = false, input, setInput, loading, handleSubmit, composerRef, composerOpen, setComposerOpen, setComposerNotice, fileInputRef, addFiles, takeScreenshot, composerAction, onGoToIntegrations, webSearch, setWebSearch, removeAttachment }) {
     return (
       <div style={{ width: "100%", maxWidth: compact ? 920 : 760, margin: compact ? "0 auto" : "0 auto", boxSizing: "border-box" }}>
         {attachments.length > 0 && (
@@ -1761,6 +1767,13 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
           </div>
         )}
         {composerNotice && <div style={{ marginBottom: 8, fontSize: 11.5, color: theme.textFaint, textAlign: compact ? "left" : "center" }}>{composerNotice}</div>}
+        {guestLimitReached && (
+          <div role="status" aria-live="polite" style={{ width: "100%", boxSizing: "border-box", marginBottom: 10, padding: "17px 19px", borderRadius: 16, background: isDark ? "#1B1914" : "#FFFFFF", border: "1px solid rgba(208,166,80,0.72)", boxShadow: isDark ? "0 10px 30px rgba(0,0,0,.24)" : "0 10px 28px rgba(25,25,25,.08)", textAlign: "left" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 2, color: "#B9913F", marginBottom: 7 }}>VANT</div>
+            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.4, color: theme.text, marginBottom: 7 }}>Limit reached, will reset after 00:00</div>
+            <div style={{ fontSize: 12.5, lineHeight: 1.6, color: theme.textMuted }}>You've used all 5 guest messages for today. Come back after midnight or sign up to unlock the full VANT Work Platform.</div>
+          </div>
+        )}
         <form onSubmit={handleSubmit} style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: 7, borderRadius: 18, background: theme.inputBg, border: `1px solid ${theme.borderStrong}`, boxShadow: isDark ? "0 8px 30px rgba(0,0,0,.16)" : "0 8px 30px rgba(15,15,35,.06)" }}>
           <ComposerMenu
             theme={theme}
@@ -1777,8 +1790,8 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
             webSearch={webSearch}
             setWebSearch={setWebSearch}
           />
-          <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder="Ask VANT to do something…" disabled={loading} autoFocus rows={1} style={{ color: theme.text, fontSize: 14.5, outline: "none", textAlign: "left", direction: "ltr", lineHeight: 1.4, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
-          <button type="submit" disabled={loading || !input.trim()} title="Send" style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
+          <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }} placeholder={guestLimitReached ? "Guest limit reached for today" : "Ask VANT to do something…"} disabled={loading || guestLimitReached} autoFocus rows={1} style={{ color: theme.text, fontSize: 14.5, outline: "none", textAlign: "left", direction: "ltr", lineHeight: 1.4, flex: 1, minHeight: 42, maxHeight: 130, resize: "none", border: "none", background: "transparent", padding: "11px 8px", borderRadius: 12, boxSizing: "border-box" }} />
+          <button type="submit" disabled={loading || guestLimitReached || !input.trim()} title={guestLimitReached ? "Guest limit reached" : "Send"} style={{ width: 42, height: 42, borderRadius: 12, background: acBg("violet"), border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || guestLimitReached || !input.trim() ? 0.45 : 1 }}><Send size={17} color={ac("violet", isDark)} /></button>
         </form>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, padding: "0 4px", fontSize: 10.5, color: theme.textFaint }}>
           <span>{webSearch ? "WEB SEARCH MODE" : attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} ready` : "VANT WORK MODE"}</span>
@@ -1824,6 +1837,7 @@ function ChatPage({
   const [webSearch, setWebSearch] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [composerNotice, setComposerNotice] = useState("");
+  const [guestLimitReached, setGuestLimitReached] = useState(false);
   const scrollRef = useRef(null);
   const messagesRef = useRef(activeConversation?.messages || []);
   const sessionConversationIdRef = useRef(activeConversationId);
@@ -2193,6 +2207,19 @@ Respond naturally like a sharp work partner.
       abortController.signal
     );
 
+    if (reply === "__VANT_GUEST_LIMIT_REACHED__") {
+      const limitedMessages = [
+        ...next,
+        { role: "assistant", content: "I can't answer any more questions." },
+      ];
+      setMessages(limitedMessages);
+      messagesRef.current = limitedMessages;
+      setGuestLimitReached(true);
+      onSaveConversation(chatId, limitedMessages, projectId);
+      setAttachments([]);
+      return;
+    }
+
     if (reply === "__VANT_USER_STOPPED__") {
       const stoppedMessages = [...next];
       setMessages(stoppedMessages);
@@ -2386,7 +2413,7 @@ Respond naturally like a sharp work partner.
   function handleSubmit(e) {
     e.preventDefault();
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || loading || guestLimitReached) return;
     setEditingMessageIndex(null);
     send(text);
   }
@@ -2463,7 +2490,7 @@ Respond naturally like a sharp work partner.
 
           <div style={{ flex: "0 0 auto", width: "100%", boxSizing: "border-box", padding: "0 24px 24px", background: theme.bg }}>
             <div style={{ width: "min(760px, 100%)", maxWidth: 760, margin: "0 auto" }}>
-              <Composer theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} />
+              <Composer theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} guestLimitReached={guestLimitReached} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} />
             </div>
           </div>
         </div>
@@ -2537,7 +2564,7 @@ Respond naturally like a sharp work partner.
         ))}
         {loading && <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 8 }}><div style={{ padding: "12px 16px", borderRadius: 14, background: acBg("violet"), display: "flex", gap: 4 }}>{[0, 1, 2].map((i) => <span key={i} className="v-pulse" style={{ width: 6, height: 6, borderRadius: 999, background: ac("violet", isDark), animationDelay: `${i * 0.15}s` }} />)}</div><button type="button" onClick={stopGeneration} title="Stop generation" style={{ width: 32, height: 32, borderRadius: 9, border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Square size={12} fill="currentColor" /></button></div>}
       </div>
-      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} /></div>
+      <div style={{ padding: "12px 18px 18px", borderTop: `1px solid ${theme.border}` }}><Composer compact theme={theme} isDark={isDark} attachments={attachments} composerNotice={composerNotice} guestLimitReached={guestLimitReached} input={input} setInput={setInput} loading={loading} handleSubmit={handleSubmit} composerRef={composerRef} composerOpen={composerOpen} setComposerOpen={setComposerOpen} setComposerNotice={setComposerNotice} fileInputRef={fileInputRef} addFiles={addFiles} takeScreenshot={takeScreenshot} composerAction={composerAction} onGoToIntegrations={onGoToIntegrations} webSearch={webSearch} setWebSearch={setWebSearch} removeAttachment={removeAttachment} /></div>
       </div>
     </div>
   );
