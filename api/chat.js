@@ -396,6 +396,13 @@ export default async function handler(req, res) {
         persistSession: false,
         autoRefreshToken: false,
       },
+      // Forward the verified user's access token so PostgREST RPC calls run
+      // with the caller's auth.uid() and JWT claims, not the anon context.
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
     }
   );
 
