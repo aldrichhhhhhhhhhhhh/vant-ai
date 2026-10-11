@@ -416,8 +416,10 @@ export default async function handler(req, res) {
     });
   }
 
+  const isGuest = userData.user.is_anonymous === true;
+
   /* ---------------------------------------------------------
-     NVIDIA API KEY
+     REQUEST BODY
      --------------------------------------------------------- */
 
   const apiKey =
@@ -440,6 +442,49 @@ export default async function handler(req, res) {
     max_tokens = null,
     stream = false,
   } = req.body || {};
+
+  if (isGuest) {
+    // Guest access is intentionally text-only, small, and restricted to Main Chat.
+    const rawMessages = Array.isArray(messages) ? messages : [];
+    const userMessages = rawMessages.filter((message) => message?.role === "user");
+    const containsNonText = rawMessages.some((message) =>
+      Array.isArray(message?.content) && message.content.some((part) => part?.type !== "text")
+    );
+    if (userMessages.length !== 1 || containsNonText ||
+        userMessages.some((message) => typeof message.content !== "string" || message.content.length > 4000)) {
+      return json(res, 400, { error: "guest_text_only", message: "Guest mode supports one text message at a time, up to 4,000 characters." });
+    }
+
+    const usageDate = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date());
+
+    const { data: quotaRows, error: quotaError } = await supabase.rpc(
+      "consume_vant_guest_chat_message",
+      { p_usage_date: usageDate }
+    );
+    if (quotaError) {
+      console.error("VANT guest quota reservation failed:", quotaError);
+      return json(res, 503, { error: "guest_quota_unavailable", message: "Guest chat is temporarily unavailable. Please try again shortly." });
+    }
+    const quota = Array.isArray(quotaRows) ? quotaRows[0] : quotaRows;
+    if (!quota?.allowed) {
+      return json(res, 429, {
+        error: "guest_limit_reached",
+        message: "Limit reached, will reset after 00:00",
+        remaining: 0,
+        reset_at: quota?.reset_at || null,
+      });
+    }
+  }
+
+  /* ---------------------------------------------------------
+     NVIDIA API KEY
+     --------------------------------------------------------- */
+  const apiKey = process.env.NVIDIA_API_KEY;
+  if (!apiKey) {
+    return json(res, 500, { error: "missing_api_key" });
+  }
 
   // Unified VANT engine: all AI Chat requests use GPT-OSS 20B.
   // Ignore legacy model hints from older clients.
