@@ -6,7 +6,7 @@ import {
   buildVantWorkEnvelope,
   buildVantSystemPrompt,
 } from "./vantEngine";
-import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Target, Image as ImageIcon, Link2, FolderKanban, Users, UserPlus, ThumbsUp, ThumbsDown, Flag, MoreHorizontal } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Target, Image as ImageIcon, Link2, FolderKanban, Users, UserPlus, ThumbsUp, ThumbsDown, Flag, MoreHorizontal, BookOpen, GraduationCap } from "lucide-react";
 import VantMemoryPage from "./VantMemoryPage";
 
 const FONT_IMPORT = `
@@ -3263,8 +3263,87 @@ function PoTrackerTool({ onBack, theme, isDark }) {
   );
 }
 
+function StudyAssistantTool({ onBack, theme, isDark }) {
+  const [subject, setSubject] = useState("");
+  const [level, setLevel] = useState("High school");
+  const [goal, setGoal] = useState("Explain a topic");
+  const [notes, setNotes] = useState("");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function generateStudyHelp() {
+    if (!subject.trim() || loading) return;
+    setLoading(true);
+    setError("");
+    setResult("");
+    const prompt = `Help a student study. Subject/topic: ${subject.trim()}. Level: ${level}. Goal: ${goal}. ${notes.trim() ? `Student-provided notes or context:\n${notes.trim()}\n\n` : ""}Tailor the answer to the level and goal. Teach clearly with headings and examples where useful. If asked for a study guide, make it structured; if asked to explain, teach step by step; if asked for practice, include questions and put answers in a separate answer key. Be accurate, distinguish uncertainty, and never pretend to know the student's course rubric. Support learning rather than doing a graded assessment dishonestly.`;
+    try {
+      const answer = await askVant(
+        "You are VANT Study Assistant, a patient and accurate learning coach. Help students understand material, practice skills, and study independently. Use clear explanations, examples, and step-by-step reasoning appropriate to the student's level. Do not fabricate facts or citations. If a question depends on missing class material, say what is missing.",
+        [{ role: "user", content: prompt }]
+      );
+      if (typeof answer === "string" && answer.trim()) setResult(answer);
+      else setError("VANT couldn't generate study help. Please try again.");
+    } catch {
+      setError("Something went wrong generating study help. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const fieldStyle = { width: "100%", boxSizing: "border-box", padding: "11px 12px", borderRadius: 10, border: `1px solid ${theme.borderStrong}`, background: theme.inputBg, color: theme.text, fontSize: 14, outline: "none" };
+  return (
+    <div style={{ padding: 28, height: "100%", overflowY: "auto", color: theme.text }}>
+      <BackBar title="AI Study Assistant" accentKey="violet" isDark={isDark} theme={theme} onBack={onBack} />
+      <div style={{ maxWidth: 820, margin: "0 auto" }}>
+        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1.5, color: ac("violet", isDark), margin: "0 0 8px" }}>STUDENTS & LEARNING</p>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, fontWeight: 500, margin: "0 0 8px" }}>Let's make this easier to understand.</h1>
+        <p style={{ color: theme.textMuted, lineHeight: 1.6, margin: "0 0 22px" }}>Get an explanation, build a study guide, or practice a topic with VANT. Add your class notes for more relevant help.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, padding: 20, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
+            Subject or topic *
+            <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Photosynthesis, algebra..." style={fieldStyle} maxLength={240} />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
+            Study level
+            <select value={level} onChange={(e) => setLevel(e.target.value)} style={fieldStyle}>
+              {["Elementary", "Middle school", "High school", "College / University", "Professional learning"].map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted, gridColumn: "1 / -1" }}>
+            What do you need?
+            <select value={goal} onChange={(e) => setGoal(e.target.value)} style={fieldStyle}>
+              {["Explain a topic", "Create a study guide", "Summarize my notes", "Give me practice questions", "Explain a problem step by step"].map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted, gridColumn: "1 / -1" }}>
+            Class notes or extra context (optional)
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Paste notes, a question, or the part you find confusing..." rows={5} maxLength={12000} style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.5 }} />
+          </label>
+          <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+            <button type="button" onClick={generateStudyHelp} disabled={!subject.trim() || loading} style={{ border: "none", borderRadius: 10, padding: "11px 16px", background: !subject.trim() || loading ? theme.surfaceStrong : ac("violet", isDark), color: !subject.trim() || loading ? theme.textFaint : (isDark ? "#171323" : "#FFFFFF"), fontWeight: 600, cursor: !subject.trim() || loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+              {loading ? <><RefreshCw size={15} className="v-pulse" /> Working...</> : <><Sparkles size={15} /> Generate study help</>}
+            </button>
+          </div>
+        </div>
+        {error && <p role="alert" style={{ color: ac("red", isDark), marginTop: 16 }}>{error}</p>}
+        {result && <section style={{ marginTop: 20, padding: 22, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your study help</h2>
+            <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
+          </div>
+          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.75, fontSize: 14.5 }}>{result}</div>
+        </section>}
+        <p style={{ fontSize: 12, color: theme.textFaint, lineHeight: 1.6, marginTop: 16 }}>Check important facts against your course materials. VANT is a study aid, not a substitute for your teacher's instructions or official course requirements.</p>
+      </div>
+    </div>
+  );
+}
+
 function ToolsPage({ theme, isDark }) {
   const [view, setView] = useState("hub");
+  const [category, setCategory] = useState("logistics");
   if (view === "ops") return <OpsAssistantTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "weight") return <ChargeableWeightTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "freight") return <FreightCostTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
@@ -3273,22 +3352,49 @@ function ToolsPage({ theme, isDark }) {
   if (view === "reorder") return <ReorderPointTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "scorecard") return <VendorScorecardTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "po") return <PoTrackerTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (view === "study") return <StudyAssistantTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+
+  const categoryButton = (id, label, Icon, accentKey) => (
+    <button key={id} type="button" onClick={() => setCategory(id)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderRadius: 11, border: `1px solid ${category === id ? ac(accentKey, isDark) : theme.border}`, background: category === id ? acBg(accentKey, isDark) : theme.surface, color: category === id ? ac(accentKey, isDark) : theme.textMuted, cursor: "pointer", fontSize: 13.5, fontWeight: category === id ? 600 : 500 }}>
+      <Icon size={17} /> {label}
+    </button>
+  );
 
   return (
     <div style={{ padding: 28, height: "100%", overflowY: "auto" }}>
-      <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, margin: "0 0 6px" }}>TOOLS</p>
-      <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 26, fontWeight: 500, margin: "0 0 22px", color: theme.text }}>Pick a tool.</h1>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-        <ToolCard icon={FileSpreadsheet} accentKey="red" isDark={isDark} theme={theme} title="Ops Assistant" desc="Upload a shipment log, inventory sheet, or delivery schedule and ask real questions about it." onClick={() => setView("ops")} />
-        <ToolCard icon={Calculator} accentKey="amber" isDark={isDark} theme={theme} title="Chargeable Weight Calculator" desc="Compare actual vs. volumetric weight to get the real billable freight weight." onClick={() => setView("weight")} />
-        <ToolCard icon={Truck} accentKey="cyan" isDark={isDark} theme={theme} title="Freight Cost Calculator" desc="Estimate shipping cost from weight, zone, fuel surcharge, and handling fee." onClick={() => setView("freight")} />
-        <ToolCard icon={Boxes} accentKey="violet" isDark={isDark} theme={theme} title="Load Optimizer" desc="Estimate how many items fit per container or pallet, and how many you'll need." onClick={() => setView("load")} />
-        <ToolCard icon={RefreshCw} accentKey="green" isDark={isDark} theme={theme} title="Unit Converter" desc="Convert weight, length, and volume units used in everyday freight math." onClick={() => setView("convert")} />
-        <ToolCard icon={Package} accentKey="red" isDark={isDark} theme={theme} title="Reorder Point Calculator" desc="Find the inventory level that should trigger a new order, with safety stock built in." onClick={() => setView("reorder")} />
-        <ToolCard icon={ClipboardList} accentKey="amber" isDark={isDark} theme={theme} title="Vendor Scorecard" desc="Upload a shipment log and rank vendors by on-time delivery rate." onClick={() => setView("scorecard")} />
-        <ToolCard icon={ListChecks} accentKey="cyan" isDark={isDark} theme={theme} title="PO Status Tracker" desc="Track purchase orders from ordered through received, saved locally." onClick={() => setView("po")} />
+      <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 12, letterSpacing: 1.5, color: theme.textFaint, margin: "0 0 6px" }}>VANT WORK PLATFORM</p>
+      <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 28, fontWeight: 500, margin: "0 0 8px", color: theme.text }}>Tools for the way you work and learn.</h1>
+      <p style={{ color: theme.textMuted, fontSize: 14, lineHeight: 1.6, margin: "0 0 22px", maxWidth: 720 }}>Choose a professional category. Existing logistics tools stay intact while we expand VANT for students and more professions.</p>
+      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginBottom: 24 }}>
+        {categoryButton("logistics", "Logistics & Supply Chain", Truck, "cyan")}
+        {categoryButton("students", "Students & Learning", GraduationCap, "violet")}
       </div>
-      <p style={{ color: theme.textFaint, fontSize: 12.5, marginTop: 20 }}>More tools land here as we build them — this hub is built to grow.</p>
+      {category === "logistics" ? <>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <Truck size={21} color={ac("cyan", isDark)} />
+          <div><h2 style={{ color: theme.text, fontSize: 18, margin: 0 }}>Logistics & Supply Chain</h2><p style={{ color: theme.textMuted, fontSize: 12.5, margin: "4px 0 0" }}>8 existing tools</p></div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+          <ToolCard icon={FileSpreadsheet} accentKey="red" isDark={isDark} theme={theme} title="Ops Assistant" desc="Upload a shipment log, inventory sheet, or delivery schedule and ask real questions about it." onClick={() => setView("ops")} />
+          <ToolCard icon={Calculator} accentKey="amber" isDark={isDark} theme={theme} title="Chargeable Weight Calculator" desc="Compare actual vs. volumetric weight to get the real billable freight weight." onClick={() => setView("weight")} />
+          <ToolCard icon={Truck} accentKey="cyan" isDark={isDark} theme={theme} title="Freight Cost Calculator" desc="Estimate shipping cost from weight, zone, fuel surcharge, and handling fee." onClick={() => setView("freight")} />
+          <ToolCard icon={Boxes} accentKey="violet" isDark={isDark} theme={theme} title="Load Optimizer" desc="Estimate how many items fit per container or pallet, and how many you'll need." onClick={() => setView("load")} />
+          <ToolCard icon={RefreshCw} accentKey="green" isDark={isDark} theme={theme} title="Unit Converter" desc="Convert weight, length, and volume units used in everyday freight math." onClick={() => setView("convert")} />
+          <ToolCard icon={Package} accentKey="red" isDark={isDark} theme={theme} title="Reorder Point Calculator" desc="Find the inventory level that should trigger a new order, with safety stock built in." onClick={() => setView("reorder")} />
+          <ToolCard icon={ClipboardList} accentKey="amber" isDark={isDark} theme={theme} title="Vendor Scorecard" desc="Upload a shipment log and rank vendors by on-time delivery rate." onClick={() => setView("scorecard")} />
+          <ToolCard icon={ListChecks} accentKey="cyan" isDark={isDark} theme={theme} title="PO Status Tracker" desc="Track purchase orders from ordered through received, saved locally." onClick={() => setView("po")} />
+        </div>
+      </> : <>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <GraduationCap size={22} color={ac("violet", isDark)} />
+          <div><h2 style={{ color: theme.text, fontSize: 18, margin: 0 }}>Students & Learning</h2><p style={{ color: theme.textMuted, fontSize: 12.5, margin: "4px 0 0" }}>First student tool</p></div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+          <ToolCard icon={BookOpen} accentKey="violet" isDark={isDark} theme={theme} title="AI Study Assistant" desc="Understand difficult topics, summarize notes, create study guides, and practice step by step." onClick={() => setView("study")} />
+        </div>
+        <p style={{ color: theme.textFaint, fontSize: 12.5, marginTop: 18 }}>Coming next: Flashcard Generator, Quiz & Practice Test Generator, and Study Planner.</p>
+      </>}
+      <p style={{ color: theme.textFaint, fontSize: 12.5, marginTop: 24 }}>Every tool should have a clear purpose, working inputs, useful outputs, and verified behavior before release.</p>
     </div>
   );
 }
