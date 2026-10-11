@@ -29,19 +29,19 @@ const THEMES = {
     text: "#F5F3FF", textMuted: "#A6A1BC", textFaint: "#77718F", inputBg: "#171522",
   },
   light: {
-    // Light mode keeps the same dark navigation while opening the main workspace.
-    bg: "#F4F4F8", sidebarBg: "#17151F", surface: "rgba(24,20,40,0.035)", surfaceStrong: "rgba(24,20,40,0.07)",
-    surfaceCard: "#FFFFFF", border: "rgba(32,26,52,0.10)", borderStrong: "rgba(32,26,52,0.18)",
-    text: "#24212F", textMuted: "#696579", textFaint: "#9994A8", inputBg: "#FFFFFF",
+    // VANT light mode: warm porcelain surfaces with restrained signature gold and charcoal.
+    bg: "#FAFAF9", sidebarBg: "#FAFAF9", surface: "rgba(25,25,25,0.025)", surfaceStrong: "rgba(25,25,25,0.055)",
+    surfaceCard: "#FFFFFF", border: "#E5E5E3", borderStrong: "#D5D3CD",
+    text: "#191919", textMuted: "#666666", textFaint: "#8A8985", inputBg: "#FFFFFF",
   },
 };
 
 const ACCENTS = {
-  violet: { dark: "#a78bfa", light: "#7c3aed", bg: "rgba(124,58,237,0.16)" },
-  cyan: { dark: "#67e8f9", light: "#0e7490", bg: "rgba(6,182,212,0.14)" },
-  green: { dark: "#6ee7b7", light: "#047857", bg: "rgba(5,150,105,0.14)" },
-  amber: { dark: "#fcd34d", light: "#b45309", bg: "rgba(217,119,6,0.14)" },
-  red: { dark: "#fca5a5", light: "#dc2626", bg: "rgba(220,38,38,0.12)" },
+  violet: { dark: "#a78bfa", light: "#B9913F", bg: "rgba(208,166,80,0.14)" },
+  cyan: { dark: "#67e8f9", light: "#B9913F", bg: "rgba(208,166,80,0.14)" },
+  green: { dark: "#6ee7b7", light: "#B9913F", bg: "rgba(208,166,80,0.14)" },
+  amber: { dark: "#fcd34d", light: "#B9913F", bg: "rgba(208,166,80,0.14)" },
+  red: { dark: "#fca5a5", light: "#B9913F", bg: "rgba(208,166,80,0.14)" },
 };
 const ac = (key, isDark) => (isDark ? ACCENTS[key].dark : ACCENTS[key].light);
 const acBg = (key) => ACCENTS[key].bg;
@@ -486,34 +486,38 @@ async function askVant(
 
 
 function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSettings }) {
+  const sidebarText = isDark ? "#F5F3FF" : "#191919";
+  const sidebarMuted = isDark ? "#C3BED4" : "#666666";
+  const sidebarIcon = isDark ? "#AAA4C2" : "#77736A";
+  const gold = isDark ? "#D0A650" : "#B9913F";
   return (
-    <aside style={{ width: 224, flexShrink: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", padding: "20px 14px", gap: 7, color: "#F5F3FF" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 10px 22px", marginBottom: 10, borderBottom: "1px solid rgba(177,164,255,0.13)" }}>
-        <div style={{ width: 30, height: 30, borderRadius: 9, background: "linear-gradient(135deg,#9A83FF,#28C7E8)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(74,190,245,0.16)" }}>
-          <span style={{ color: "#111019", fontFamily: "JetBrains Mono, monospace", fontWeight: 700, fontSize: 15 }}>V</span>
+    <aside style={{ width: 224, flexShrink: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", padding: "20px 14px", gap: 7, color: sidebarText }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 10px 22px", marginBottom: 10, borderBottom: `1px solid ${theme.border}` }}>
+        <div style={{ width: 30, height: 30, borderRadius: 9, background: isDark ? "linear-gradient(135deg,#D0A650,#8E6C2B)" : "#D0A650", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isDark ? "0 4px 14px rgba(208,166,80,0.16)" : "none" }}>
+          <span style={{ color: "#191919", fontFamily: "JetBrains Mono, monospace", fontWeight: 700, fontSize: 15 }}>V</span>
         </div>
-        <span style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 21, fontWeight: 600, letterSpacing: 0.2, color: "#F8F6FF" }}>VANT</span>
+        <span style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 21, fontWeight: 600, letterSpacing: 0.2, color: gold }}>VANT</span>
       </div>
       <nav aria-label="Main navigation" style={{ display: "flex", flexDirection: "column", gap: 7 }}>
         {NAV.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
           return (
-            <button key={item.id} onClick={() => onSelect(item.id)} aria-current={isActive ? "page" : undefined} style={{ width: "100%", minHeight: 43, padding: "10px 12px", borderRadius: 12, border: "1px solid " + (isActive ? "rgba(139,123,255,0.16)" : "transparent"), borderLeft: isActive ? "2px solid #35D6EA" : "2px solid transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", background: isActive ? "rgba(126,105,220,0.19)" : "transparent", transition: "background 160ms ease" }}>
-              <Icon size={18} color={isActive ? "#45D9EC" : "#AAA4C2"} strokeWidth={1.8} />
-              <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 500, color: isActive ? "#FFFFFF" : "#C3BED4", lineHeight: 1.2 }}>{item.label}</span>
+            <button key={item.id} onClick={() => onSelect(item.id)} aria-current={isActive ? "page" : undefined} style={{ width: "100%", minHeight: 43, padding: "10px 12px", borderRadius: 12, border: "1px solid " + (isActive ? (isDark ? "rgba(139,123,255,0.16)" : "rgba(208,166,80,0.24)") : "transparent"), borderLeft: isActive ? `2px solid ${isDark ? "#D0A650" : "#B9913F"}` : "2px solid transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", background: isActive ? (isDark ? "rgba(208,166,80,0.13)" : "rgba(208,166,80,0.12)") : "transparent", transition: "background 160ms ease" }}>
+              <Icon size={18} color={isActive ? gold : sidebarIcon} strokeWidth={1.8} />
+              <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 500, color: isActive ? sidebarText : sidebarMuted, lineHeight: 1.2 }}>{item.label}</span>
             </button>
           );
         })}
       </nav>
       <div style={{ flex: 1 }} />
       <button onClick={onOpenSettings} title="Settings" style={{ width: "100%", minHeight: 40, padding: "9px 12px", borderRadius: 10, border: "1px solid transparent", background: "transparent", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
-        <Settings size={17} color="#AAA4C2" />
-        <span style={{ fontSize: 12.5, color: "#C3BED4" }}>Settings</span>
+        <Settings size={17} color={sidebarIcon} />
+        <span style={{ fontSize: 12.5, color: sidebarMuted }}>Settings</span>
       </button>
-      <button onClick={onToggleTheme} title={isDark ? "Switch to Light mode" : "Switch to Dark mode"} style={{ width: "100%", minHeight: 40, padding: "9px 12px", borderRadius: 10, border: "1px solid rgba(177,164,255,0.12)", background: "rgba(255,255,255,0.035)", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
-        {isDark ? <Sun size={17} color="#AAA4C2" /> : <Moon size={17} color="#AAA4C2" />}
-        <span style={{ fontSize: 12.5, color: "#C3BED4" }}>{isDark ? "Light mode" : "Dark mode"}</span>
+      <button onClick={onToggleTheme} title={isDark ? "Switch to Light mode" : "Switch to Dark mode"} style={{ width: "100%", minHeight: 40, padding: "9px 12px", borderRadius: 10, border: `1px solid ${theme.border}`, background: isDark ? "rgba(255,255,255,0.035)" : "#FFFFFF", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left" }}>
+        {isDark ? <Sun size={17} color={sidebarIcon} /> : <Moon size={17} color={sidebarIcon} />}
+        <span style={{ fontSize: 12.5, color: sidebarMuted }}>{isDark ? "Light mode" : "Dark mode"}</span>
       </button>
     </aside>
   );
