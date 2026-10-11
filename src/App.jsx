@@ -4344,20 +4344,34 @@ export default function VantWorkingPrototype() {
 
   if (!user) {
     return (
-      <div style={{ height: "100vh", minHeight: 640, display: "flex", alignItems: "center", justifyContent: "center", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif", position: "relative", overflow: "hidden" }}>
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#FAFAF9", color: "#191919", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
         <style>{FONT_IMPORT}</style>
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 20%, rgba(124,58,237,0.14), transparent 38%)", pointerEvents: "none" }} />
-        <div style={{ width: "100%", maxWidth: 430, padding: 24, position: "relative", zIndex: 1 }}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div style={{ width: 52, height: 52, margin: "0 auto 14px", borderRadius: 16, background: "rgba(124,58,237,0.22)", display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${theme.border}` }}>
-              <span style={{ color: "#c4b5fd", fontFamily: "JetBrains Mono, monospace", fontWeight: 600, fontSize: 20 }}>V</span>
-            </div>
-            <div style={{ fontFamily: "JetBrains Mono, monospace", letterSpacing: 2, fontSize: 11, color: theme.textFaint }}>VANT</div>
-            <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 29, fontWeight: 500, margin: "8px 0 5px" }}>Your work starts here.</h1>
-            <p style={{ color: theme.textMuted, fontSize: 13.5, margin: 0 }}>Sign in to access your VANT workspace.</p>
+        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 5vw", borderBottom: "1px solid #E8E5DF" }}>
+          <span style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 25, fontWeight: 600, color: "#D0A650" }}>VANT</span>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => setAuthMode("login")} style={{ border: "1px solid #D8D5CF", background: "transparent", borderRadius: 999, padding: "10px 18px", cursor: "pointer", color: "#191919" }}>Log in</button>
+            <button onClick={() => setAuthMode("signup")} style={{ border: 0, background: "#191919", color: "#FFFFFF", borderRadius: 999, padding: "10px 18px", cursor: "pointer" }}>Sign up</button>
           </div>
-          <AuthModal mode={authMode || "login"} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => {}} onAuth={handleAuth} embedded />
-        </div>
+        </header>
+        <main style={{ width: "100%", maxWidth: 880, margin: "auto", padding: "54px 24px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <h1 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 36, fontWeight: 500, margin: "0 0 10px" }}>Meet VANT.</h1>
+            <p style={{ color: "#6B6964", fontSize: 16, margin: 0 }}>Try a conversation first. No account needed.</p>
+          </div>
+          <div style={{ border: "1px solid #E5E3DE", borderRadius: 22, background: "#FFFFFF", padding: 20, boxShadow: "0 12px 40px rgba(25,25,25,0.05)" }}>
+            <div style={{ minHeight: 250, padding: "12px 8px", color: "#6B6964", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+              {authReady ? "Start with a guest chat—your first five successful replies are on us." : "Preparing your guest session…"}
+            </div>
+            <button onClick={async () => {
+              setComposerNotice?.("");
+              const { data, error } = await supabase.auth.signInAnonymously();
+              if (error) { console.error("VANT guest sign-in failed", error); alert("Guest access is temporarily unavailable. Please try again shortly."); return; }
+              await loadUserState(data.user || data.session?.user);
+            }} style={{ width: "100%", border: 0, background: "#191919", color: "#FFFFFF", borderRadius: 999, padding: "15px 20px", fontWeight: 600, cursor: "pointer" }}>Continue as Guest</button>
+            <p style={{ color: "#77736A", fontSize: 12, lineHeight: 1.5, textAlign: "center", margin: "12px 0 0" }}>5 successful VANT replies per day · Resets at 00:00 Philippine time</p>
+          </div>
+        </main>
+        {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
       </div>
     );
   }
