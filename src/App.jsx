@@ -1772,9 +1772,9 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
             <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 2, color: "#B9913F", marginBottom: 7 }}>VANT</div>
             <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.4, color: theme.text, marginBottom: 7 }}>Limit reached, will reset after 00:00</div>
             <div style={{ fontSize: 12.5, lineHeight: 1.6, color: theme.textMuted }}>You've used all 5 guest messages for today. Come back after midnight or sign up to unlock the full VANT Work Platform.</div>
-            <div style={{ display: "flex", gap: 9, marginTop: 14, flexWrap: "wrap" }}>
-              <button type="button" onClick={onSignIn} style={{ flex: "1 1 120px", minHeight: 39, borderRadius: 999, border: `1px solid ${theme.borderStrong}`, background: "transparent", color: theme.text, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Sign in</button>
-              <button type="button" onClick={onSignUp} style={{ flex: "1 1 120px", minHeight: 39, borderRadius: 999, border: "1px solid #B9913F", background: "linear-gradient(135deg,#D0A650,#B9913F)", color: "#191919", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Sign up</button>
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+              <button type="button" onClick={onSignIn} style={{ padding: "7px 13px", minHeight: 31, borderRadius: 999, border: `1px solid ${theme.borderStrong}`, background: "transparent", color: theme.text, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>Sign in</button>
+              <button type="button" onClick={onSignUp} style={{ padding: "7px 13px", minHeight: 31, borderRadius: 999, border: "1px solid #B9913F", background: "linear-gradient(135deg,#D0A650,#B9913F)", color: "#191919", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Sign up</button>
             </div>
           </div>
         )}
