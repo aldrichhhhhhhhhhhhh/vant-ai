@@ -3359,39 +3359,55 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
 
 function StudyResourceTool({ mode, onBack, theme, isDark }) {
   const configs = {
-    flashcards: { title: "Flashcard Generator", intro: "Turn class notes into clear question-and-answer cards for active recall.", accent: "violet", button: "Generate flashcards" },
-    quiz: { title: "Quiz & Practice Test Generator", intro: "Practice what you know with questions and a separate answer key.", accent: "cyan", button: "Generate practice set" },
-    planner: { title: "Study Planner", intro: "Build a realistic study schedule around your topics, available time, and target date.", accent: "green", button: "Build my study plan" },
+    practice: { title: "Flashcard & Practice-Quiz Generator", intro: "Create flashcards or a practice quiz from a topic or your own class notes.", accent: "violet", button: "Generate study practice" },
+    planner: { title: "Study Planner & Assignment Tracker", intro: "Plan study sessions, track assignment deadlines, and organize your workload.", accent: "green", button: "Build my study plan" },
+    notes: { title: "Notes Summarizer & Study-Guide Generator", intro: "Turn class notes into clear summaries, key ideas, and a focused study guide.", accent: "cyan", button: "Create study guide" },
+    essay: { title: "Essay Outline & Writing Assistant", intro: "Organize a thesis, arguments, evidence, and a clear essay structure.", accent: "violet", button: "Build essay outline" },
+    citation: { title: "Citation & Bibliography Formatter", intro: "Organize source details and format references in a selected citation style.", accent: "amber", button: "Format references" },
+    math: { title: "Math & Formula Explainer", intro: "Understand formulas and work through problems one step at a time.", accent: "green", button: "Explain step by step" },
+    presentation: { title: "Presentation & Report Generator", intro: "Turn your topic, notes, or research into a structured report or presentation outline.", accent: "cyan", button: "Generate outline" },
+    research: { title: "Research Paper Organizer", intro: "Organize your research question, sources, notes, evidence, and paper sections.", accent: "amber", button: "Organize research" },
   };
-  const config = configs[mode] || configs.flashcards;
+  const config = configs[mode] || configs.practice;
   const [topic, setTopic] = useState("");
   const [level, setLevel] = useState("High school");
-  const [quantity, setQuantity] = useState(mode === "quiz" ? "10" : "12");
-  const [format, setFormat] = useState(mode === "quiz" ? "Mixed question types" : "Question on front, answer on back");
+  const [quantity, setQuantity] = useState("12");
+  const [format, setFormat] = useState("Flashcards");
   const [notes, setNotes] = useState("");
   const [examDate, setExamDate] = useState("");
   const [hours, setHours] = useState("5");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const fieldStyle = { width: "100%", boxSizing: "border-box", padding: "11px 12px", borderRadius: 10, border: `1px solid ${theme.borderStrong}`, background: theme.inputBg, color: theme.text, fontSize: 14, outline: "none" };
+  const fieldStyle = { width: "100%", boxSizing: "border-box", padding: "11px 12px", borderRadius: 10, border: \`1px solid \${theme.borderStrong}\`, background: theme.inputBg, color: theme.text, fontSize: 14, outline: "none" };
 
   async function generate() {
     if (!topic.trim() || loading) return;
     setLoading(true); setError(""); setResult("");
     let task = "";
-    if (mode === "flashcards") task = `Create ${quantity} useful study flashcards about: ${topic.trim()}. Level: ${level}. Format: ${format}. Use a numbered list, with each card clearly labeled "Front:" and "Back:". Keep each answer concise, test one idea per card, include key terms and common misconceptions when relevant. Do not use Markdown tables, heading markers, horizontal rules, decorative separators, or LaTeX wrappers.`;
-    if (mode === "quiz") task = `Create a ${quantity}-question practice quiz about: ${topic.trim()}. Level: ${level}. Question style: ${format}. Include a balanced mix of recall and understanding, and step-by-step reasoning questions when appropriate. Put all questions first, then a clearly labeled "Answer key" afterward; explain why each answer is correct briefly. Do not reveal answers immediately after each question. Do not use Markdown tables, heading markers, horizontal rules, decorative separators, or LaTeX wrappers.`;
-    if (mode === "planner") task = `Create a realistic study plan for these topics and goals: ${topic.trim()}. Level: ${level}. Target date: ${examDate || "not specified"}. Available study time: ${hours} hours per week. Notes and constraints: ${notes.trim() || "none provided"}. Break work into manageable sessions, prioritize topics, include short breaks, active recall, practice, and review. If no target date is provided, make a flexible one-week starter plan. Do not assume the student can study every day. End with a short checklist for tracking progress. Do not use Markdown tables, heading markers, horizontal rules, decorative separators, or LaTeX wrappers.`;
-    const fullPrompt = `${task}\n\nUse plain text with simple section titles, short paragraphs, and simple bullets. No Markdown heading markers (#), divider lines (---), repeated dashes, or decorative Unicode. Keep the layout calm and easy to scan. Tailor difficulty to the selected level. Be accurate; do not invent details from course materials that were not provided. ${notes.trim() && mode !== "planner" ? `Student notes or source material:\n${notes.trim()}` : ""}`;
+    if (mode === "practice" && format === "Flashcards") task = \`Create \${quantity} useful study flashcards about: \${topic.trim()}. Level: \${level}. Use a numbered list, with each card clearly labeled "Front:" and "Back:". Keep each answer concise, test one idea per card, and include key terms and common misconceptions when relevant.\`;
+    if (mode === "practice" && format === "Practice quiz") task = \`Create a \${quantity}-question practice quiz about: \${topic.trim()}. Level: \${level}. Question style: \${notes.trim() ? "use the student's stated notes and preferences" : "a mix of recall and understanding"}. Put all questions first, then a clearly labeled "Answer key" afterward with brief explanations. Do not reveal answers immediately after each question.\`;
+    if (mode === "planner") task = \`Create a realistic study plan and assignment tracker for these topics, goals, and assignments: \${topic.trim()}. Level: \${level}. Target date: \${examDate || "not specified"}. Available study time: \${hours} hours per week. Notes and constraints: \${notes.trim() || "none provided"}. Organize work by priority and due date when supplied. Include manageable study sessions, assignment/task checkboxes, suggested milestones, short breaks, active recall, practice, and review. Never invent missing due dates. If no target date is provided, make a flexible one-week starter plan and a blank assignment tracking checklist.\`;
+    if (mode === "notes") task = \`Summarize these notes and create a study guide. Topic: \${topic.trim()}. Level: \${level}. Source notes:\n\${notes.trim() || "No notes were provided; create a general guide on the topic and label it as general background."}\nOrganize key ideas, important terms with simple definitions, processes or steps, likely review questions, common misconceptions, and a short recap. Clearly distinguish source-note content from any general background.\`;
+    if (mode === "essay") task = \`Help plan and improve an essay. Topic or assignment prompt: \${topic.trim()}. Level: \${level}. Student draft, rubric, required sources, or instructions:\n\${notes.trim() || "No additional instructions supplied."}\nProvide a working thesis or thesis-development prompts, a logical outline, main arguments, evidence needed for each argument, transitions, and a revision checklist. Do not invent quotations, sources, or rubric requirements. Help the student develop their own work rather than misrepresent authorship.\`;
+    if (mode === "citation") task = \`Format citations and a bibliography. Topic or citation request: \${topic.trim()}. Requested style: \${format}. Source details supplied by the student:\n\${notes.trim() || "No source details supplied."}\nFormat only fields supported by the provided details. List missing fields and any style-specific uncertainties; never invent authors, titles, dates, publishers, DOIs, URLs, or page numbers. If source details are insufficient, show a fill-in template rather than fabricating a complete citation.\`;
+    if (mode === "math") task = \`Explain this math problem, formula, or concept step by step: \${topic.trim()}. Learner level: \${level}. Additional work or context:\n\${notes.trim() || "No additional work supplied."}\nState what is being asked, define symbols and units, show each reasoning step, verify the result where possible, and explain a common mistake. Use plain-text equations where possible. If the problem is missing values or conditions, ask for them instead of guessing.\`;
+    if (mode === "presentation") task = \`Create a presentation outline and/or report structure for: \${topic.trim()}. Audience and level: \${level}. Desired format: \${format}. Source notes and requirements:\n\${notes.trim() || "No additional notes supplied."}\nProvide a clear title, purpose, ordered sections or slides, key points, evidence or visuals to consider, speaker notes or report paragraphs as appropriate, conclusion, and a source-check checklist. Do not invent data, quotations, or sources. Clearly label suggestions versus facts supplied by the student.\`;
+    if (mode === "research") task = \`Organize a research paper project. Research topic or question: \${topic.trim()}. Level: \${level}. Citation style preference: \${format}. Sources, notes, requirements, and deadlines:\n\${notes.trim() || "No additional details supplied."}\nProvide a refined research question, scope, paper outline, source log template, evidence/claim matrix, open questions, and next-step checklist. Do not invent source contents or citations; identify evidence gaps and distinguish source facts from hypotheses.\`;
+    const fullPrompt = \`\${task}\n\nUse plain text with simple section titles, short paragraphs, and simple bullets. No Markdown heading markers (#), divider lines (---), repeated dashes, or decorative Unicode. Keep the layout calm and easy to scan. Be accurate, tailor difficulty to the selected level, and do not invent details from course materials that were not provided.\`;
     try {
-      const answer = await askVant("You are VANT Study Assistant, a patient and accurate learning coach. Generate practical learning materials in a plain-text-first format. Never use Markdown tables, heading markers, horizontal rules, repeated dash lines, or decorative separators. Keep answers accurate and level-appropriate; do not fabricate facts or claim to follow a teacher's rubric unless provided.", [{ role: "user", content: fullPrompt }]);
+      const answer = await askVant("You are VANT Study Tools, a patient and accurate learning assistant. Produce practical, readable, level-appropriate learning materials. Never use Markdown tables, heading markers, horizontal rules, repeated dash lines, or decorative separators. Never fabricate facts, citations, source details, or assignment requirements. Clearly state missing information and uncertainty.", [{ role: "user", content: fullPrompt }]);
       if (typeof answer === "string" && answer.trim()) setResult(cleanStudyFormatting(answer));
       else setError("VANT couldn't generate this study material. Please try again.");
     } catch {
       setError("Something went wrong generating this study material. Please try again.");
     } finally { setLoading(false); }
   }
+
+  const isPlanner = mode === "planner";
+  const usesNotes = ["planner", "notes", "essay", "citation", "math", "presentation", "research"].includes(mode);
+  const showQuantity = mode === "practice";
+  const showFormat = ["practice", "citation", "presentation", "research"].includes(mode);
 
   return (
     <div style={{ padding: 28, height: "100%", overflowY: "auto", color: theme.text }}>
@@ -3400,35 +3416,33 @@ function StudyResourceTool({ mode, onBack, theme, isDark }) {
         <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1.5, color: ac(config.accent, isDark), margin: "0 0 8px" }}>STUDENTS & LEARNING</p>
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, fontWeight: 500, margin: "0 0 8px" }}>{config.title}</h1>
         <p style={{ color: theme.textMuted, lineHeight: 1.6, margin: "0 0 22px" }}>{config.intro}</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, padding: 20, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, padding: 20, border: \`1px solid \${theme.border}\`, borderRadius: 16, background: theme.surfaceCard }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted, gridColumn: "1 / -1" }}>
-            {mode === "planner" ? "Topics and study goals *" : "Subject or topic *"}
-            <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={mode === "planner" ? "e.g. Biology chapters 3–5, algebra, vocabulary..." : "e.g. Photosynthesis, algebra, Philippine history..."} style={fieldStyle} maxLength={500} />
+            {isPlanner ? "Topics, assignments, and study goals *" : mode === "citation" ? "Citation request or source topic *" : mode === "math" ? "Problem, formula, or concept *" : mode === "essay" ? "Essay prompt or topic *" : mode === "research" ? "Research topic or question *" : "Subject or topic *"}
+            <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={isPlanner ? "e.g. Biology exam, history essay due Friday..." : "e.g. Photosynthesis, algebra, Philippine history..."} style={fieldStyle} maxLength={2000} />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
             Study level
             <select value={level} onChange={(e) => setLevel(e.target.value)} style={fieldStyle}>{["Elementary", "Middle school", "High school", "College / University", "Professional learning"].map((item) => <option key={item}>{item}</option>)}</select>
           </label>
-          {mode !== "planner" && <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
-            {mode === "quiz" ? "Number of questions" : "Number of flashcards"}
-            <select value={quantity} onChange={(e) => setQuantity(e.target.value)} style={fieldStyle}>{(mode === "quiz" ? ["5", "10", "15", "20"] : ["6", "8", "12", "16", "20"]).map((n) => <option key={n} value={n}>{n}</option>)}</select>
+          {showQuantity && <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
+            Number of cards/questions
+            <select value={quantity} onChange={(e) => setQuantity(e.target.value)} style={fieldStyle}>{["5", "10", "12", "15", "20"].map((n) => <option key={n} value={n}>{n}</option>)}</select>
           </label>}
-          {mode === "quiz" && <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
-            Question style
-            <select value={format} onChange={(e) => setFormat(e.target.value)} style={fieldStyle}>{["Mixed question types", "Multiple choice", "True or false", "Short answer", "Problem solving"].map((item) => <option key={item}>{item}</option>)}</select>
+          {showFormat && <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
+            {mode === "practice" ? "Create" : mode === "citation" || mode === "research" ? "Citation style" : "Output format"}
+            <select value={format} onChange={(e) => setFormat(e.target.value)} style={fieldStyle}>
+              {(mode === "practice" ? ["Flashcards", "Practice quiz"] : mode === "citation" || mode === "research" ? ["APA 7th edition", "MLA 9th edition", "Chicago", "IEEE", "Not sure"] : ["Presentation outline", "Written report", "Both outline and report"]).map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
           </label>}
-          {mode === "flashcards" && <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
-            Card format
-            <select value={format} onChange={(e) => setFormat(e.target.value)} style={fieldStyle}>{["Question on front, answer on back", "Term on front, definition on back", "Concept on front, example on back"].map((item) => <option key={item}>{item}</option>)}</select>
-          </label>}
-          {mode === "planner" && <>
+          {isPlanner && <>
             <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>Target date (optional)<input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} style={fieldStyle} /></label>
             <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>Study hours per week<select value={hours} onChange={(e) => setHours(e.target.value)} style={fieldStyle}>{["2", "3", "5", "7", "10", "14", "20"].map((n) => <option key={n} value={n}>{n} hours</option>)}</select></label>
           </>}
-          <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted, gridColumn: "1 / -1" }}>
-            {mode === "planner" ? "Schedule preferences or constraints (optional)" : "Class notes or source material (optional)"}
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={mode === "planner" ? "e.g. Busy on weekdays, prefer short sessions..." : "Paste notes or key points so VANT can tailor the material..."} rows={4} maxLength={12000} style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.5 }} />
-          </label>
+          {usesNotes && <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted, gridColumn: "1 / -1" }}>
+            {mode === "planner" ? "Assignment details and schedule constraints (optional)" : mode === "notes" ? "Class notes or source material (optional)" : mode === "citation" ? "Source details (author, title, date, URL/DOI, publisher, etc.)" : "Notes, source material, or extra context (optional)"}
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={mode === "citation" ? "Paste the source details you have; missing details will be flagged, not invented." : "Paste notes, assignment instructions, source details, or your current work..."} rows={5} maxLength={12000} style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.5 }} />
+          </label>}
           <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
             <button type="button" onClick={generate} disabled={!topic.trim() || loading} style={{ border: "none", borderRadius: 10, padding: "11px 16px", background: !topic.trim() || loading ? theme.surfaceStrong : ac(config.accent, isDark), color: !topic.trim() || loading ? theme.textFaint : (isDark ? "#171323" : "#FFFFFF"), fontWeight: 600, cursor: !topic.trim() || loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8 }}>
               {loading ? <><RefreshCw size={15} className="v-pulse" /> Working...</> : <><Sparkles size={15} /> {config.button}</>}
@@ -3436,19 +3450,18 @@ function StudyResourceTool({ mode, onBack, theme, isDark }) {
           </div>
         </div>
         {error && <p role="alert" style={{ color: ac("red", isDark), marginTop: 16 }}>{error}</p>}
-        {result && <section style={{ marginTop: 20, padding: 22, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard }}>
+        {result && <section style={{ marginTop: 20, padding: 22, border: \`1px solid \${theme.border}\`, borderRadius: 16, background: theme.surfaceCard }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
-            <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your {mode === "flashcards" ? "flashcards" : mode === "quiz" ? "practice set" : "study plan"}</h2>
-            <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
+            <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your result</h2>
+            <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: \`1px solid \${theme.borderStrong}\`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
           </div>
           <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.75, fontSize: 14.5 }}>{result}</div>
         </section>}
-        <p style={{ fontSize: 12, color: theme.textFaint, lineHeight: 1.6, marginTop: 16 }}>Review generated material against your class notes and teacher's instructions.</p>
+        <p style={{ fontSize: 12, color: theme.textFaint, lineHeight: 1.6, marginTop: 16 }}>Review generated material against your class notes, source details, and teacher's instructions.</p>
       </div>
     </div>
   );
 }
-
 
 function ToolsPage({ theme, isDark }) {
   const [view, setView] = useState("hub");
@@ -3462,7 +3475,7 @@ function ToolsPage({ theme, isDark }) {
   if (view === "scorecard") return <VendorScorecardTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "po") return <PoTrackerTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "study") return <StudyAssistantTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
-  if (["flashcards", "quiz", "planner"].includes(view)) return <StudyResourceTool key={view} mode={view} onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (["practice", "planner", "notes", "essay", "citation", "math", "presentation", "research"].includes(view)) return <StudyResourceTool key={view} mode={view} onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
 
   const categoryButton = (id, label, Icon, accentKey) => (
     <button key={id} type="button" onClick={() => setCategory(id)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderRadius: 11, border: `1px solid ${category === id ? ac(accentKey, isDark) : theme.border}`, background: category === id ? acBg(accentKey, isDark) : theme.surface, color: category === id ? ac(accentKey, isDark) : theme.textMuted, cursor: "pointer", fontSize: 13.5, fontWeight: category === id ? 600 : 500 }}>
@@ -3497,13 +3510,17 @@ function ToolsPage({ theme, isDark }) {
       </> : <>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
           <GraduationCap size={22} color={ac("violet", isDark)} />
-          <div><h2 style={{ color: theme.text, fontSize: 18, margin: 0 }}>Students & Learning</h2><p style={{ color: theme.textMuted, fontSize: 12.5, margin: "4px 0 0" }}>First student tool</p></div>
+          <div><h2 style={{ color: theme.text, fontSize: 18, margin: 0 }}>Students & Learning</h2><p style={{ color: theme.textMuted, fontSize: 12.5, margin: "4px 0 0" }}>8 learning tools</p></div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
-          <ToolCard icon={BookOpen} accentKey="violet" isDark={isDark} theme={theme} title="AI Study Assistant" desc="Understand difficult topics, summarize notes, create study guides, and practice step by step." onClick={() => setView("study")} />
-          <ToolCard icon={Copy} accentKey="cyan" isDark={isDark} theme={theme} title="Flashcard Generator" desc="Create concise question-and-answer cards from a topic or your own class notes." onClick={() => setView("flashcards")} />
-          <ToolCard icon={ListChecks} accentKey="amber" isDark={isDark} theme={theme} title="Quiz & Practice Test Generator" desc="Generate practice questions with a separate answer key and brief explanations." onClick={() => setView("quiz")} />
-          <ToolCard icon={Target} accentKey="green" isDark={isDark} theme={theme} title="Study Planner" desc="Build a manageable study schedule around your goals, available time, and target date." onClick={() => setView("planner")} />
+          <ToolCard icon={Target} accentKey="green" isDark={isDark} theme={theme} title="Study Planner & Assignment Tracker" desc="Plan study sessions, track assignment deadlines, and organize your workload." onClick={() => setView("planner")} />
+          <ToolCard icon={BookOpen} accentKey="cyan" isDark={isDark} theme={theme} title="Notes Summarizer & Study-Guide Generator" desc="Turn class notes into readable summaries, key ideas, and focused study guides." onClick={() => setView("notes")} />
+          <ToolCard icon={Copy} accentKey="violet" isDark={isDark} theme={theme} title="Flashcard & Practice-Quiz Generator" desc="Create flashcards or practice quizzes from a topic or your own class notes." onClick={() => setView("practice")} />
+          <ToolCard icon={Pencil} accentKey="violet" isDark={isDark} theme={theme} title="Essay Outline & Writing Assistant" desc="Structure a thesis, arguments, evidence, and a clear essay outline." onClick={() => setView("essay")} />
+          <ToolCard icon={FileText} accentKey="amber" isDark={isDark} theme={theme} title="Citation & Bibliography Formatter" desc="Format references and flag missing source details without inventing citations." onClick={() => setView("citation")} />
+          <ToolCard icon={Calculator} accentKey="green" isDark={isDark} theme={theme} title="Math & Formula Explainer" desc="Understand formulas and work through problems step by step." onClick={() => setView("math")} />
+          <ToolCard icon={FileSpreadsheet} accentKey="cyan" isDark={isDark} theme={theme} title="Presentation & Report Generator" desc="Turn notes or research into structured presentation outlines and reports." onClick={() => setView("presentation")} />
+          <ToolCard icon={FolderKanban} accentKey="amber" isDark={isDark} theme={theme} title="Research Paper Organizer" desc="Organize research questions, source notes, evidence, and paper sections." onClick={() => setView("research")} />
         </div>
       </>}
       <p style={{ color: theme.textFaint, fontSize: 12.5, marginTop: 24 }}>Every tool should have a clear purpose, working inputs, useful outputs, and verified behavior before release.</p>
