@@ -3356,6 +3356,100 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
   );
 }
 
+
+function StudyResourceTool({ mode, onBack, theme, isDark }) {
+  const configs = {
+    flashcards: { title: "Flashcard Generator", intro: "Turn class notes into clear question-and-answer cards for active recall.", accent: "violet", button: "Generate flashcards" },
+    quiz: { title: "Quiz & Practice Test Generator", intro: "Practice what you know with questions and a separate answer key.", accent: "cyan", button: "Generate practice set" },
+    planner: { title: "Study Planner", intro: "Build a realistic study schedule around your topics, available time, and target date.", accent: "green", button: "Build my study plan" },
+  };
+  const config = configs[mode] || configs.flashcards;
+  const [topic, setTopic] = useState("");
+  const [level, setLevel] = useState("High school");
+  const [quantity, setQuantity] = useState(mode === "quiz" ? "10" : "12");
+  const [format, setFormat] = useState(mode === "quiz" ? "Mixed question types" : "Question on front, answer on back");
+  const [notes, setNotes] = useState("");
+  const [examDate, setExamDate] = useState("");
+  const [hours, setHours] = useState("5");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const fieldStyle = { width: "100%", boxSizing: "border-box", padding: "11px 12px", borderRadius: 10, border: `1px solid ${theme.borderStrong}`, background: theme.inputBg, color: theme.text, fontSize: 14, outline: "none" };
+
+  async function generate() {
+    if (!topic.trim() || loading) return;
+    setLoading(true); setError(""); setResult("");
+    let task = "";
+    if (mode === "flashcards") task = `Create ${quantity} useful study flashcards about: ${topic.trim()}. Level: ${level}. Format: ${format}. Use a numbered list, with each card clearly labeled "Front:" and "Back:". Keep each answer concise, test one idea per card, include key terms and common misconceptions when relevant. Do not use Markdown tables, heading markers, horizontal rules, decorative separators, or LaTeX wrappers.`;
+    if (mode === "quiz") task = `Create a ${quantity}-question practice quiz about: ${topic.trim()}. Level: ${level}. Question style: ${format}. Include a balanced mix of recall and understanding, and step-by-step reasoning questions when appropriate. Put all questions first, then a clearly labeled "Answer key" afterward; explain why each answer is correct briefly. Do not reveal answers immediately after each question. Do not use Markdown tables, heading markers, horizontal rules, decorative separators, or LaTeX wrappers.`;
+    if (mode === "planner") task = `Create a realistic study plan for these topics and goals: ${topic.trim()}. Level: ${level}. Target date: ${examDate || "not specified"}. Available study time: ${hours} hours per week. Notes and constraints: ${notes.trim() || "none provided"}. Break work into manageable sessions, prioritize topics, include short breaks, active recall, practice, and review. If no target date is provided, make a flexible one-week starter plan. Do not assume the student can study every day. End with a short checklist for tracking progress. Do not use Markdown tables, heading markers, horizontal rules, decorative separators, or LaTeX wrappers.`;
+    const fullPrompt = `${task}\n\nUse plain text with simple section titles, short paragraphs, and simple bullets. No Markdown heading markers (#), divider lines (---), repeated dashes, or decorative Unicode. Keep the layout calm and easy to scan. Tailor difficulty to the selected level. Be accurate; do not invent details from course materials that were not provided. ${notes.trim() && mode !== "planner" ? `Student notes or source material:\n${notes.trim()}` : ""}`;
+    try {
+      const answer = await askVant("You are VANT Study Assistant, a patient and accurate learning coach. Generate practical learning materials in a plain-text-first format. Never use Markdown tables, heading markers, horizontal rules, repeated dash lines, or decorative separators. Keep answers accurate and level-appropriate; do not fabricate facts or claim to follow a teacher's rubric unless provided.", [{ role: "user", content: fullPrompt }]);
+      if (typeof answer === "string" && answer.trim()) setResult(cleanStudyFormatting(answer));
+      else setError("VANT couldn't generate this study material. Please try again.");
+    } catch {
+      setError("Something went wrong generating this study material. Please try again.");
+    } finally { setLoading(false); }
+  }
+
+  return (
+    <div style={{ padding: 28, height: "100%", overflowY: "auto", color: theme.text }}>
+      <BackBar title={config.title} accentKey={config.accent} isDark={isDark} theme={theme} onBack={onBack} />
+      <div style={{ maxWidth: 820, margin: "0 auto" }}>
+        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1.5, color: ac(config.accent, isDark), margin: "0 0 8px" }}>STUDENTS & LEARNING</p>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, fontWeight: 500, margin: "0 0 8px" }}>{config.title}</h1>
+        <p style={{ color: theme.textMuted, lineHeight: 1.6, margin: "0 0 22px" }}>{config.intro}</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, padding: 20, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted, gridColumn: "1 / -1" }}>
+            {mode === "planner" ? "Topics and study goals *" : "Subject or topic *"}
+            <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={mode === "planner" ? "e.g. Biology chapters 3–5, algebra, vocabulary..." : "e.g. Photosynthesis, algebra, Philippine history..."} style={fieldStyle} maxLength={500} />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
+            Study level
+            <select value={level} onChange={(e) => setLevel(e.target.value)} style={fieldStyle}>{["Elementary", "Middle school", "High school", "College / University", "Professional learning"].map((item) => <option key={item}>{item}</option>)}</select>
+          </label>
+          {mode !== "planner" && <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
+            {mode === "quiz" ? "Number of questions" : "Number of flashcards"}
+            <select value={quantity} onChange={(e) => setQuantity(e.target.value)} style={fieldStyle}>{(mode === "quiz" ? ["5", "10", "15", "20"] : ["6", "8", "12", "16", "20"]).map((n) => <option key={n} value={n}>{n}</option>)}</select>
+          </label>}
+          {mode === "quiz" && <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
+            Question style
+            <select value={format} onChange={(e) => setFormat(e.target.value)} style={fieldStyle}>{["Mixed question types", "Multiple choice", "True or false", "Short answer", "Problem solving"].map((item) => <option key={item}>{item}</option>)}</select>
+          </label>}
+          {mode === "flashcards" && <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>
+            Card format
+            <select value={format} onChange={(e) => setFormat(e.target.value)} style={fieldStyle}>{["Question on front, answer on back", "Term on front, definition on back", "Concept on front, example on back"].map((item) => <option key={item}>{item}</option>)}</select>
+          </label>}
+          {mode === "planner" && <>
+            <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>Target date (optional)<input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} style={fieldStyle} /></label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted }}>Study hours per week<select value={hours} onChange={(e) => setHours(e.target.value)} style={fieldStyle}>{["2", "3", "5", "7", "10", "14", "20"].map((n) => <option key={n} value={n}>{n} hours</option>)}</select></label>
+          </>}
+          <label style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: 13, color: theme.textMuted, gridColumn: "1 / -1" }}>
+            {mode === "planner" ? "Schedule preferences or constraints (optional)" : "Class notes or source material (optional)"}
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={mode === "planner" ? "e.g. Busy on weekdays, prefer short sessions..." : "Paste notes or key points so VANT can tailor the material..."} rows={4} maxLength={12000} style={{ ...fieldStyle, resize: "vertical", lineHeight: 1.5 }} />
+          </label>
+          <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+            <button type="button" onClick={generate} disabled={!topic.trim() || loading} style={{ border: "none", borderRadius: 10, padding: "11px 16px", background: !topic.trim() || loading ? theme.surfaceStrong : ac(config.accent, isDark), color: !topic.trim() || loading ? theme.textFaint : (isDark ? "#171323" : "#FFFFFF"), fontWeight: 600, cursor: !topic.trim() || loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+              {loading ? <><RefreshCw size={15} className="v-pulse" /> Working...</> : <><Sparkles size={15} /> {config.button}</>}
+            </button>
+          </div>
+        </div>
+        {error && <p role="alert" style={{ color: ac("red", isDark), marginTop: 16 }}>{error}</p>}
+        {result && <section style={{ marginTop: 20, padding: 22, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your {mode === "flashcards" ? "flashcards" : mode === "quiz" ? "practice set" : "study plan"}</h2>
+            <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
+          </div>
+          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.75, fontSize: 14.5 }}>{result}</div>
+        </section>}
+        <p style={{ fontSize: 12, color: theme.textFaint, lineHeight: 1.6, marginTop: 16 }}>Review generated material against your class notes and teacher's instructions.</p>
+      </div>
+    </div>
+  );
+}
+
+
 function ToolsPage({ theme, isDark }) {
   const [view, setView] = useState("hub");
   const [category, setCategory] = useState("logistics");
@@ -3368,6 +3462,7 @@ function ToolsPage({ theme, isDark }) {
   if (view === "scorecard") return <VendorScorecardTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "po") return <PoTrackerTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "study") return <StudyAssistantTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (["flashcards", "quiz", "planner"].includes(view)) return <StudyResourceTool key={view} mode={view} onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
 
   const categoryButton = (id, label, Icon, accentKey) => (
     <button key={id} type="button" onClick={() => setCategory(id)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderRadius: 11, border: `1px solid ${category === id ? ac(accentKey, isDark) : theme.border}`, background: category === id ? acBg(accentKey, isDark) : theme.surface, color: category === id ? ac(accentKey, isDark) : theme.textMuted, cursor: "pointer", fontSize: 13.5, fontWeight: category === id ? 600 : 500 }}>
@@ -3406,8 +3501,10 @@ function ToolsPage({ theme, isDark }) {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
           <ToolCard icon={BookOpen} accentKey="violet" isDark={isDark} theme={theme} title="AI Study Assistant" desc="Understand difficult topics, summarize notes, create study guides, and practice step by step." onClick={() => setView("study")} />
+          <ToolCard icon={Copy} accentKey="cyan" isDark={isDark} theme={theme} title="Flashcard Generator" desc="Create concise question-and-answer cards from a topic or your own class notes." onClick={() => setView("flashcards")} />
+          <ToolCard icon={ListChecks} accentKey="amber" isDark={isDark} theme={theme} title="Quiz & Practice Test Generator" desc="Generate practice questions with a separate answer key and brief explanations." onClick={() => setView("quiz")} />
+          <ToolCard icon={Target} accentKey="green" isDark={isDark} theme={theme} title="Study Planner" desc="Build a manageable study schedule around your goals, available time, and target date." onClick={() => setView("planner")} />
         </div>
-        <p style={{ color: theme.textFaint, fontSize: 12.5, marginTop: 18 }}>Coming next: Flashcard Generator, Quiz & Practice Test Generator, and Study Planner.</p>
       </>}
       <p style={{ color: theme.textFaint, fontSize: 12.5, marginTop: 24 }}>Every tool should have a clear purpose, working inputs, useful outputs, and verified behavior before release.</p>
     </div>
