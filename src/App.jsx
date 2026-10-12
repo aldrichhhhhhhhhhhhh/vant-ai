@@ -3411,8 +3411,8 @@ function StudyResourceTool({ mode, onBack, onNavigate, initialContext, theme, is
   const showQuantity = mode === "practice";
   const showFormat = ["practice", "citation", "presentation", "research"].includes(mode);
   const noteSections = isNotesTool && result
-    ? result.split(/\\n(?=SOURCE-BASED NOTES|AI EXPLANATIONS|KEY IDEAS|KEY TERMS|STUDY GUIDE|REVIEW QUESTIONS|QUICK RECAP)/).map((section) => section.trim()).filter(Boolean).map((section, index) => {
-        const splitAt = section.indexOf("\\n");
+    ? result.split(/\n(?=SOURCE-BASED NOTES|AI EXPLANATIONS|KEY IDEAS|KEY TERMS|STUDY GUIDE|REVIEW QUESTIONS|QUICK RECAP)/).map((section) => section.trim()).filter(Boolean).map((section, index) => {
+        const splitAt = section.indexOf("\n");
         return { title: splitAt < 0 ? (index === 0 ? "Study notes" : "Additional notes") : section.slice(0, splitAt).trim(), body: splitAt < 0 ? section : section.slice(splitAt + 1).trim() };
       })
     : [];
