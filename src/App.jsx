@@ -3263,6 +3263,21 @@ function PoTrackerTool({ onBack, theme, isDark }) {
   );
 }
 
+function cleanStudyFormatting(value) {
+  return String(value || "")
+    .replace(/\r/g, "")
+    .replace(/^\s*\\?[-_]{3,}(?:\s*\\?[-_]{2,})*\s*$/gm, "")
+    .replace(/^\s*[-*_]{3,}\s*$/gm, "")
+    .replace(/^\s*#{1,6}\s*/gm, "")
+    .replace(/^\s*\\\[|\s*\\\]$/gm, "")
+    .replace(/^\s*\$\$\s*$/gm, "")
+    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, "")
+    .replace(/^\s*\|(.+)\|\s*$/gm, (_, row) => row.split("|").map((cell) => cell.trim()).filter(Boolean).join("  •  "))
+    .replace(/^\s*\\-{3,}\s*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function StudyAssistantTool({ onBack, theme, isDark }) {
   const [subject, setSubject] = useState("");
   const [level, setLevel] = useState("High school");
@@ -3277,13 +3292,13 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
     setLoading(true);
     setError("");
     setResult("");
-    const prompt = `Help a student study. Subject/topic: ${subject.trim()}. Level: ${level}. Goal: ${goal}. ${notes.trim() ? `Student-provided notes or context:\n${notes.trim()}\n\n` : ""}Tailor the answer to the level and goal. Use clean, plain-text-first formatting that is comfortable on a phone or laptop. Avoid decorative Unicode, emoji, LaTeX delimiters, and complex symbols unless the subject truly requires them. For high-school and beginner answers, write chemical formulas with ordinary keyboard characters (H2O, CO2, O2, C6H12O6), explain technical terms in plain language, and describe equations in words first. Prefer simple text equations such as 'Carbon dioxide + water + light -> sugar + oxygen'. Use ASCII arrows '->' rather than special arrow glyphs when possible. Avoid Markdown tables; use short labeled bullets instead. Avoid horizontal rules between sections, dense academic prose, and unnecessary jargon. Keep paragraphs short. For study guides, prioritize key ideas, process steps, common mistakes, and a short recap. For practice, number questions and put answers in a separate answer key. Use formal scientific notation only when the learner's level or task requires it, and explain it. Be accurate, distinguish uncertainty, and never pretend to know the student's course rubric. Support learning rather than doing a graded assessment dishonestly.`;
+    const prompt = `Help a student study. Subject/topic: ${subject.trim()}. Level: ${level}. Goal: ${goal}. ${notes.trim() ? `Student-provided notes or context:\n${notes.trim()}\n\n` : ""}Tailor the answer to the level and goal. Use a clean, natural reading format with simple section titles and short paragraphs. Do NOT use Markdown heading markers (#, ##, ###), horizontal divider lines (---, ___, or repeated dashes), decorative separators, or LaTeX delimiters. Do not begin or end sections with lines of symbols. Use plain section titles on their own line, followed by a short paragraph or a few bullets. Avoid decorative Unicode and emoji unless the subject truly requires them. For high-school and beginner answers, write chemical formulas with ordinary keyboard characters (H2O, CO2, O2, C6H12O6), explain technical terms in plain language, and describe equations in words first. Prefer simple text equations such as 'Carbon dioxide + water + light -> sugar + oxygen'. Use ASCII arrows '->' rather than special arrow glyphs when possible. Never use Markdown tables. Use short labeled bullets instead. Never insert horizontal rules or rows of dashes between sections. Avoid dense academic prose and unnecessary jargon. Keep paragraphs short. Aim for a calm, uncluttered page that looks like well-organized class notes. For study guides, prioritize key ideas, process steps, common mistakes, and a short recap. For practice, number questions and put answers in a separate answer key. Use formal scientific notation only when the learner's level or task requires it, and explain it. Be accurate, distinguish uncertainty, and never pretend to know the student's course rubric. Support learning rather than doing a graded assessment dishonestly.`;
     try {
       const answer = await askVant(
-        "You are VANT Study Assistant, a patient and accurate learning coach. Help students understand material, practice skills, and study independently. Prioritize plain-text-first, clean Markdown: short headings, short paragraphs, simple bullets, minimal tables, and no decorative symbols. Avoid LaTeX wrappers and complex Unicode symbols unless essential to the subject. For beginner and high-school learners, prefer formulas typed with ordinary characters and explain equations in words. Use readable study notes rather than dense academic reports. Do not fabricate facts or citations. If a question depends on missing class material, say what is missing.",
+        "You are VANT Study Assistant, a patient and accurate learning coach. Help students understand material, practice skills, and study independently. Prioritize a calm, uncluttered reading format. Never use Markdown heading markers such as # or ###, horizontal rules such as --- or ___, rows of repeated dashes, or decorative separators. Use plain section titles, short paragraphs, and simple bullets. Avoid LaTeX wrappers and complex Unicode symbols unless essential to the subject. For beginner and high-school learners, prefer formulas typed with ordinary characters and explain equations in words. Use readable study notes rather than dense academic reports. Do not fabricate facts or citations. If a question depends on missing class material, say what is missing.",
         [{ role: "user", content: prompt }]
       );
-      if (typeof answer === "string" && answer.trim()) setResult(answer);
+      if (typeof answer === "string" && answer.trim()) setResult(cleanStudyFormatting(answer));
       else setError("VANT couldn't generate study help. Please try again.");
     } catch {
       setError("Something went wrong generating study help. Please try again.");
