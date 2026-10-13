@@ -59,7 +59,9 @@ export default function VantEducationPage({ theme, isDark, user, onGoToTools, on
   const [folder, setFolder] = useState("All materials");
   const [selected, setSelected] = useState(null);
   const [notice, setNotice] = useState("");
-  const [busyId, setBusyId] = useState("");\n  const [flashcardIndex, setFlashcardIndex] = useState(0);\n  const [flashcardFlipped, setFlashcardFlipped] = useState(false);
+  const [busyId, setBusyId] = useState("");
+  const [flashcardIndex, setFlashcardIndex] = useState(0);
+  const [flashcardFlipped, setFlashcardFlipped] = useState(false);
 
   const loadMaterials = useCallback(async () => {
     if (!user?.id || user.isGuest) {
