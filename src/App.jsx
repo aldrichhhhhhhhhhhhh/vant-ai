@@ -1710,7 +1710,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
         if (i < lines.length && mathLines[mathLines.length - 1].includes(closing)) i += 1;
         const mathSource = mathLines.join("\n");
         const innerMath = mathSource.startsWith("\\[") ? mathSource.slice(2, mathSource.lastIndexOf("\\]")) : mathSource.slice(2, mathSource.lastIndexOf("$$"));
-        blocks.push(<div key={\`math-block-\${blockIndex++}\`} className="vant-math-display" dangerouslySetInnerHTML={{ __html: katex.renderToString(innerMath.trim(), { displayMode: true, throwOnError: false, trust: false, strict: "ignore" }) }} />);
+        blocks.push(<div key={`math-block-${blockIndex++}`} className="vant-math-display" dangerouslySetInnerHTML={{ __html: katex.renderToString(innerMath.trim(), { displayMode: true, throwOnError: false, trust: false, strict: "ignore" }) }} />);
         continue;
       }
 
