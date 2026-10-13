@@ -1561,9 +1561,11 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
       const value = match[0];
       const key = `${keyPrefix}-${index++}`;
 
-      if (value.startsWith("\\\\(") || value.startsWith("\\\\[") || value.startsWith("$") || (value.startsWith("$") && value.endsWith("$"))) {
-        const displayMode = value.startsWith("\\\\[") || value.startsWith("$");
-        const rawMath = displayMode || value.startsWith("\\\\(") ? value.slice(2, -2) : value.slice(1, -1);
+      if (value.startsWith("\\(") || value.startsWith("\\[") || value.startsWith("$") || (value.startsWith("$") && value.endsWith("$"))) {
+        const displayMode = value.startsWith("\\[") || value.startsWith("$");
+        const rawMath = value.startsWith("\\[") || value.startsWith("\\(") || value.startsWith("$")
+          ? value.slice(2, -2)
+          : value.slice(1, -1);
         tokens.push(<span key={key} className={displayMode ? "vant-math-display" : "vant-math-inline"} dangerouslySetInnerHTML={{ __html: katex.renderToString(rawMath, { displayMode, throwOnError: false, trust: false, strict: "ignore" }) }} />);
       } else if (match[3] && match[4]) {
         tokens.push(
