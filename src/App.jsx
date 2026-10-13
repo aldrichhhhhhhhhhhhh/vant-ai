@@ -5086,7 +5086,7 @@ export default function VantWorkingPrototype() {
         </div>
       </div>
       {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
-      {user && !user.isGuest && floatingEducationWidgets && <VantEducationWidgets theme={theme} isDark={isDark} user={user} onGoToEducation={() => setActive("education")} onGoToTools={() => setActive("tools")} />}
+      {user && !user.isGuest && (active === "education" || floatingEducationWidgets) && <VantEducationWidgets theme={theme} isDark={isDark} user={user} onGoToEducation={() => setActive("education")} onGoToTools={() => setActive("tools")} />}
       {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} floatingEducationWidgets={floatingEducationWidgets} onToggleFloatingEducationWidgets={toggleFloatingEducationWidgets} />}
     </div>
   );
