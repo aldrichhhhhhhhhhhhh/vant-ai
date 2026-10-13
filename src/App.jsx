@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Papa from "papaparse";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import { parseAttachment } from "./chatAttachmentParser";
 import { supabase } from "./supabase";
 import {
@@ -1544,8 +1546,6 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
       ""
     );
 
-    // Keep simple inline math readable without exposing raw LaTeX delimiters.
-    text = text.replace(/\$([^$\n]+)\$/g, "$1");
     return text.trim();
   }
 
@@ -1561,7 +1561,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
       const value = match[0];
       const key = `${keyPrefix}-${index++}`;
 
-      if (match[2] && match[3]) {
+      if (value.startsWith("\\\\(") || value.startsWith("\\\\[") || value.startsWith("$") || (value.startsWith("$") && value.endsWith("$"))) {\n        const displayMode = value.startsWith("\\\\[") || value.startsWith("$");\n        const rawMath = displayMode || value.startsWith("\\\\(") ? value.slice(2, -2) : value.slice(1, -1);\n        tokens.push(<span key={key} className={displayMode ? "vant-math-display" : "vant-math-inline"} dangerouslySetInnerHTML={{ __html: katex.renderToString(rawMath, { displayMode, throwOnError: false, trust: false, strict: "ignore" }) }} />);\n      } else if (match[2] && match[3]) {
         tokens.push(
           <a key={key} href={match[3]} target="_blank" rel="noreferrer"
             style={{ color: isDark ? "#bda7ff" : "#5b36b8", textDecoration: "underline" }}>
