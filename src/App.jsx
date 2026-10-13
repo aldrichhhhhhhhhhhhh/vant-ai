@@ -1533,12 +1533,8 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
   function cleanVantMarkdown(source) {
     let text = String(source || "")
       .replace(/\r\n/g, "\n")
-      .replace(/\\times/g, "×")
-      .replace(/\\cdot/g, "·")
-      .replace(/\\pm/g, "±")
-      .replace(/\\square/g, "☐")
-      .replace(/<br\s*\/?>/gi, " · ")
-      .replace(/\\%/g, "%");
+      // Preserve LaTeX commands so KaTeX receives the original expression intact.
+      .replace(/<br\s*\/?>/gi, " · ");
 
     // Defensive UI cleanup: Work Engine diagnostics remain internal.
     text = text.replace(
@@ -1692,25 +1688,39 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
           quoteLines.push(lines[i].trim().replace(/^>\s?/, ""));
           i += 1;
         }
-        blocks.push(<blockquote key={`quote-${blockIndex++}`} style={{ margin: "10px 0", padding: "8px 12px", borderLeft: `3px solid ${isDark ? "#9b7bea" : "#7651c8"}`, color: theme.textMuted, background: theme.surface }}>{quoteLines.map((quote, index) => <div key={index}>{renderInlineMarkdown(quote, theme, isDark, `quote-${blockIndex}-${index}`)}</div>)}</blockquote>);
+        blocks.push(<blockquote key={`quote-${blockIndex++}`} style={{ margin: "10px 0", padding: "8px 12px", borderLeft: `3px solid ${isDark ? "#9b7bea" : "#7651c8"}`, color: theme.textMuted, background: theme.surface }}>{renderInlineMarkdown(quoteLines.join("\n"), theme, isDark, `quote-${blockIndex}`)}</blockquote>);
         continue;
       }
 
       if (trimmed.startsWith("\\[") || trimmed.startsWith("$$")) {
-        const closing = trimmed.startsWith("\\[") ? "\\]" : "$$";
-        const mathLines = [trimmed];
-        i += 1;
-        while (i < lines.length && !mathLines[mathLines.length - 1].includes(closing)) {
-          mathLines.push(lines[i]);
+        const delimiter = trimmed.startsWith("\\[") ? "\\]" : "$$";
+        const closingOnStart = trimmed.indexOf(delimiter, 2);
+        let mathSource = "";
+        if (closingOnStart >= 0) {
+          // Single-line display math must consume only its own line.
+          mathSource = trimmed.slice(2, closingOnStart);
           i += 1;
+        } else {
+          // Locate the close before advancing so the following content is preserved.
+          let closingLine = -1;
+          let closingColumn = -1;
+          for (let lineIndex = i + 1; lineIndex < lines.length; lineIndex += 1) {
+            const closeAt = lines[lineIndex].indexOf(delimiter);
+            if (closeAt >= 0) {
+              closingLine = lineIndex;
+              closingColumn = closeAt;
+              break;
+            }
+          }
+          if (closingLine < 0) {
+            blocks.push(<p key={`p-${blockIndex++}`} style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{renderInlineMarkdown(trimmed, theme, isDark, `p-${blockIndex}`)}</p>);
+            i += 1;
+            continue;
+          }
+          mathSource = [trimmed.slice(2), ...lines.slice(i + 1, closingLine), lines[closingLine].slice(0, closingColumn)].join("\n");
+          i = closingLine + 1;
         }
-        if (i < lines.length && mathLines[mathLines.length - 1] !== trimmed && !mathLines[mathLines.length - 1].endsWith(closing)) {
-          mathLines[mathLines.length - 1] += lines[i];
-        }
-        if (i < lines.length && mathLines[mathLines.length - 1].includes(closing)) i += 1;
-        const mathSource = mathLines.join("\n");
-        const innerMath = mathSource.startsWith("\\[") ? mathSource.slice(2, mathSource.lastIndexOf("\\]")) : mathSource.slice(2, mathSource.lastIndexOf("$$"));
-        blocks.push(<div key={`math-block-${blockIndex++}`} className="vant-math-display" dangerouslySetInnerHTML={{ __html: katex.renderToString(innerMath.trim(), { displayMode: true, throwOnError: false, trust: false, strict: "ignore" }) }} />);
+        blocks.push(<div key={`math-block-${blockIndex++}`} className="vant-math-display" style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: katex.renderToString(mathSource.trim(), { displayMode: true, throwOnError: false, trust: false, strict: "ignore" }) }} />);
         continue;
       }
 
