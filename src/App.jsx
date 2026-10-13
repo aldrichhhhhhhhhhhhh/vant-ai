@@ -4985,7 +4985,7 @@ export default function VantWorkingPrototype() {
       return <ProjectsPage {...props} projects={projects} user={user} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
     }
     if (active === "memory") return <VantMemoryPage {...props} user={user} />;
-    if (active === "education") return <VantEducationPage {...props} user={user} onGoToTools={() => setActive("tools")} />;
+    if (active === "education") return <VantEducationPage {...props} user={user} onGoToTools={() => setActive("tools")} onGoToEducation={() => setActive("education")} showEducationWidgets={!floatingEducationWidgets} />;
     if (active === "tools") return <ToolsPage {...props} user={user} />;
     if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
     if (active === "cowork") return <CoworkPage {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
@@ -5086,7 +5086,7 @@ export default function VantWorkingPrototype() {
         </div>
       </div>
       {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
-      {user && !user.isGuest && (active === "education" || floatingEducationWidgets) && <VantEducationWidgets theme={theme} isDark={isDark} user={user} onGoToEducation={() => setActive("education")} onGoToTools={() => setActive("tools")} />}
+      {user && !user.isGuest && floatingEducationWidgets && active !== "education" && <VantEducationWidgets theme={theme} isDark={isDark} user={user} onGoToEducation={() => setActive("education")} onGoToTools={() => setActive("tools")} />}
       {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} floatingEducationWidgets={floatingEducationWidgets} onToggleFloatingEducationWidgets={toggleFloatingEducationWidgets} />}
     </div>
   );
