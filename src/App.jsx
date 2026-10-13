@@ -1688,7 +1688,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
           quoteLines.push(lines[i].trim().replace(/^>\s?/, ""));
           i += 1;
         }
-        blocks.push(<blockquote key={\`quote-${blockIndex++}\`} style={{ margin: "10px 0", padding: "8px 12px", borderLeft: \`3px solid ${isDark ? "#9b7bea" : "#7651c8"}\`, color: theme.textMuted, background: theme.surface }}>{renderInlineMarkdown(quoteLines.join("\n"), theme, isDark, \`quote-${blockIndex}\`)}</blockquote>);
+        blocks.push(<blockquote key={`quote-${blockIndex++}`} style={{ margin: "10px 0", padding: "8px 12px", borderLeft: `3px solid ${isDark ? "#9b7bea" : "#7651c8"}`, color: theme.textMuted, background: theme.surface }}>{renderInlineMarkdown(quoteLines.join("\n"), theme, isDark, `quote-${blockIndex}`)}</blockquote>);
         continue;
       }
 
@@ -1713,14 +1713,14 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
             }
           }
           if (closingLine < 0) {
-            blocks.push(<p key={\`p-${blockIndex++}\`} style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{renderInlineMarkdown(trimmed, theme, isDark, \`p-${blockIndex}\`)}</p>);
+            blocks.push(<p key={`p-${blockIndex++}`} style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{renderInlineMarkdown(trimmed, theme, isDark, `p-${blockIndex}`)}</p>);
             i += 1;
             continue;
           }
           mathSource = [trimmed.slice(2), ...lines.slice(i + 1, closingLine), lines[closingLine].slice(0, closingColumn)].join("\n");
           i = closingLine + 1;
         }
-        blocks.push(<div key={\`math-block-${blockIndex++}\`} className="vant-math-display" style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: katex.renderToString(mathSource.trim(), { displayMode: true, throwOnError: false, trust: false, strict: "ignore" }) }} />);
+        blocks.push(<div key={`math-block-${blockIndex++}`} className="vant-math-display" style={{ overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: katex.renderToString(mathSource.trim(), { displayMode: true, throwOnError: false, trust: false, strict: "ignore" }) }} />);
         continue;
       }
 
