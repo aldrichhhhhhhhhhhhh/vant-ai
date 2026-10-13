@@ -4086,14 +4086,14 @@ export default function VantWorkingPrototype() {
   const [newChatNonce, setNewChatNonce] = useState(0);
   const [chatHistoryReady, setChatHistoryReady] = useState(false);
   const [chatCloudAvailable, setChatCloudAvailable] = useState(false);
-  const [themeName, setThemeName] = useState("dark");
+  const [themeName, setThemeName] = useState("light");
   const [themeLoaded, setThemeLoaded] = useState(false);
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [authMode, setAuthMode] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [connected, setConnected] = useState(() => new Set(INTEGRATIONS.map((i) => i.name)));
-  const [appState, setAppState] = useState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
+  const [appState, setAppState] = useState({ theme: "light", cowork_tasks: [], cowork_history: [] });
   const [stateReady, setStateReady] = useState(false);
   const appStateRef = useRef(appState);
 
@@ -4303,8 +4303,8 @@ export default function VantWorkingPrototype() {
     if (!authUser) {
       setUser(null);
       setStateReady(false);
-      setAppState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
-      setThemeName("dark");
+      setAppState({ theme: "light", cowork_tasks: [], cowork_history: [] });
+      setThemeName("light");
       await loadChatHistory(null);
       return;
     }
@@ -4331,14 +4331,14 @@ export default function VantWorkingPrototype() {
 
     if (error) {
       console.error("VANT: failed to load app_state", error);
-      setAppState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
-      setThemeName("dark");
+      setAppState({ theme: "light", cowork_tasks: [], cowork_history: [] });
+      setThemeName("light");
       setStateReady(true);
       return;
     }
 
     const nextState = {
-      theme: data?.theme === "light" ? "light" : "dark",
+      theme: data?.theme === "dark" ? "dark" : "light",
       cowork_tasks: Array.isArray(data?.cowork_tasks) ? data.cowork_tasks : [],
       cowork_history: Array.isArray(data?.cowork_history) ? data.cowork_history : [],
     };
@@ -4594,7 +4594,7 @@ export default function VantWorkingPrototype() {
 
   async function handleClearData() {
     if (!user?.id) return;
-    await persistAppState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
+    await persistAppState({ theme: "light", cowork_tasks: [], cowork_history: [] });
     if (chatCloudAvailable) {
       const { error } = await supabase.from("chat_conversations").delete().eq("user_id", user.id);
       if (error) console.error("VANT: failed to clear cloud chat history", error);
@@ -4602,7 +4602,7 @@ export default function VantWorkingPrototype() {
     writeLocalChats(user.id, []);
     setConversations([]);
     setActiveConversationId(null);
-    setThemeName("dark");
+    setThemeName("light");
     setSettingsOpen(false);
   }
 
