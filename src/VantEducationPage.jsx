@@ -70,6 +70,51 @@ function SavedMarkdown({ source, theme }) {
     const line = lines[i];
     const trimmed = line.trim();
     if (!trimmed) { flushParagraph(); flushList(); continue; }
+    if (trimmed.startsWith("\x60\x60\x60")) {
+      flushParagraph();
+      flushList();
+      const codeLines = [];
+      i += 1;
+      while (i < lines.length && !lines[i].trim().startsWith("\x60\x60\x60")) {
+        codeLines.push(lines[i]);
+        i += 1;
+      }
+      if (i < lines.length) i += 1;
+      blocks.push({ type: "code", text: codeLines.join("\n") });
+      continue;
+    }
+    if (trimmed.startsWith("\\[") || trimmed.startsWith("$")) {
+      const delimiter = trimmed.startsWith("\\[") ? "\\]" : "$";
+      const closingOnStart = trimmed.indexOf(delimiter, 2);
+      let mathSource = "";
+      if (closingOnStart >= 0) {
+        mathSource = trimmed.slice(2, closingOnStart);
+        i += 1;
+      } else {
+        let closingLine = -1;
+        let closingColumn = -1;
+        for (let lineIndex = i + 1; lineIndex < lines.length; lineIndex += 1) {
+          const closeAt = lines[lineIndex].indexOf(delimiter);
+          if (closeAt >= 0) {
+            closingLine = lineIndex;
+            closingColumn = closeAt;
+            break;
+          }
+        }
+        if (closingLine < 0) {
+          flushList();
+          paragraph.push(trimmed);
+          i += 1;
+          continue;
+        }
+        mathSource = [trimmed.slice(2), ...lines.slice(i + 1, closingLine), lines[closingLine].slice(0, closingColumn)].join("\n");
+        i = closingLine + 1;
+      }
+      flushParagraph();
+      flushList();
+      blocks.push({ type: "math", text: mathSource.trim() });
+      continue;
+    }
     if (/^\|.*\|$/.test(trimmed) && i + 1 < lines.length && /^\|?\s*:?-{3,}/.test(lines[i + 1].trim())) {
       flushParagraph(); flushList();
       const headers = trimmed.replace(/^\||\|$/g, "").split("|").map((v) => v.trim());
