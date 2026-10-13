@@ -4361,7 +4361,7 @@ function AuthModal({ mode, setMode, theme, isDark, onClose, onAuth }) {
   );
 }
 
-function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, onClearData }) {
+function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, onClearData, floatingEducationWidgets, onToggleFloatingEducationWidgets }) {
   return (
     <Overlay onClose={onClose} theme={theme} width={420}>
       <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 21, fontWeight: 500, margin: "0 0 18px", color: theme.text }}>Settings</h2>
@@ -4382,6 +4382,15 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
         <button onClick={onToggleTheme} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>
           {isDark ? <Sun size={14} /> : <Moon size={14} />} Switch to {isDark ? "Day" : "Dark"} theme
         </button>
+      </div>
+
+      <div style={{ marginBottom: 22 }}>
+        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>PERSONALIZATION</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 13, border: "1px solid " + theme.border, borderRadius: 14, background: theme.surface }}>
+          <div style={{ flex: 1 }}><div style={{ color: theme.text, fontSize: 13.5, fontWeight: 600 }}>Floating Education widgets</div><div style={{ color: theme.textMuted, fontSize: 11.5, lineHeight: 1.5, marginTop: 4 }}>Keep your Student Calendar, Study Tracker, and Doc Files Cabinet available across VANT for quick access. You can turn this off anytime.</div></div>
+          <button type="button" role="switch" aria-checked={floatingEducationWidgets} onClick={onToggleFloatingEducationWidgets} style={{ width: 46, height: 27, padding: 3, border: 0, borderRadius: 99, background: floatingEducationWidgets ? "#7C3AED" : theme.border, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: floatingEducationWidgets ? "flex-end" : "flex-start" }}><span style={{ width: 21, height: 21, borderRadius: "50%", background: "#FFFFFF", boxShadow: "0 1px 4px rgba(0,0,0,.22)" }} /></button>
+        </div>
+        <p style={{ color: theme.textFaint, fontSize: 10.5, margin: "7px 0 0" }}>Disabled by default. Your Education tools remain available inside VANT Education.</p>
       </div>
 
       <div>
@@ -4412,6 +4421,7 @@ export default function VantWorkingPrototype() {
   const [authReady, setAuthReady] = useState(false);
   const [authMode, setAuthMode] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [floatingEducationWidgets, setFloatingEducationWidgets] = useState(false);
   const [connected, setConnected] = useState(() => new Set(INTEGRATIONS.map((i) => i.name)));
   const [appState, setAppState] = useState({ theme: "dark", cowork_tasks: [], cowork_history: [] });
   const [stateReady, setStateReady] = useState(false);
@@ -4926,6 +4936,20 @@ export default function VantWorkingPrototype() {
     setSettingsOpen(false);
   }
 
+  useEffect(() => {
+    if (!user?.id || user.isGuest) { setFloatingEducationWidgets(false); return; }
+    try { setFloatingEducationWidgets(localStorage.getItem("vant_education_widgets_" + user.id) === "true"); }
+    catch { setFloatingEducationWidgets(false); }
+  }, [user?.id, user?.isGuest]);
+
+  function toggleFloatingEducationWidgets() {
+    setFloatingEducationWidgets((current) => {
+      const next = !current;
+      try { if (user?.id) localStorage.setItem("vant_education_widgets_" + user.id, String(next)); } catch { /* preference remains active for this session */ }
+      return next;
+    });
+  }
+
   const toggleTheme = () => setThemeName((t) => (t === "dark" ? "light" : "dark"));
 
   function toggleIntegration(name) {
@@ -5062,8 +5086,8 @@ export default function VantWorkingPrototype() {
         </div>
       </div>
       {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
-      {user && !user.isGuest && <VantEducationWidgets theme={theme} isDark={isDark} user={user} onGoToEducation={() => setActive("education")} onGoToTools={() => setActive("tools")} />}
-      {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} />}
+      {user && !user.isGuest && floatingEducationWidgets && <VantEducationWidgets theme={theme} isDark={isDark} user={user} onGoToEducation={() => setActive("education")} onGoToTools={() => setActive("tools")} />}
+      {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} floatingEducationWidgets={floatingEducationWidgets} onToggleFloatingEducationWidgets={toggleFloatingEducationWidgets} />}
     </div>
   );
 }
