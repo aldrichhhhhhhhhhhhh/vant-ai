@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, Search, Plus, FileText, GraduationCap, Layers, ClipboardCheck, PencilLine, FolderOpen, FlaskConical, Presentation, Calculator, CalendarDays, Trash2, Pin, PinOff, ArrowLeft, Clock3, LibraryBig, RefreshCw, AlertCircle, Sparkles } from "lucide-react";
 import { supabase } from "./supabase";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import VantEducationWidgets from "./VantEducationWidgets";
 
 const TYPE_META = {
@@ -44,13 +46,26 @@ function SavedMarkdown({ source, theme }) {
     if (list.length) { blocks.push({ type: "list", items: list }); list = []; }
   };
   const inline = (text) => {
-    const parts = String(text).split(/(\*\*[^*]+\*\*|\*[^*]+\*|\x60[^\x60]+\x60)/g);
+    // Code spans are matched first so LaTeX inside backticks stays literal.
+    const parts = String(text).split(/(\x60[^\x60]*\x60|\\\([^\n]*?\\\)|\\\[[\s\S]+?\\\]|\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\*\*[^*]+\*\*|\*[^*\n]+\*)/g);
     return parts.map((part, i) => {
+      if (part.startsWith("\x60") && part.endsWith("\x60")) {
+        return <code key={i} style={{ fontFamily: "monospace", background: theme.surfaceStrong, borderRadius: 4, padding: "1px 4px" }}>{part.slice(1, -1)}</code>;
+      }
+      if (part.startsWith("\\(") || part.startsWith("\\[") || part.startsWith("$$") || part.startsWith("$")) {
+        const displayMode = part.startsWith("\\[") || part.startsWith("$$");
+        const delimiterLength = part.startsWith("\\[") || part.startsWith("\\(") || part.startsWith("$$") ? 2 : 1;
+        const rawMath = part.slice(delimiterLength, -delimiterLength);
+        const html = katex.renderToString(rawMath, { displayMode, throwOnError: false, trust: false, strict: "ignore" });
+        return displayMode
+          ? <span key={i} style={{ display: "block", overflowX: "auto" }} dangerouslySetInnerHTML={{ __html: html }} />
+          : <span key={i} dangerouslySetInnerHTML={{ __html: html }} />;
+      }
       if (part.startsWith("**") && part.endsWith("**")) return <strong key={i}>{part.slice(2, -2)}</strong>;
       if (part.startsWith("*") && part.endsWith("*")) return <em key={i}>{part.slice(1, -1)}</em>;
-      if (part.startsWith("`") && part.endsWith("`")) return <code key={i} style={{ fontFamily: "monospace", background: theme.surfaceStrong, borderRadius: 4, padding: "1px 4px" }}>{part.slice(1, -1)}</code>;
       return part;
     });
+  };
   };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -70,7 +85,17 @@ function SavedMarkdown({ source, theme }) {
     if (heading) { flushParagraph(); flushList(); blocks.push({ type: "heading", level: heading[1].length, text: heading[2] }); continue; }
     const item = trimmed.match(/^[-*+]\s+(.*)$/) || trimmed.match(/^\d+[.)]\s+(.*)$/);
     if (item) { flushParagraph(); list.push(item[1].replace(/^\[([ xX])\]\s*/, (_, checked) => checked.trim() ? "☑ " : "☐ ")); continue; }
-    if (/^>\s?/.test(trimmed)) { flushParagraph(); flushList(); blocks.push({ type: "quote", text: trimmed.replace(/^>\s?/, "") }); continue; }
+    if (/^>\s?/.test(trimmed)) {
+      flushParagraph();
+      flushList();
+      const quoteLines = [];
+      while (i < lines.length && /^>\s?/.test(lines[i].trim())) {
+        quoteLines.push(lines[i].trim().replace(/^>\s?/, ""));
+        i += 1;
+      }
+      blocks.push({ type: "quote", text: quoteLines.join("\n") });
+      continue;
+    }
     flushList(); paragraph.push(trimmed);
   }
   flushParagraph(); flushList();
@@ -82,6 +107,8 @@ function SavedMarkdown({ source, theme }) {
       }
       if (block.type === "list") return <ul key={index} style={{ paddingLeft: 24, margin: "8px 0 16px" }}>{block.items.map((item, j) => <li key={j} style={{ paddingLeft: 3, marginBottom: 6 }}>{inline(item)}</li>)}</ul>;
       if (block.type === "table") return <div key={index} style={{ overflowX: "auto", margin: "12px 0 18px" }}><table style={{ borderCollapse: "collapse", width: "100%", minWidth: 420, fontSize: 12.5 }}><thead><tr>{block.headers.map((cell, j) => <th key={j} style={{ textAlign: "left", padding: "10px 12px", border: "1px solid " + theme.border, background: theme.surfaceStrong }}>{inline(cell)}</th>)}</tr></thead><tbody>{block.rows.map((row, j) => <tr key={j}>{block.headers.map((_, k) => <td key={k} style={{ verticalAlign: "top", padding: "9px 12px", border: "1px solid " + theme.border }}>{inline(row[k] || "")}</td>)}</tr>)}</tbody></table></div>;
+      if (block.type === "code") return <pre key={index} style={{ overflowX: "auto", margin: "12px 0 18px", padding: 12, borderRadius: 8, background: theme.surfaceStrong, border: "1px solid " + theme.border, whiteSpace: "pre" }}><code>{block.text}</code></pre>;
+      if (block.type === "math") return <div key={index} style={{ overflowX: "auto", margin: "12px 0 18px" }}><span style={{ display: "block" }} dangerouslySetInnerHTML={{ __html: katex.renderToString(block.text, { displayMode: true, throwOnError: false, trust: false, strict: "ignore" }) }} /></div>;
       if (block.type === "quote") return <blockquote key={index} style={{ borderLeft: "3px solid #7C3AED", margin: "12px 0", padding: "4px 14px", color: theme.textMuted }}>{inline(block.text)}</blockquote>;
       return <p key={index} style={{ margin: "0 0 13px" }}>{inline(block.text)}</p>;
     })}
