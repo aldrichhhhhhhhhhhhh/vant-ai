@@ -9,6 +9,7 @@ import {
 import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Target, Image as ImageIcon, Link2, FolderKanban, Users, UserPlus, ThumbsUp, ThumbsDown, Flag, MoreHorizontal, BookOpen, GraduationCap } from "lucide-react";
 import VantMemoryPage from "./VantMemoryPage";
 import VantEducationPage from "./VantEducationPage";
+import VantEducationWidgets from "./VantEducationWidgets";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -52,7 +53,6 @@ const NAV = [
   { id: "chat", label: "AI Chat", icon: MessageSquare, accentKey: "violet" },
   { id: "projects", label: "Projects", icon: FolderKanban, accentKey: "violet" },
   { id: "tools", label: "Tools", icon: Wrench, accentKey: "red" },
-  { id: "education", label: "VANT Education", icon: GraduationCap, accentKey: "violet" },
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, accentKey: "cyan" },
   { id: "cowork", label: "Cowork", icon: Briefcase, accentKey: "green" },
   { id: "integrations", label: "Integrations", icon: Plug, accentKey: "amber" },
@@ -521,12 +521,16 @@ function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSetting
         })}
       </nav>
       <div style={{ position: "relative" }}>
-        <button type="button" onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-label="More VANT features" style={{ width: "100%", minHeight: 43, padding: "10px 12px", borderRadius: 12, border: "1px solid " + (moreOpen || active === "memory" ? (isDark ? "rgba(208,166,80,0.26)" : "rgba(185,145,63,0.30)") : "transparent"), cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", background: moreOpen || active === "memory" ? "rgba(208,166,80,0.10)" : "transparent", color: sidebarMuted }}>
-          <MoreHorizontal size={18} color={moreOpen || active === "memory" ? gold : sidebarIcon} />
-          <span style={{ flex: 1, fontSize: 13, fontWeight: moreOpen || active === "memory" ? 600 : 500 }}>More</span>
+        <button type="button" onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen} aria-label="More VANT features" style={{ width: "100%", minHeight: 43, padding: "10px 12px", borderRadius: 12, border: "1px solid " + (moreOpen || active === "memory" || active === "education" ? (isDark ? "rgba(208,166,80,0.26)" : "rgba(185,145,63,0.30)") : "transparent"), cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", background: moreOpen || active === "memory" || active === "education" ? "rgba(208,166,80,0.10)" : "transparent", color: sidebarMuted }}>
+          <MoreHorizontal size={18} color={moreOpen || active === "memory" || active === "education" ? gold : sidebarIcon} />
+          <span style={{ flex: 1, fontSize: 13, fontWeight: moreOpen || active === "memory" || active === "education" ? 600 : 500 }}>More</span>
           <ChevronRight size={14} style={{ transform: moreOpen ? "rotate(90deg)" : "none", transition: "transform 160ms ease" }} color={sidebarIcon} />
         </button>
         {moreOpen && <div className="v-fade" style={{ marginTop: 5, marginLeft: 8, paddingLeft: 9, borderLeft: "1px solid " + theme.border, display: "flex", flexDirection: "column", gap: 4 }}>
+          <button type="button" onClick={() => { onSelect("education"); setMoreOpen(false); }} aria-current={active === "education" ? "page" : undefined} style={{ width: "100%", minHeight: 39, padding: "9px 10px", borderRadius: 10, border: "1px solid " + (active === "education" ? "rgba(124,58,237,0.28)" : "transparent"), background: active === "education" ? "rgba(124,58,237,0.10)" : "transparent", color: active === "education" ? sidebarText : sidebarMuted, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left", fontSize: 12.5 }}>
+            <span style={{ width: 25, height: 25, borderRadius: 8, background: "rgba(124,58,237,0.14)", display: "flex", alignItems: "center", justifyContent: "center" }}><GraduationCap size={14} color={isDark ? "#C4B5FD" : "#6D28D9"} /></span>
+            <span>VANT Education</span>
+          </button>
           <button type="button" onClick={() => { onSelect("memory"); setMoreOpen(false); }} aria-current={active === "memory" ? "page" : undefined} style={{ width: "100%", minHeight: 39, padding: "9px 10px", borderRadius: 10, border: "1px solid " + (active === "memory" ? "rgba(208,166,80,0.28)" : "transparent"), background: active === "memory" ? "rgba(208,166,80,0.10)" : "transparent", color: active === "memory" ? sidebarText : sidebarMuted, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left", fontSize: 12.5 }}>
             <span style={{ width: 25, height: 25, borderRadius: 8, background: "rgba(208,166,80,0.14)", display: "flex", alignItems: "center", justifyContent: "center" }}><Sparkles size={14} color={gold} /></span>
             <span>VANT Memory</span>
@@ -4964,7 +4968,7 @@ export default function VantWorkingPrototype() {
     return <IntegrationsPage {...props} connected={connected} onToggle={toggleIntegration} />;
   }
 
-  const pageLabel = active === "memory" ? "VANT Memory" : (NAV.find((n) => n.id === active) || {}).label || "";
+  const pageLabel = active === "memory" ? "VANT Memory" : active === "education" ? "VANT Education" : (NAV.find((n) => n.id === active) || {}).label || "";
 
   if (!authReady) {
     return (
@@ -5058,6 +5062,7 @@ export default function VantWorkingPrototype() {
         </div>
       </div>
       {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
+      {user && !user.isGuest && <VantEducationWidgets theme={theme} isDark={isDark} user={user} onGoToEducation={() => setActive("education")} onGoToTools={() => setActive("tools")} />}
       {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} />}
     </div>
   );
