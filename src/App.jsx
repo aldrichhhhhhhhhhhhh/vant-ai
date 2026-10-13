@@ -8,6 +8,7 @@ import {
 } from "./vantEngine";
 import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Trash2, Pencil, Check, X, ArrowLeft, Calculator, FileSpreadsheet, Sun, Moon, Sparkles, History, LogIn, Settings, Truck, Boxes, RefreshCw, Package, ClipboardList, ListChecks, Paperclip, Camera, Copy, Square, FolderPlus, ChevronRight, Palette, Puzzle, Globe, Search, FileText, Target, Image as ImageIcon, Link2, FolderKanban, Users, UserPlus, ThumbsUp, ThumbsDown, Flag, MoreHorizontal, BookOpen, GraduationCap } from "lucide-react";
 import VantMemoryPage from "./VantMemoryPage";
+import VantEducationPage from "./VantEducationPage";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -51,6 +52,7 @@ const NAV = [
   { id: "chat", label: "AI Chat", icon: MessageSquare, accentKey: "violet" },
   { id: "projects", label: "Projects", icon: FolderKanban, accentKey: "violet" },
   { id: "tools", label: "Tools", icon: Wrench, accentKey: "red" },
+  { id: "education", label: "VANT Education", icon: GraduationCap, accentKey: "violet" },
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, accentKey: "cyan" },
   { id: "cowork", label: "Cowork", icon: Briefcase, accentKey: "green" },
   { id: "integrations", label: "Integrations", icon: Plug, accentKey: "amber" },
@@ -3278,28 +3280,31 @@ function cleanStudyFormatting(value) {
     .trim();
 }
 
-function saveStudyMaterialToDevice({ title, type, topic, content, sourceNotes = "" }) {
-  try {
-    const key = "vant-study-materials-v1";
-    const existing = JSON.parse(localStorage.getItem(key) || "[]");
-    if (!Array.isArray(existing)) throw new Error("Invalid saved-material list");
-    const item = {
-      id: Date.now(),
-      title: String(title || "Study material").trim(),
-      type: String(type || "study-material"),
-      topic: String(topic || "").trim(),
-      createdAt: new Date().toISOString(),
-      content: String(content || "").trim(),
-      sourceNotes: String(sourceNotes || "").trim(),
-    };
-    localStorage.setItem(key, JSON.stringify([item, ...existing].slice(0, 100)));
-    return { ok: true, message: "Saved on this device. Cloud sync and VANT Education are not connected yet." };
-  } catch {
-    return { ok: false, message: "Could not save to this device. Check your browser storage settings and try again." };
+async function saveStudyMaterialToDevice({ title, type, topic, content, sourceNotes = "", userId }) {
+  if (!userId) return { ok: false, message: "Sign in to save materials to your private VANT Education library." };
+  const item = {
+    user_id: userId,
+    title: String(title || "Study material").trim().slice(0, 200) || "Study material",
+    material_type: String(type || "study-material"),
+    topic: String(topic || "").trim(),
+    content: String(content || "").trim(),
+    source_notes: String(sourceNotes || "").trim(),
+    folder: ({
+      "notes-study-guide": "Notes & Guides", "study-assistant": "Notes & Guides",
+      flashcards: "Flashcards", quiz: "Quizzes", practice: "Flashcards",
+      planner: "Study Plans", essay: "Writing", citation: "Citations",
+      math: "Math", presentation: "Presentations", research: "Research"
+    })[String(type || "")] || "General",
+  };
+  const { error } = await supabase.from("study_materials").insert(item);
+  if (error) {
+    console.error("VANT Education: save failed", error);
+    return { ok: false, message: "Couldn't save to VANT Education. Please try again." };
   }
+  return { ok: true, message: "Saved to your VANT Education library. You can reopen it anytime from the Education tab." };
 }
 
-function StudyAssistantTool({ onBack, theme, isDark }) {
+function StudyAssistantTool({ onBack, theme, isDark, user }) {
   const [subject, setSubject] = useState("");
   const [level, setLevel] = useState("High school");
   const [goal, setGoal] = useState("Explain a topic");
@@ -3369,7 +3374,7 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
         {result && <section style={{ marginTop: 20, padding: 22, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
             <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your study help</h2>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={() => setSaveMessage(saveStudyMaterialToDevice({ title: subject.trim() + " — " + goal, type: "study-assistant", topic: subject, content: result, sourceNotes: notes }).message)} style={{ border: 0, background: ac("violet", isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 650 }}>Save Study Material</button><button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button></div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={async () => setSaveMessage((await saveStudyMaterialToDevice({ title: subject.trim() + " — " + goal, type: "study-assistant", topic: subject, content: result, sourceNotes: notes, userId: user?.isGuest ? null : user?.id })).message)} style={{ border: 0, background: ac("violet", isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 650 }}>Save Study Material</button><button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button></div>
           </div>
           {saveMessage && <p role="status" style={{ fontSize: 12, color: theme.textMuted, margin: "0 0 12px" }}>{saveMessage}</p>}
           <VantMarkdown source={result} theme={theme} isDark={isDark} />
@@ -3382,7 +3387,7 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
 
 
 
-function NotesStudyGuideTool({ onBack, onCreateFlashcards, theme, isDark }) {
+function NotesStudyGuideTool({ onBack, onCreateFlashcards, theme, isDark, user }) {
   const [notes, setNotes] = useState("");
   const [focus, setFocus] = useState("");
   const [subject, setSubject] = useState("");
@@ -3546,7 +3551,7 @@ function NotesStudyGuideTool({ onBack, onCreateFlashcards, theme, isDark }) {
                 <div style={{ width: 36, height: 36, borderRadius: 11, display: "grid", placeItems: "center", background: acBg("violet", isDark), color: ac("violet", isDark) }}><Sparkles size={18} /></div>
                 <div><h2 style={{ fontSize: 16, margin: 0, fontWeight: 650 }}>Your study workspace</h2><p style={{ color: theme.textMuted, fontSize: 12, margin: "4px 0 0" }}>{result ? selectedStyle.title : "Your organized material will appear here"}</p></div>
               </div>
-              {result && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={() => setSaveMessage(saveStudyMaterialToDevice({ title: (subject.trim() ? subject.trim() + " — " : "") + selectedStyle.title, type: "notes-study-guide", topic: subject || focus, content: result, sourceNotes: notes }).message)} style={{ border: 0, background: ac("violet", isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 650, display: "flex", alignItems: "center", gap: 6 }}><BookOpen size={14} /> Save Study Material</button><button type="button" onClick={() => onCreateFlashcards?.(notes, subject)} disabled={!notes.trim()} style={{ border: 0, background: "linear-gradient(110deg, " + ac("violet", isDark) + ", " + ac("cyan", isDark) + ")", color: isDark ? "#171323" : "#FFFFFF", padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 650, display: "flex", alignItems: "center", gap: 6 }}><GraduationCap size={14} /> Make flashcards from notes</button><button type="button" onClick={copyResult} style={{ border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}><Copy size={14} /> {copied ? "Copied" : "Copy all"}</button></div>}
+              {result && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={async () => setSaveMessage((await saveStudyMaterialToDevice({ title: (subject.trim() ? subject.trim() + " — " : "") + selectedStyle.title, type: "notes-study-guide", topic: subject || focus, content: result, sourceNotes: notes, userId: user?.isGuest ? null : user?.id })).message)} style={{ border: 0, background: ac("violet", isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 650, display: "flex", alignItems: "center", gap: 6 }}><BookOpen size={14} /> Save Study Material</button><button type="button" onClick={() => onCreateFlashcards?.(notes, subject)} disabled={!notes.trim()} style={{ border: 0, background: "linear-gradient(110deg, " + ac("violet", isDark) + ", " + ac("cyan", isDark) + ")", color: isDark ? "#171323" : "#FFFFFF", padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 650, display: "flex", alignItems: "center", gap: 6 }}><GraduationCap size={14} /> Make flashcards from notes</button><button type="button" onClick={copyResult} style={{ border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}><Copy size={14} /> {copied ? "Copied" : "Copy all"}</button></div>}
             </div>
             {!result && !loading && <div style={{ minHeight: 330, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24, border: "1px dashed " + theme.borderStrong, borderRadius: 14, background: theme.surface }}>
               <div style={{ width: 54, height: 54, borderRadius: 17, display: "grid", placeItems: "center", background: acBg("cyan", isDark), color: ac("cyan", isDark), marginBottom: 15 }}><BookOpen size={25} /></div>
@@ -3594,7 +3599,7 @@ function NotesStudyGuideTool({ onBack, onCreateFlashcards, theme, isDark }) {
   );
 }
 
-function StudyResourceTool({ mode, onBack, theme, isDark, initialNotes = "", initialTopic = "" }) {
+function StudyResourceTool({ mode, onBack, theme, isDark, initialNotes = "", initialTopic = "", user }) {
   const configs = {
     practice: { title: "Flashcard & Practice-Quiz Generator", intro: "Create flashcards or a practice quiz from a topic or your own class notes.", accent: "violet", button: "Generate study practice" },
     planner: { title: "Study Planner & Assignment Tracker", intro: "Plan study sessions, track assignment deadlines, and organize your workload.", accent: "green", button: "Build my study plan" },
@@ -3706,7 +3711,7 @@ function StudyResourceTool({ mode, onBack, theme, isDark, initialNotes = "", ini
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
             <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your result</h2>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => setSaveMessage(saveStudyMaterialToDevice({ title: (studyData && studyData.title) || config.title + " — " + topic.trim(), type: studyData ? studyData.type : mode, topic, content: result, sourceNotes: notes }).message)} style={{ border: "none", background: ac(config.accent, isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 650 }}>Save Study Material</button>
+              <button type="button" onClick={async () => setSaveMessage((await saveStudyMaterialToDevice({ title: (studyData && studyData.title) || config.title + " — " + topic.trim(), type: studyData ? studyData.type : mode, topic, content: result, sourceNotes: notes, userId: user?.isGuest ? null : user?.id })).message)} style={{ border: "none", background: ac(config.accent, isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 650 }}>Save Study Material</button>
               <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
             </div>
           </div>
@@ -3772,7 +3777,7 @@ function InteractivePracticeView({ studyData, theme, isDark, accent, topic }) {
   </div>;
 }
 
-function ToolsPage({ theme, isDark }) {
+function ToolsPage({ theme, isDark, user }) {
   const [view, setView] = useState("hub");
   const [category, setCategory] = useState("logistics");
   const [practiceSeed, setPracticeSeed] = useState({ notes: "", topic: "" });
@@ -3784,9 +3789,9 @@ function ToolsPage({ theme, isDark }) {
   if (view === "reorder") return <ReorderPointTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "scorecard") return <VendorScorecardTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "po") return <PoTrackerTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
-  if (view === "study") return <StudyAssistantTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
-  if (view === "notes") return <NotesStudyGuideTool onBack={() => setView("hub")} onCreateFlashcards={(sourceNotes, sourceSubject) => { setPracticeSeed({ notes: sourceNotes, topic: sourceSubject || "My class notes" }); setView("practice"); }} theme={theme} isDark={isDark} />;
-  if (["practice", "planner", "essay", "citation", "math", "presentation", "research"].includes(view)) return <StudyResourceTool key={view} mode={view} initialNotes={view === "practice" ? practiceSeed.notes : ""} initialTopic={view === "practice" ? practiceSeed.topic : ""} onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (view === "study") return <StudyAssistantTool onBack={() => setView("hub")} theme={theme} isDark={isDark} user={user} />;
+  if (view === "notes") return <NotesStudyGuideTool onBack={() => setView("hub")} onCreateFlashcards={(sourceNotes, sourceSubject) => { setPracticeSeed({ notes: sourceNotes, topic: sourceSubject || "My class notes" }); setView("practice"); }} theme={theme} isDark={isDark} user={user} />;
+  if (["practice", "planner", "essay", "citation", "math", "presentation", "research"].includes(view)) return <StudyResourceTool key={view} mode={view} initialNotes={view === "practice" ? practiceSeed.notes : ""} initialTopic={view === "practice" ? practiceSeed.topic : ""} onBack={() => setView("hub")} theme={theme} isDark={isDark} user={user} />;
 
   const categoryButton = (id, label, Icon, accentKey) => (
     <button key={id} type="button" onClick={() => setCategory(id)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderRadius: 11, border: `1px solid ${category === id ? ac(accentKey, isDark) : theme.border}`, background: category === id ? acBg(accentKey, isDark) : theme.surface, color: category === id ? ac(accentKey, isDark) : theme.textMuted, cursor: "pointer", fontSize: 13.5, fontWeight: category === id ? 600 : 500 }}>
@@ -4952,7 +4957,8 @@ export default function VantWorkingPrototype() {
       return <ProjectsPage {...props} projects={projects} user={user} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
     }
     if (active === "memory") return <VantMemoryPage {...props} user={user} />;
-    if (active === "tools") return <ToolsPage {...props} />;
+    if (active === "education") return <VantEducationPage {...props} user={user} onGoToTools={() => setActive("tools")} />;
+    if (active === "tools") return <ToolsPage {...props} user={user} />;
     if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
     if (active === "cowork") return <CoworkPage {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
     return <IntegrationsPage {...props} connected={connected} onToggle={toggleIntegration} />;
