@@ -83,8 +83,8 @@ function SavedMarkdown({ source, theme }) {
       blocks.push({ type: "code", text: codeLines.join("\n") });
       continue;
     }
-    if (trimmed.startsWith("\\[") || trimmed.startsWith("$")) {
-      const delimiter = trimmed.startsWith("\\[") ? "\\]" : "$";
+    if (trimmed.startsWith("\\[") || trimmed.startsWith("$$")) {
+      const delimiter = trimmed.startsWith("\\[") ? "\\]" : "$$";
       const closingOnStart = trimmed.indexOf(delimiter, 2);
       let mathSource = "";
       if (closingOnStart >= 0) {
