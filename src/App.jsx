@@ -3295,10 +3295,10 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
     const prompt = `Help a student study. Subject/topic: ${subject.trim()}. Level: ${level}. Goal: ${goal}. ${notes.trim() ? `Student-provided notes or context:\n${notes.trim()}\n\n` : ""}Tailor the answer to the level and goal. Use a clean, natural reading format with simple section titles and short paragraphs. Do NOT use Markdown heading markers (#, ##, ###), horizontal divider lines (---, ___, or repeated dashes), decorative separators, or LaTeX delimiters. Do not begin or end sections with lines of symbols. Use plain section titles on their own line, followed by a short paragraph or a few bullets. Avoid decorative Unicode and emoji unless the subject truly requires them. For high-school and beginner answers, write chemical formulas with ordinary keyboard characters (H2O, CO2, O2, C6H12O6), explain technical terms in plain language, and describe equations in words first. Prefer simple text equations such as 'Carbon dioxide + water + light -> sugar + oxygen'. Use ASCII arrows '->' rather than special arrow glyphs when possible. Never use Markdown tables. Use short labeled bullets instead. Never insert horizontal rules or rows of dashes between sections. Avoid dense academic prose and unnecessary jargon. Keep paragraphs short. Aim for a calm, uncluttered page that looks like well-organized class notes. For study guides, prioritize key ideas, process steps, common mistakes, and a short recap. For practice, number questions and put answers in a separate answer key. Use formal scientific notation only when the learner's level or task requires it, and explain it. Be accurate, distinguish uncertainty, and never pretend to know the student's course rubric. Support learning rather than doing a graded assessment dishonestly.`;
     try {
       const answer = await askVant(
-        "You are VANT Study Assistant, a patient and accurate learning coach. Help students understand material, practice skills, and study independently. Prioritize a calm, uncluttered reading format. Never use Markdown heading markers such as # or ###, horizontal rules such as --- or ___, rows of repeated dashes, or decorative separators. Use plain section titles, short paragraphs, and simple bullets. Avoid LaTeX wrappers and complex Unicode symbols unless essential to the subject. For beginner and high-school learners, prefer formulas typed with ordinary characters and explain equations in words. Use readable study notes rather than dense academic reports. Do not fabricate facts or citations. If a question depends on missing class material, say what is missing.",
+        "You are VANT Study Assistant, a patient and accurate learning coach. Help students understand material, practice skills, and study independently. Make responses feel as polished and readable as VANT Main Chat, using standard Markdown headings, short paragraphs, bullets, numbered steps, and equations when useful. Keep the format uncluttered and appropriate to the learner. For beginner and high-school learners, explain formulas and equations in plain language. Do not fabricate facts or citations. If a question depends on missing class material, say what is missing.",
         [{ role: "user", content: prompt }]
       );
-      if (typeof answer === "string" && answer.trim()) setResult(cleanStudyFormatting(answer));
+      if (typeof answer === "string" && answer.trim()) setResult(answer.trim());
       else setError("VANT couldn't generate study help. Please try again.");
     } catch {
       setError("Something went wrong generating study help. Please try again.");
@@ -3348,7 +3348,7 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
             <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your study help</h2>
             <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
           </div>
-          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.75, fontSize: 14.5 }}>{result}</div>
+          <VantMarkdown source={result} theme={theme} isDark={isDark} />
         </section>}
         <p style={{ fontSize: 12, color: theme.textFaint, lineHeight: 1.6, marginTop: 16 }}>Check important facts against your course materials. VANT is a study aid, not a substitute for your teacher's instructions or official course requirements.</p>
       </div>
@@ -3434,7 +3434,7 @@ function NotesStudyGuideTool({ onBack, theme, isDark }) {
         "You are VANT Study Tools, a careful learning assistant. The learner's supplied notes are the primary source. Distinguish source-supported information from your own explanations, never invent details supposedly found in the source, and use clear section labels exactly as requested.",
         [{ role: "user", content: prompt }]
       );
-      if (typeof answer === "string" && answer.trim()) setResult(cleanStudyFormatting(answer));
+      if (typeof answer === "string" && answer.trim()) setResult(answer.trim());
       else setError("VANT couldn't generate the study material. Please try again.");
     } catch {
       setError("Something went wrong generating your study material. Please try again.");
@@ -3554,7 +3554,7 @@ function NotesStudyGuideTool({ onBack, theme, isDark }) {
                       {(sourceSection || explanationSection) && <span style={{ fontSize: 10.5, color: ac(accent, isDark), border: "1px solid " + ac(accent, isDark) + "55", borderRadius: 999, padding: "4px 7px" }}>{sourceSection ? "From your notes" : "AI explanation"}</span>}
                       {open ? <ChevronRight size={16} style={{ transform: "rotate(90deg)", color: theme.textMuted }} /> : <ChevronRight size={16} color={theme.textMuted} />}
                     </button>
-                    {open && <div style={{ padding: "0 16px 16px 53px", color: theme.textMuted, fontSize: 13.5, lineHeight: 1.75, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{section.body}</div>}
+                    {open && <div style={{ padding: "0 16px 16px 53px", color: theme.textMuted, fontSize: 13.5, lineHeight: 1.75, overflowWrap: "anywhere" }}><VantMarkdown source={section.body} theme={theme} isDark={isDark} /></div>}
                   </article>;
                 })}
               </div>
@@ -3604,10 +3604,10 @@ function StudyResourceTool({ mode, onBack, theme, isDark }) {
     if (mode === "math") task = `Explain this math problem, formula, or concept step by step: ${topic.trim()}. Learner level: ${level}. Additional work or context:\n${notes.trim() || "No additional work supplied."}\nState what is being asked, define symbols and units, show each reasoning step, verify the result where possible, and explain a common mistake. Use plain-text equations where possible. If the problem is missing values or conditions, ask for them instead of guessing.`;
     if (mode === "presentation") task = `Create a presentation outline and/or report structure for: ${topic.trim()}. Audience and level: ${level}. Desired format: ${format}. Source notes and requirements:\n${notes.trim() || "No additional notes supplied."}\nProvide a clear title, purpose, ordered sections or slides, key points, evidence or visuals to consider, speaker notes or report paragraphs as appropriate, conclusion, and a source-check checklist. Do not invent data, quotations, or sources. Clearly label suggestions versus facts supplied by the student.`;
     if (mode === "research") task = `Organize a research paper project. Research topic or question: ${topic.trim()}. Level: ${level}. Citation style preference: ${format}. Sources, notes, requirements, and deadlines:\n${notes.trim() || "No additional details supplied."}\nProvide a refined research question, scope, paper outline, source log template, evidence/claim matrix, open questions, and next-step checklist. Do not invent source contents or citations; identify evidence gaps and distinguish source facts from hypotheses.`;
-    const fullPrompt = `${task}\n\nUse plain text with simple section titles, short paragraphs, and simple bullets. No Markdown heading markers (#), divider lines (---), repeated dashes, or decorative Unicode. Keep the layout calm and easy to scan. Be accurate, tailor difficulty to the selected level, and do not invent details from course materials that were not provided.`;
+    const fullPrompt = `${task}\n\nFormat the answer like a polished VANT Main Chat response using standard readable Markdown: clear headings where helpful, short paragraphs, bullets, numbered steps, and tables only when they genuinely improve clarity. Use bold for key terms and preserve useful structure. Avoid decorative divider lines and dense walls of text. Be accurate, tailor difficulty to the selected level, and do not invent details from course materials that were not provided.`;
     try {
-      const answer = await askVant("You are VANT Study Tools, a patient and accurate learning assistant. Produce practical, readable, level-appropriate learning materials. Never use Markdown tables, heading markers, horizontal rules, repeated dash lines, or decorative separators. Never fabricate facts, citations, source details, or assignment requirements. Clearly state missing information and uncertainty.", [{ role: "user", content: fullPrompt }]);
-      if (typeof answer === "string" && answer.trim()) setResult(cleanStudyFormatting(answer));
+      const answer = await askVant("You are VANT Study Tools, a patient and accurate learning assistant. Make every tool response feel as polished and readable as VANT Main Chat. Use standard Markdown structure when useful: clear headings, short paragraphs, bullets, numbered steps, and occasional tables when they genuinely clarify information. Never fabricate facts, citations, source details, or assignment requirements. Clearly state missing information and uncertainty.", [{ role: "user", content: fullPrompt }]);
+      if (typeof answer === "string" && answer.trim()) setResult(answer.trim());
       else setError("VANT couldn't generate this study material. Please try again.");
     } catch {
       setError("Something went wrong generating this study material. Please try again.");
@@ -3665,7 +3665,7 @@ function StudyResourceTool({ mode, onBack, theme, isDark }) {
             <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your result</h2>
             <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
           </div>
-          <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.75, fontSize: 14.5 }}>{result}</div>
+          <VantMarkdown source={result} theme={theme} isDark={isDark} />
         </section>}
         <p style={{ fontSize: 12, color: theme.textFaint, lineHeight: 1.6, marginTop: 16 }}>Review generated material against your class notes, source details, and teacher's instructions.</p>
       </div>
