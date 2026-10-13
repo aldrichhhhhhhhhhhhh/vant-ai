@@ -3278,6 +3278,27 @@ function cleanStudyFormatting(value) {
     .trim();
 }
 
+function saveStudyMaterialToDevice({ title, type, topic, content, sourceNotes = "" }) {
+  try {
+    const key = "vant-study-materials-v1";
+    const existing = JSON.parse(localStorage.getItem(key) || "[]");
+    if (!Array.isArray(existing)) throw new Error("Invalid saved-material list");
+    const item = {
+      id: Date.now(),
+      title: String(title || "Study material").trim(),
+      type: String(type || "study-material"),
+      topic: String(topic || "").trim(),
+      createdAt: new Date().toISOString(),
+      content: String(content || "").trim(),
+      sourceNotes: String(sourceNotes || "").trim(),
+    };
+    localStorage.setItem(key, JSON.stringify([item, ...existing].slice(0, 100)));
+    return { ok: true, message: "Saved on this device. Cloud sync and VANT Education are not connected yet." };
+  } catch {
+    return { ok: false, message: "Could not save to this device. Check your browser storage settings and try again." };
+  }
+}
+
 function StudyAssistantTool({ onBack, theme, isDark }) {
   const [subject, setSubject] = useState("");
   const [level, setLevel] = useState("High school");
@@ -3286,12 +3307,14 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
 
   async function generateStudyHelp() {
     if (!subject.trim() || loading) return;
     setLoading(true);
     setError("");
     setResult("");
+    setSaveMessage("");
     const prompt = `Help a student study. Subject/topic: ${subject.trim()}. Level: ${level}. Goal: ${goal}. ${notes.trim() ? `Student-provided notes or context:\n${notes.trim()}\n\n` : ""}Tailor the answer to the level and goal. Use a clean, natural reading format with simple section titles and short paragraphs. Do NOT use Markdown heading markers (#, ##, ###), horizontal divider lines (---, ___, or repeated dashes), decorative separators, or LaTeX delimiters. Do not begin or end sections with lines of symbols. Use plain section titles on their own line, followed by a short paragraph or a few bullets. Avoid decorative Unicode and emoji unless the subject truly requires them. For high-school and beginner answers, write chemical formulas with ordinary keyboard characters (H2O, CO2, O2, C6H12O6), explain technical terms in plain language, and describe equations in words first. Prefer simple text equations such as 'Carbon dioxide + water + light -> sugar + oxygen'. Use ASCII arrows '->' rather than special arrow glyphs when possible. Never use Markdown tables. Use short labeled bullets instead. Never insert horizontal rules or rows of dashes between sections. Avoid dense academic prose and unnecessary jargon. Keep paragraphs short. Aim for a calm, uncluttered page that looks like well-organized class notes. For study guides, prioritize key ideas, process steps, common mistakes, and a short recap. For practice, number questions and put answers in a separate answer key. Use formal scientific notation only when the learner's level or task requires it, and explain it. Be accurate, distinguish uncertainty, and never pretend to know the student's course rubric. Support learning rather than doing a graded assessment dishonestly.`;
     try {
       const answer = await askVant(
@@ -3344,10 +3367,11 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
         </div>
         {error && <p role="alert" style={{ color: ac("red", isDark), marginTop: 16 }}>{error}</p>}
         {result && <section style={{ marginTop: 20, padding: 22, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
             <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your study help</h2>
-            <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={() => setSaveMessage(saveStudyMaterialToDevice({ title: subject.trim() + " — " + goal, type: "study-assistant", topic: subject, content: result, sourceNotes: notes }).message)} style={{ border: 0, background: ac("violet", isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 650 }}>Save Study Material</button><button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button></div>
           </div>
+          {saveMessage && <p role="status" style={{ fontSize: 12, color: theme.textMuted, margin: "0 0 12px" }}>{saveMessage}</p>}
           <VantMarkdown source={result} theme={theme} isDark={isDark} />
         </section>}
         <p style={{ fontSize: 12, color: theme.textFaint, lineHeight: 1.6, marginTop: 16 }}>Check important facts against your course materials. VANT is a study aid, not a substitute for your teacher's instructions or official course requirements.</p>
@@ -3369,6 +3393,7 @@ function NotesStudyGuideTool({ onBack, onCreateFlashcards, theme, isDark }) {
   const [error, setError] = useState("");
   const [openSections, setOpenSections] = useState({});
   const [copied, setCopied] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
 
   const styles = [
     { id: "study-guide", title: "Structured study guide", description: "Key ideas, terms, processes, and a recap.", icon: BookOpen },
@@ -3410,6 +3435,7 @@ function NotesStudyGuideTool({ onBack, onCreateFlashcards, theme, isDark }) {
     setResult("");
     setOpenSections({});
     setCopied(false);
+    setSaveMessage("");
     const styleInstructions = {
       "study-guide": "Create a structured study guide with key ideas, important terms, processes or steps, common mistakes, review questions, and a short recap.",
       "summary": "Create a concise summary of the source notes. Prioritize central ideas and essential details. Keep it shorter than the original notes.",
@@ -3520,7 +3546,7 @@ function NotesStudyGuideTool({ onBack, onCreateFlashcards, theme, isDark }) {
                 <div style={{ width: 36, height: 36, borderRadius: 11, display: "grid", placeItems: "center", background: acBg("violet", isDark), color: ac("violet", isDark) }}><Sparkles size={18} /></div>
                 <div><h2 style={{ fontSize: 16, margin: 0, fontWeight: 650 }}>Your study workspace</h2><p style={{ color: theme.textMuted, fontSize: 12, margin: "4px 0 0" }}>{result ? selectedStyle.title : "Your organized material will appear here"}</p></div>
               </div>
-              {result && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={() => onCreateFlashcards?.(notes, subject)} disabled={!notes.trim()} style={{ border: 0, background: "linear-gradient(110deg, " + ac("violet", isDark) + ", " + ac("cyan", isDark) + ")", color: isDark ? "#171323" : "#FFFFFF", padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 650, display: "flex", alignItems: "center", gap: 6 }}><GraduationCap size={14} /> Make flashcards from notes</button><button type="button" onClick={copyResult} style={{ border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}><Copy size={14} /> {copied ? "Copied" : "Copy all"}</button></div>}
+              {result && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={() => setSaveMessage(saveStudyMaterialToDevice({ title: (subject.trim() ? subject.trim() + " — " : "") + selectedStyle.title, type: "notes-study-guide", topic: subject || focus, content: result, sourceNotes: notes }).message)} style={{ border: 0, background: ac("violet", isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 650, display: "flex", alignItems: "center", gap: 6 }}><BookOpen size={14} /> Save Study Material</button><button type="button" onClick={() => onCreateFlashcards?.(notes, subject)} disabled={!notes.trim()} style={{ border: 0, background: "linear-gradient(110deg, " + ac("violet", isDark) + ", " + ac("cyan", isDark) + ")", color: isDark ? "#171323" : "#FFFFFF", padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 650, display: "flex", alignItems: "center", gap: 6 }}><GraduationCap size={14} /> Make flashcards from notes</button><button type="button" onClick={copyResult} style={{ border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}><Copy size={14} /> {copied ? "Copied" : "Copy all"}</button></div>}
             </div>
             {!result && !loading && <div style={{ minHeight: 330, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24, border: "1px dashed " + theme.borderStrong, borderRadius: 14, background: theme.surface }}>
               <div style={{ width: 54, height: 54, borderRadius: 17, display: "grid", placeItems: "center", background: acBg("cyan", isDark), color: ac("cyan", isDark), marginBottom: 15 }}><BookOpen size={25} /></div>
@@ -3536,6 +3562,7 @@ function NotesStudyGuideTool({ onBack, onCreateFlashcards, theme, isDark }) {
               <p style={{ margin: 0, fontSize: 12.5 }}>Keeping your notes separate from extra explanations.</p>
             </div>}
             {result && <div>
+              {saveMessage && <p role="status" style={{ fontSize: 12, color: theme.textMuted, margin: "0 0 12px" }}>{saveMessage}</p>}
               <div style={{ padding: "11px 13px", borderRadius: 11, background: theme.surface, border: "1px solid " + theme.border, marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 9 }}>
                 <span style={{ width: 8, height: 8, borderRadius: 99, background: ac("green", isDark), marginTop: 5, flexShrink: 0 }} />
                 <p style={{ margin: 0, color: theme.textMuted, fontSize: 12, lineHeight: 1.55 }}>Source-based sections reflect the notes you pasted. AI explanation sections may add clarifying context and are labeled separately.</p>
@@ -3679,7 +3706,7 @@ function StudyResourceTool({ mode, onBack, theme, isDark, initialNotes = "", ini
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
             <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your result</h2>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {mode === "practice" && <button type="button" onClick={() => { try { const key = "vant-study-materials-v1"; const old = JSON.parse(localStorage.getItem(key) || "[]"); localStorage.setItem(key, JSON.stringify([{ id: Date.now(), title: (studyData && studyData.title) || topic.trim(), type: studyData ? studyData.type : mode, topic: topic.trim(), createdAt: new Date().toISOString(), content: result }, ...old].slice(0,100))); setSaveMessage("Saved on this device. Cloud sync and VANT Education are not connected yet."); } catch { setSaveMessage("Could not save to this device."); } }} style={{ border: "none", background: ac(config.accent, isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Save study material</button>}
+              <button type="button" onClick={() => setSaveMessage(saveStudyMaterialToDevice({ title: (studyData && studyData.title) || config.title + " — " + topic.trim(), type: studyData ? studyData.type : mode, topic, content: result, sourceNotes: notes }).message)} style={{ border: "none", background: ac(config.accent, isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 650 }}>Save Study Material</button>
               <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
             </div>
           </div>
