@@ -131,6 +131,8 @@ export default function VantEducationPage({ theme, isDark, user, onGoToTools, on
   const accent = "#7C3AED";
 
   if (selected) {
+    const interactiveCards = ["flashcards", "practice"].includes(selected.material_type) ? parseFlashcards(selected.content) : null;
+    const currentCard = interactiveCards?.[Math.min(flashcardIndex, Math.max(0, interactiveCards.length - 1))];
     const meta = TYPE_META[selected.material_type] || { label: categoryFor(selected.material_type), icon: FileText, color: accent };
     const Icon = meta.icon;
     return <div style={{ padding: "clamp(18px,3vw,32px)", height: "100%", overflowY: "auto", color: theme.text }}>
