@@ -66,7 +66,6 @@ function SavedMarkdown({ source, theme }) {
       return part;
     });
   };
-  };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
