@@ -32,6 +32,19 @@ function categoryFor(type) {
   return "General";
 }
 
+function parseFlashcards(content) {
+  if (!content) return null;
+  const text = String(content).trim().replace(/^\x60{3}(?:json)?\s*/i, "").replace(/\s*\x60{3}$/i, "");
+  try {
+    const parsed = JSON.parse(text);
+    return parsed?.type === "flashcards" && Array.isArray(parsed.cards) && parsed.cards.length
+      ? parsed.cards.filter((card) => card && (card.front || card.question) && (card.back || card.answer)).map((card) => ({ front: String(card.front || card.question), back: String(card.back || card.answer), topic: card.topic || "" }))
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function displayDate(value) {
   if (!value) return "Just saved";
   const date = new Date(value);
@@ -46,7 +59,7 @@ export default function VantEducationPage({ theme, isDark, user, onGoToTools, on
   const [folder, setFolder] = useState("All materials");
   const [selected, setSelected] = useState(null);
   const [notice, setNotice] = useState("");
-  const [busyId, setBusyId] = useState("");
+  const [busyId, setBusyId] = useState("");\n  const [flashcardIndex, setFlashcardIndex] = useState(0);\n  const [flashcardFlipped, setFlashcardFlipped] = useState(false);
 
   const loadMaterials = useCallback(async () => {
     if (!user?.id || user.isGuest) {
@@ -119,7 +132,7 @@ export default function VantEducationPage({ theme, isDark, user, onGoToTools, on
     const meta = TYPE_META[selected.material_type] || { label: categoryFor(selected.material_type), icon: FileText, color: accent };
     const Icon = meta.icon;
     return <div style={{ padding: "clamp(18px,3vw,32px)", height: "100%", overflowY: "auto", color: theme.text }}>
-      <button onClick={() => setSelected(null)} style={{ display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, borderRadius: 10, padding: "9px 12px", cursor: "pointer", marginBottom: 20 }}><ArrowLeft size={15} /> Back to library</button>
+      <button onClick={() => { setSelected(null); setFlashcardIndex(0); setFlashcardFlipped(false); }} style={{ display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid " + theme.border, background: theme.surface, color: theme.text, borderRadius: 10, padding: "9px 12px", cursor: "pointer", marginBottom: 20 }}><ArrowLeft size={15} /> Back to library</button>
       <div style={{ ...panel, padding: "clamp(18px,3vw,30px)", maxWidth: 980, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
           <div style={{ width: 48, height: 48, flexShrink: 0, display: "grid", placeItems: "center", borderRadius: 14, background: meta.color + "18", color: meta.color }}><Icon size={23} /></div>
@@ -135,8 +148,21 @@ export default function VantEducationPage({ theme, isDark, user, onGoToTools, on
         </div>
         {selected.source_notes && <details style={{ ...softPanel, marginTop: 24, padding: 14 }}><summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 650 }}>View original notes / source</summary><pre style={{ whiteSpace: "pre-wrap", font: "inherit", color: theme.textMuted, fontSize: 13, lineHeight: 1.65, marginBottom: 0 }}>{selected.source_notes}</pre></details>}
         <div style={{ marginTop: 24, padding: "clamp(14px,2.5vw,26px)", ...softPanel }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: theme.textMuted, fontSize: 11, fontWeight: 750, letterSpacing: 1, marginBottom: 16 }}><BookOpen size={15} /> STUDY MATERIAL</div>
-          <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "inherit", fontSize: 14, lineHeight: 1.8, color: theme.text, margin: 0 }}>{selected.content}</pre>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, color: theme.textMuted, fontSize: 11, fontWeight: 750, letterSpacing: 1, marginBottom: 16 }}><BookOpen size={15} /> {interactiveCards ? "INTERACTIVE FLASHCARDS" : "STUDY MATERIAL"}</div>
+          {interactiveCards && currentCard ? <>
+            <p style={{ color: theme.textMuted, fontSize: 12, margin: "0 0 12px" }}>Click the card to reveal the answer, then move through your saved set.</p>
+            <button type="button" onClick={() => setFlashcardFlipped((value) => !value)} aria-label={flashcardFlipped ? "Show flashcard question" : "Reveal flashcard answer"} style={{ width: "100%", minHeight: 230, padding: "clamp(22px,4vw,38px)", borderRadius: 18, border: "1px solid " + theme.borderStrong, background: isDark ? "linear-gradient(145deg,#241c3b,#171522)" : "linear-gradient(145deg,#F5F0FF,#FFFFFF)", color: theme.text, cursor: "pointer", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", boxShadow: "0 12px 30px rgba(124,58,237,.08)" }}>
+              <span style={{ color: accent, fontSize: 10, fontWeight: 800, letterSpacing: 1.5, marginBottom: 18 }}>{flashcardFlipped ? "ANSWER" : "CARD " + (flashcardIndex + 1) + " OF " + interactiveCards.length}</span>
+              <span style={{ fontSize: "clamp(18px,2.5vw,24px)", fontWeight: 650, lineHeight: 1.55, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{flashcardFlipped ? currentCard.back : currentCard.front}</span>
+              {currentCard.topic && <span style={{ color: theme.textMuted, fontSize: 12, marginTop: 18 }}>Topic: {currentCard.topic}</span>}
+              <span style={{ color: theme.textMuted, fontSize: 11, marginTop: 20 }}>{flashcardFlipped ? "Click to return to question" : "Click to reveal answer"}</span>
+            </button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 14 }}>
+              <button type="button" disabled={flashcardIndex === 0} onClick={() => { setFlashcardIndex((index) => Math.max(0, index - 1)); setFlashcardFlipped(false); }} style={{ border: "1px solid " + theme.border, borderRadius: 9, padding: "9px 13px", background: theme.surface, color: theme.text, opacity: flashcardIndex === 0 ? .45 : 1, cursor: flashcardIndex === 0 ? "not-allowed" : "pointer" }}>← Previous</button>
+              <span style={{ color: theme.textMuted, fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{flashcardIndex + 1} / {interactiveCards.length}</span>
+              <button type="button" disabled={flashcardIndex >= interactiveCards.length - 1} onClick={() => { setFlashcardIndex((index) => Math.min(interactiveCards.length - 1, index + 1)); setFlashcardFlipped(false); }} style={{ border: 0, borderRadius: 9, padding: "10px 14px", background: accent, color: "#FFFFFF", cursor: flashcardIndex >= interactiveCards.length - 1 ? "not-allowed" : "pointer", opacity: flashcardIndex >= interactiveCards.length - 1 ? .45 : 1 }}>Next →</button>
+            </div>
+          </> : <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "inherit", fontSize: 14, lineHeight: 1.8, color: theme.text, margin: 0 }}>{selected.content}</pre>}
         </div>
       </div>
     </div>;
