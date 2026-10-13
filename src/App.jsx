@@ -1551,7 +1551,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
 
   function renderInlineMarkdown(text, theme, isDark, keyPrefix = "inline") {
     const tokens = [];
-    const pattern = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*\n]+\*)|(__[^_]+__)/g;
+    const pattern = /(\\\([^\n]*?\\\)|\\\[[\s\S]+?\\\]|\$\$[\s\S]+?\$\$|\$[^$\n]+?\$)|(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*\n]+\*)|(__[^_]+__)/g;
     let last = 0;
     let match;
     let index = 0;
@@ -1561,9 +1561,9 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
       const value = match[0];
       const key = `${keyPrefix}-${index++}`;
 
-      if (value.startsWith("\\\\(") || value.startsWith("\\\\[") || value.startsWith("$") || (value.startsWith("$") && value.endsWith("$"))) {\n        const displayMode = value.startsWith("\\\\[") || value.startsWith("$");\n        const rawMath = displayMode || value.startsWith("\\\\(") ? value.slice(2, -2) : value.slice(1, -1);\n        tokens.push(<span key={key} className={displayMode ? "vant-math-display" : "vant-math-inline"} dangerouslySetInnerHTML={{ __html: katex.renderToString(rawMath, { displayMode, throwOnError: false, trust: false, strict: "ignore" }) }} />);\n      } else if (match[2] && match[3]) {
+      if (value.startsWith("\\\\(") || value.startsWith("\\\\[") || value.startsWith("$") || (value.startsWith("$") && value.endsWith("$"))) {\n        const displayMode = value.startsWith("\\\\[") || value.startsWith("$");\n        const rawMath = displayMode || value.startsWith("\\\\(") ? value.slice(2, -2) : value.slice(1, -1);\n        tokens.push(<span key={key} className={displayMode ? "vant-math-display" : "vant-math-inline"} dangerouslySetInnerHTML={{ __html: katex.renderToString(rawMath, { displayMode, throwOnError: false, trust: false, strict: "ignore" }) }} />);\n      } else if (match[3] && match[4]) {
         tokens.push(
-          <a key={key} href={match[3]} target="_blank" rel="noreferrer"
+          <a key={key} href={match[4]} target="_blank" rel="noreferrer"
             style={{ color: isDark ? "#bda7ff" : "#5b36b8", textDecoration: "underline" }}>
             {match[2]}
           </a>
