@@ -91,6 +91,11 @@ export default function VantEducationWidgets({ theme, isDark, user, onGoToEducat
   }
   const iconButton={display:"grid",placeItems:"center",width:25,height:25,borderRadius:7,border:"1px solid "+colors.border,background:"transparent",color:colors.muted,cursor:"pointer"};
 
+  const field={width:"100%",padding:"8px 9px",borderRadius:8,border:"1px solid "+colors.border,background:colors.card,color:colors.text,fontSize:11.5};
+  const smallButton={display:"inline-flex",alignItems:"center",gap:4,border:"1px solid "+colors.border,borderRadius:8,padding:"5px 8px",background:colors.soft,color:colors.text,fontSize:10.5,cursor:"pointer"};
+  const primaryButton={border:0,borderRadius:8,padding:"8px 10px",background:colors.accent,color:isDark?"#171321":"#FFFFFF",fontSize:11.5,fontWeight:700,cursor:"pointer"};
+  const linkButton={display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",border:"1px solid "+colors.border,borderRadius:9,padding:"8px 9px",background:colors.soft,color:colors.text,fontSize:10.5,cursor:"pointer"};
+
   if (!user?.id || user.isGuest) return null;
   return <>
     {widget("calendar","Student Calendar",CalendarDays,<>
@@ -125,8 +130,4 @@ export default function VantEducationWidgets({ theme, isDark, user, onGoToEducat
     </div>
   </>;
 
-  const field={width:"100%",padding:"8px 9px",borderRadius:8,border:"1px solid "+colors.border,background:colors.card,color:colors.text,fontSize:11.5};
-  const smallButton={display:"inline-flex",alignItems:"center",gap:4,border:"1px solid "+colors.border,borderRadius:8,padding:"5px 8px",background:colors.soft,color:colors.text,fontSize:10.5,cursor:"pointer"};
-  const primaryButton={border:0,borderRadius:8,padding:"8px 10px",background:colors.accent,color:isDark?"#171321":"#FFFFFF",fontSize:11.5,fontWeight:700,cursor:"pointer"};
-  const linkButton={display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",border:"1px solid "+colors.border,borderRadius:9,padding:"8px 9px",background:colors.soft,color:colors.text,fontSize:10.5,cursor:"pointer"};
 }
