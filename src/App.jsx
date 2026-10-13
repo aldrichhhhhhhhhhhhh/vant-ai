@@ -3357,6 +3357,216 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
 }
 
 
+
+function NotesStudyGuideTool({ onBack, theme, isDark }) {
+  const [notes, setNotes] = useState("");
+  const [focus, setFocus] = useState("");
+  const [subject, setSubject] = useState("");
+  const [level, setLevel] = useState("High school");
+  const [style, setStyle] = useState("study-guide");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [openSections, setOpenSections] = useState({});
+  const [copied, setCopied] = useState(false);
+
+  const styles = [
+    { id: "study-guide", title: "Structured study guide", description: "Key ideas, terms, processes, and a recap.", icon: BookOpen },
+    { id: "summary", title: "Concise summary", description: "The most important points, without extra detail.", icon: FileText },
+    { id: "exam-sheet", title: "Exam revision sheet", description: "Priority facts, review prompts, and common mistakes.", icon: Target },
+    { id: "concept-breakdown", title: "Concept breakdown", description: "Explain difficult ideas in manageable steps.", icon: Sparkles },
+  ];
+  const selectedStyle = styles.find((item) => item.id === style) || styles[0];
+  const fieldStyle = {
+    width: "100%", boxSizing: "border-box", padding: "12px 13px", borderRadius: 11,
+    border: "1px solid " + theme.borderStrong, background: theme.inputBg, color: theme.text,
+    fontSize: 14, outline: "none", fontFamily: "'DM Sans', system-ui, sans-serif",
+  };
+
+  function parseSections(text) {
+    const knownHeadings = /^(source-based content|from your notes|source-derived facts|ai explanations|helpful explanations|extra context|important terms|key terms|processes and steps|common mistakes|common misconceptions|review questions|quick recap|summary|main takeaways|exam essentials|concept breakdown|step-by-step explanation|what to remember|missing or unclear in the notes)\\s*:?\\s*$/i;
+    const lines = String(text || "").split(/\\r?\\n/);
+    const sections = [];
+    let current = { title: "Study material", body: [] };
+    for (const line of lines) {
+      const clean = line.trim().replace(/^#{1,4}\\s*/, "").replace(/\\*\\*/g, "");
+      if (knownHeadings.test(clean)) {
+        if (current.body.join("\\n").trim()) sections.push({ title: current.title, body: current.body.join("\\n").trim() });
+        current = { title: clean.replace(/:$/, ""), body: [] };
+      } else {
+        current.body.push(line);
+      }
+    }
+    if (current.body.join("\\n").trim()) sections.push({ title: current.title, body: current.body.join("\\n").trim() });
+    return sections.length ? sections : [{ title: "Study material", body: String(text || "").trim() }];
+  }
+
+  const sections = result ? parseSections(result) : [];
+
+  async function generate() {
+    if (!notes.trim() || loading) return;
+    setLoading(true);
+    setError("");
+    setResult("");
+    setOpenSections({});
+    setCopied(false);
+    const styleInstructions = {
+      "study-guide": "Create a structured study guide with key ideas, important terms, processes or steps, common mistakes, review questions, and a short recap.",
+      "summary": "Create a concise summary of the source notes. Prioritize central ideas and essential details. Keep it shorter than the original notes.",
+      "exam-sheet": "Create an exam revision sheet. Prioritize exam essentials, key facts and definitions in the notes, practice review questions based on the material, and common mistakes to avoid.",
+      "concept-breakdown": "Break the material into manageable concepts. Explain each concept in plain language, show how concepts connect, and walk through processes step by step where relevant.",
+    }[style];
+    const prompt = "Turn the student's pasted class notes into learning material.\\nOutput style: " + selectedStyle.title +
+      ".\\nSubject or class: " + (subject.trim() || "Not specified") +
+      ".\\nLearner level: " + level +
+      ".\\nFocus request: " + (focus.trim() || "Cover the most important ideas in the notes") +
+      ".\\n\\nSOURCE NOTES (primary source; do not replace with a generic article):\\n<student_notes>\\n" + notes.trim() +
+      "\\n</student_notes>\\n\\nTask: " + styleInstructions +
+      "\\n\\nUse these exact section labels where relevant:\\nSOURCE-BASED CONTENT\\nIMPORTANT TERMS\\nAI EXPLANATIONS\\nPROCESSES AND STEPS\\nCOMMON MISTAKES\\nREVIEW QUESTIONS\\nQUICK RECAP\\nMISSING OR UNCLEAR IN THE NOTES" +
+      "\\n\\nRules:\\n- SOURCE-BASED CONTENT contains only facts, claims, definitions, and details supported by the pasted notes. Preserve the source meaning and terminology." +
+      "\\n- AI EXPLANATIONS may clarify difficult ideas, add clearly identified examples, or explain connections. Never present added explanation as if it came from the source." +
+      "\\n- Label added context as an AI explanation or extra context." +
+      "\\n- If something is unclear or absent, say so instead of inventing course-specific facts." +
+      "\\n- Skip irrelevant sections. Use short paragraphs and simple bullets. No tables, decorative dividers, or walls of text." +
+      "\\n- Do not claim to predict an actual exam; review questions are practice prompts based on the supplied notes.";
+    try {
+      const answer = await askVant(
+        "You are VANT Study Tools, a careful learning assistant. The learner's supplied notes are the primary source. Distinguish source-supported information from your own explanations, never invent details supposedly found in the source, and use clear section labels exactly as requested.",
+        [{ role: "user", content: prompt }]
+      );
+      if (typeof answer === "string" && answer.trim()) setResult(cleanStudyFormatting(answer));
+      else setError("VANT couldn't generate the study material. Please try again.");
+    } catch {
+      setError("Something went wrong generating your study material. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copyResult() {
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(result);
+        setCopied(true);
+      }
+    } catch {
+      setError("Copying isn't available in this browser. You can still select and copy the study material.");
+    }
+  }
+
+  const isSourceSection = (title) => /source|from your notes|source-derived/i.test(title);
+  const isExplanationSection = (title) => /ai explanation|helpful explanation|extra context/i.test(title);
+
+  return (
+    <div style={{ padding: "24px clamp(16px, 3vw, 32px) 36px", minHeight: "100%", color: theme.text }}>
+      <BackBar title="Notes Summarizer & Study-Guide Generator" accentKey="cyan" isDark={isDark} theme={theme} onBack={onBack} />
+      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, flexWrap: "wrap", margin: "10px 0 22px" }}>
+          <div style={{ maxWidth: 680 }}>
+            <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1.5, color: ac("cyan", isDark), margin: "0 0 8px" }}>STUDENTS & LEARNING · TOOL 01</p>
+            <h1 style={{ fontFamily: "Fraunces, serif", fontSize: "clamp(27px, 3vw, 36px)", lineHeight: 1.15, fontWeight: 500, margin: "0 0 10px" }}>Make your notes easier to learn.</h1>
+            <p style={{ color: theme.textMuted, lineHeight: 1.65, fontSize: 14, margin: 0 }}>Paste your class notes. VANT will organize what you provided, explain difficult ideas separately, and shape the material around your goal.</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", border: "1px solid " + theme.border, borderRadius: 12, background: theme.surface, color: theme.textMuted, fontSize: 12 }}>
+            <BookOpen size={16} color={ac("cyan", isDark)} /> Your notes stay the primary source
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 18, alignItems: "start" }}>
+          <section style={{ minWidth: 0, border: "1px solid " + theme.border, borderRadius: 18, padding: "20px clamp(15px, 2vw, 22px)", background: theme.surfaceCard, boxShadow: isDark ? "none" : "0 8px 28px rgba(30,25,50,0.035)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 11, display: "grid", placeItems: "center", background: acBg("cyan", isDark), color: ac("cyan", isDark) }}><FileText size={18} /></div>
+              <div><h2 style={{ fontSize: 16, margin: 0, fontWeight: 650 }}>Your class notes</h2><p style={{ color: theme.textMuted, fontSize: 12, margin: "4px 0 0" }}>Paste the material you want to study</p></div>
+            </div>
+            <label style={{ display: "block", color: theme.textMuted, fontSize: 12.5, marginBottom: 7 }}>Notes <span style={{ color: ac("red", isDark) }}>*</span></label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={"Paste lecture notes, textbook excerpts, or your own class notes here…\\n\\nTip: Keep headings and bullet points if you have them."} rows={12} maxLength={30000} style={{ ...fieldStyle, minHeight: 240, resize: "vertical", lineHeight: 1.65 }} />
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, color: theme.textFaint, fontSize: 11, marginTop: 6 }}>
+              <span>Your supplied material is the starting point.</span><span>{notes.length.toLocaleString()} / 30,000</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginTop: 18 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 7, color: theme.textMuted, fontSize: 12.5 }}>Subject or class <span style={{ color: theme.textFaint, fontSize: 11 }}>Optional</span>
+                <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Biology" maxLength={160} style={fieldStyle} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 7, color: theme.textMuted, fontSize: 12.5 }}>Learning level
+                <select value={level} onChange={(e) => setLevel(e.target.value)} style={fieldStyle}>{["Elementary", "Middle school", "High school", "College / University", "Professional learning"].map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              </label>
+            </div>
+            <label style={{ display: "flex", flexDirection: "column", gap: 7, color: theme.textMuted, fontSize: 12.5, marginTop: 14 }}>What should VANT focus on? <span style={{ color: theme.textFaint, fontSize: 11 }}>Optional</span>
+              <input value={focus} onChange={(e) => setFocus(e.target.value)} placeholder="e.g. Explain the stages, definitions, and differences" maxLength={500} style={fieldStyle} />
+            </label>
+            <div style={{ marginTop: 20 }}>
+              <div style={{ color: theme.text, fontSize: 13, fontWeight: 650, marginBottom: 10 }}>Choose an output style</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 9 }}>
+                {styles.map((item) => {
+                  const Icon = item.icon;
+                  const active = style === item.id;
+                  return <button key={item.id} type="button" onClick={() => setStyle(item.id)} aria-pressed={active} style={{ minHeight: 112, padding: 12, textAlign: "left", borderRadius: 12, border: "1px solid " + (active ? ac("violet", isDark) : theme.border), background: active ? acBg("violet", isDark) : theme.surface, color: theme.text, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 7 }}>
+                    <Icon size={17} color={active ? ac("violet", isDark) : theme.textMuted} />
+                    <span style={{ fontSize: 12.5, lineHeight: 1.35, fontWeight: 650 }}>{item.title}</span>
+                    <span style={{ fontSize: 11, lineHeight: 1.45, color: theme.textMuted }}>{item.description}</span>
+                  </button>;
+                })}
+              </div>
+            </div>
+            {error && <p role="alert" style={{ color: ac("red", isDark), fontSize: 13, lineHeight: 1.5, margin: "14px 0 0" }}>{error}</p>}
+            <button type="button" onClick={generate} disabled={!notes.trim() || loading} style={{ width: "100%", marginTop: 18, minHeight: 46, border: 0, borderRadius: 12, padding: "12px 16px", background: !notes.trim() || loading ? theme.surfaceStrong : "linear-gradient(110deg, " + ac("violet", isDark) + ", " + ac("cyan", isDark) + ")", color: !notes.trim() || loading ? theme.textFaint : (isDark ? "#171323" : "#FFFFFF"), fontWeight: 700, cursor: !notes.trim() || loading ? "not-allowed" : "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 9 }}>
+              {loading ? <><RefreshCw size={16} className="v-pulse" /> Organizing your notes…</> : <><Sparkles size={16} /> Create {selectedStyle.title.toLowerCase()}</>}
+            </button>
+          </section>
+
+          <section style={{ minWidth: 0, border: "1px solid " + theme.border, borderRadius: 18, padding: "20px clamp(15px, 2vw, 22px)", background: theme.surfaceCard, minHeight: 440, boxShadow: isDark ? "none" : "0 8px 28px rgba(30,25,50,0.035)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 11, display: "grid", placeItems: "center", background: acBg("violet", isDark), color: ac("violet", isDark) }}><Sparkles size={18} /></div>
+                <div><h2 style={{ fontSize: 16, margin: 0, fontWeight: 650 }}>Your study workspace</h2><p style={{ color: theme.textMuted, fontSize: 12, margin: "4px 0 0" }}>{result ? selectedStyle.title : "Your organized material will appear here"}</p></div>
+              </div>
+              {result && <button type="button" onClick={copyResult} style={{ border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}><Copy size={14} /> {copied ? "Copied" : "Copy all"}</button>}
+            </div>
+            {!result && !loading && <div style={{ minHeight: 330, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24, border: "1px dashed " + theme.borderStrong, borderRadius: 14, background: theme.surface }}>
+              <div style={{ width: 54, height: 54, borderRadius: 17, display: "grid", placeItems: "center", background: acBg("cyan", isDark), color: ac("cyan", isDark), marginBottom: 15 }}><BookOpen size={25} /></div>
+              <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 22, fontWeight: 500, margin: "0 0 8px" }}>Ready when you are.</h3>
+              <p style={{ maxWidth: 310, color: theme.textMuted, fontSize: 13, lineHeight: 1.65, margin: 0 }}>Paste your notes, choose a format, and VANT will organize them into sections you can open and close.</p>
+              <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 7, marginTop: 18 }}>
+                {["Source-based content", "AI explanations", "Collapsible sections"].map((label) => <span key={label} style={{ fontSize: 11, border: "1px solid " + theme.border, borderRadius: 999, padding: "6px 9px", color: theme.textMuted }}>{label}</span>)}
+              </div>
+            </div>}
+            {loading && <div role="status" aria-live="polite" style={{ minHeight: 330, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", color: theme.textMuted }}>
+              <RefreshCw size={26} className="v-pulse" color={ac("violet", isDark)} />
+              <p style={{ margin: "14px 0 5px", color: theme.text, fontWeight: 650 }}>Building your study material</p>
+              <p style={{ margin: 0, fontSize: 12.5 }}>Keeping your notes separate from extra explanations.</p>
+            </div>}
+            {result && <div>
+              <div style={{ padding: "11px 13px", borderRadius: 11, background: theme.surface, border: "1px solid " + theme.border, marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 9 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 99, background: ac("green", isDark), marginTop: 5, flexShrink: 0 }} />
+                <p style={{ margin: 0, color: theme.textMuted, fontSize: 12, lineHeight: 1.55 }}>Source-based sections reflect the notes you pasted. AI explanation sections may add clarifying context and are labeled separately.</p>
+              </div>
+              <div style={{ display: "grid", gap: 10 }}>
+                {sections.map((section, index) => {
+                  const open = openSections[index] ?? true;
+                  const sourceSection = isSourceSection(section.title);
+                  const explanationSection = isExplanationSection(section.title);
+                  const accent = sourceSection ? "cyan" : explanationSection ? "violet" : "green";
+                  const Icon = sourceSection ? FileText : explanationSection ? Sparkles : BookOpen;
+                  return <article key={section.title + "-" + index} style={{ border: "1px solid " + theme.border, borderRadius: 13, overflow: "hidden", background: theme.surface }}>
+                    <button type="button" aria-expanded={open} onClick={() => setOpenSections((current) => ({ ...current, [index]: !open }))} style={{ width: "100%", padding: "13px 14px", border: 0, background: "transparent", color: theme.text, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }}>
+                      <span style={{ width: 29, height: 29, borderRadius: 9, background: acBg(accent, isDark), color: ac(accent, isDark), display: "grid", placeItems: "center", flexShrink: 0 }}><Icon size={15} /></span>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: 650 }}>{section.title}</span>
+                      {(sourceSection || explanationSection) && <span style={{ fontSize: 10.5, color: ac(accent, isDark), border: "1px solid " + ac(accent, isDark) + "55", borderRadius: 999, padding: "4px 7px" }}>{sourceSection ? "From your notes" : "AI explanation"}</span>}
+                      {open ? <ChevronRight size={16} style={{ transform: "rotate(90deg)", color: theme.textMuted }} /> : <ChevronRight size={16} color={theme.textMuted} />}
+                    </button>
+                    {open && <div style={{ padding: "0 16px 16px 53px", color: theme.textMuted, fontSize: 13.5, lineHeight: 1.75, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{section.body}</div>}
+                  </article>;
+                })}
+              </div>
+            </div>}
+            <p style={{ fontSize: 11.5, color: theme.textFaint, lineHeight: 1.55, margin: "18px 0 0" }}>Use this as a study aid and verify important details against your teacher's instructions and original course materials.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StudyResourceTool({ mode, onBack, theme, isDark }) {
   const configs = {
     practice: { title: "Flashcard & Practice-Quiz Generator", intro: "Create flashcards or a practice quiz from a topic or your own class notes.", accent: "violet", button: "Generate study practice" },
@@ -3475,7 +3685,8 @@ function ToolsPage({ theme, isDark }) {
   if (view === "scorecard") return <VendorScorecardTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "po") return <PoTrackerTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "study") return <StudyAssistantTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
-  if (["practice", "planner", "notes", "essay", "citation", "math", "presentation", "research"].includes(view)) return <StudyResourceTool key={view} mode={view} onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (view === "notes") return <NotesStudyGuideTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (["practice", "planner", "essay", "citation", "math", "presentation", "research"].includes(view)) return <StudyResourceTool key={view} mode={view} onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
 
   const categoryButton = (id, label, Icon, accentKey) => (
     <button key={id} type="button" onClick={() => setCategory(id)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderRadius: 11, border: `1px solid ${category === id ? ac(accentKey, isDark) : theme.border}`, background: category === id ? acBg(accentKey, isDark) : theme.surface, color: category === id ? ac(accentKey, isDark) : theme.textMuted, cursor: "pointer", fontSize: 13.5, fontWeight: category === id ? 600 : 500 }}>
