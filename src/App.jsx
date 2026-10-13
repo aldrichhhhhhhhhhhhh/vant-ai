@@ -3613,8 +3613,10 @@ function StudyResourceTool({ mode, onBack, theme, isDark }) {
       if (typeof answer === "string" && answer.trim()) {
         if (mode === "practice") {
           try {
-            const cleaned = answer.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-            const parsed = JSON.parse(cleaned);
+            const cleaned = answer.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+            const firstObject = cleaned.indexOf("{");
+            const lastObject = cleaned.lastIndexOf("}");
+            const parsed = JSON.parse(firstObject >= 0 && lastObject > firstObject ? cleaned.slice(firstObject, lastObject + 1) : cleaned);
             if (format === "Flashcards" && parsed.type === "flashcards" && Array.isArray(parsed.cards) && parsed.cards.length) setStudyData(parsed);
             else if (format === "Practice quiz" && parsed.type === "quiz" && Array.isArray(parsed.questions) && parsed.questions.length && parsed.questions.every((q) => Array.isArray(q.options) && q.options.length >= 2 && q.options.some((o) => o.id === q.correctAnswer))) setStudyData(parsed);
             else throw new Error("Invalid interactive study format");
