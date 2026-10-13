@@ -3384,20 +3384,20 @@ function NotesStudyGuideTool({ onBack, theme, isDark }) {
   };
 
   function parseSections(text) {
-    const knownHeadings = /^(source-based content|from your notes|source-derived facts|ai explanations|helpful explanations|extra context|important terms|key terms|processes and steps|common mistakes|common misconceptions|review questions|quick recap|summary|main takeaways|exam essentials|concept breakdown|step-by-step explanation|what to remember|missing or unclear in the notes)\\s*:?\\s*$/i;
-    const lines = String(text || "").split(/\\r?\\n/);
+    const knownHeadings = /^(source-based content|from your notes|source-derived facts|ai explanations|helpful explanations|extra context|important terms|key terms|processes and steps|common mistakes|common misconceptions|review questions|quick recap|summary|main takeaways|exam essentials|concept breakdown|step-by-step explanation|what to remember|missing or unclear in the notes)\s*:?\s*$/i;
+    const lines = String(text || "").split(/\r?\n/);
     const sections = [];
     let current = { title: "Study material", body: [] };
     for (const line of lines) {
-      const clean = line.trim().replace(/^#{1,4}\\s*/, "").replace(/\\*\\*/g, "");
+      const clean = line.trim().replace(/^#{1,4}\s*/, "").replace(/\*\*/g, "");
       if (knownHeadings.test(clean)) {
-        if (current.body.join("\\n").trim()) sections.push({ title: current.title, body: current.body.join("\\n").trim() });
+        if (current.body.join("\n").trim()) sections.push({ title: current.title, body: current.body.join("\n").trim() });
         current = { title: clean.replace(/:$/, ""), body: [] };
       } else {
         current.body.push(line);
       }
     }
-    if (current.body.join("\\n").trim()) sections.push({ title: current.title, body: current.body.join("\\n").trim() });
+    if (current.body.join("\n").trim()) sections.push({ title: current.title, body: current.body.join("\n").trim() });
     return sections.length ? sections : [{ title: "Study material", body: String(text || "").trim() }];
   }
 
@@ -3416,19 +3416,19 @@ function NotesStudyGuideTool({ onBack, theme, isDark }) {
       "exam-sheet": "Create an exam revision sheet. Prioritize exam essentials, key facts and definitions in the notes, practice review questions based on the material, and common mistakes to avoid.",
       "concept-breakdown": "Break the material into manageable concepts. Explain each concept in plain language, show how concepts connect, and walk through processes step by step where relevant.",
     }[style];
-    const prompt = "Turn the student's pasted class notes into learning material.\\nOutput style: " + selectedStyle.title +
-      ".\\nSubject or class: " + (subject.trim() || "Not specified") +
-      ".\\nLearner level: " + level +
-      ".\\nFocus request: " + (focus.trim() || "Cover the most important ideas in the notes") +
-      ".\\n\\nSOURCE NOTES (primary source; do not replace with a generic article):\\n<student_notes>\\n" + notes.trim() +
-      "\\n</student_notes>\\n\\nTask: " + styleInstructions +
-      "\\n\\nUse these exact section labels where relevant:\\nSOURCE-BASED CONTENT\\nIMPORTANT TERMS\\nAI EXPLANATIONS\\nPROCESSES AND STEPS\\nCOMMON MISTAKES\\nREVIEW QUESTIONS\\nQUICK RECAP\\nMISSING OR UNCLEAR IN THE NOTES" +
-      "\\n\\nRules:\\n- SOURCE-BASED CONTENT contains only facts, claims, definitions, and details supported by the pasted notes. Preserve the source meaning and terminology." +
-      "\\n- AI EXPLANATIONS may clarify difficult ideas, add clearly identified examples, or explain connections. Never present added explanation as if it came from the source." +
-      "\\n- Label added context as an AI explanation or extra context." +
-      "\\n- If something is unclear or absent, say so instead of inventing course-specific facts." +
-      "\\n- Skip irrelevant sections. Use short paragraphs and simple bullets. No tables, decorative dividers, or walls of text." +
-      "\\n- Do not claim to predict an actual exam; review questions are practice prompts based on the supplied notes.";
+    const prompt = "Turn the student's pasted class notes into learning material.\nOutput style: " + selectedStyle.title +
+      ".\nSubject or class: " + (subject.trim() || "Not specified") +
+      ".\nLearner level: " + level +
+      ".\nFocus request: " + (focus.trim() || "Cover the most important ideas in the notes") +
+      ".\n\nSOURCE NOTES (primary source; do not replace with a generic article):\n<student_notes>\n" + notes.trim() +
+      "\n</student_notes>\n\nTask: " + styleInstructions +
+      "\n\nUse these exact section labels where relevant:\nSOURCE-BASED CONTENT\nIMPORTANT TERMS\nAI EXPLANATIONS\nPROCESSES AND STEPS\nCOMMON MISTAKES\nREVIEW QUESTIONS\nQUICK RECAP\nMISSING OR UNCLEAR IN THE NOTES" +
+      "\n\nRules:\n- SOURCE-BASED CONTENT contains only facts, claims, definitions, and details supported by the pasted notes. Preserve the source meaning and terminology." +
+      "\n- AI EXPLANATIONS may clarify difficult ideas, add clearly identified examples, or explain connections. Never present added explanation as if it came from the source." +
+      "\n- Label added context as an AI explanation or extra context." +
+      "\n- If something is unclear or absent, say so instead of inventing course-specific facts." +
+      "\n- Skip irrelevant sections. Use short paragraphs and simple bullets. No tables, decorative dividers, or walls of text." +
+      "\n- Do not claim to predict an actual exam; review questions are practice prompts based on the supplied notes.";
     try {
       const answer = await askVant(
         "You are VANT Study Tools, a careful learning assistant. The learner's supplied notes are the primary source. Distinguish source-supported information from your own explanations, never invent details supposedly found in the source, and use clear section labels exactly as requested.",
@@ -3479,7 +3479,7 @@ function NotesStudyGuideTool({ onBack, theme, isDark }) {
               <div><h2 style={{ fontSize: 16, margin: 0, fontWeight: 650 }}>Your class notes</h2><p style={{ color: theme.textMuted, fontSize: 12, margin: "4px 0 0" }}>Paste the material you want to study</p></div>
             </div>
             <label style={{ display: "block", color: theme.textMuted, fontSize: 12.5, marginBottom: 7 }}>Notes <span style={{ color: ac("red", isDark) }}>*</span></label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={"Paste lecture notes, textbook excerpts, or your own class notes here…\\n\\nTip: Keep headings and bullet points if you have them."} rows={12} maxLength={30000} style={{ ...fieldStyle, minHeight: 240, resize: "vertical", lineHeight: 1.65 }} />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={"Paste lecture notes, textbook excerpts, or your own class notes here…\n\nTip: Keep headings and bullet points if you have them."} rows={12} maxLength={30000} style={{ ...fieldStyle, minHeight: 240, resize: "vertical", lineHeight: 1.65 }} />
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, color: theme.textFaint, fontSize: 11, marginTop: 6 }}>
               <span>Your supplied material is the starting point.</span><span>{notes.length.toLocaleString()} / 30,000</span>
             </div>
