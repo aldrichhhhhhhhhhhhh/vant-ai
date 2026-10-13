@@ -6,7 +6,7 @@ const panelBase = { width: 292, borderRadius: 16, overflow: "hidden", boxShadow:
 const isoDate = (date) => { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 const prettyDate = (value) => value ? new Date(value + "T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}) : "No due date";
 
-export default function VantEducationWidgets({ theme, isDark, user, onGoToEducation, onGoToTools }) {
+export default function VantEducationWidgets({ theme, isDark, user, onGoToEducation, onGoToTools, embedded = false }) {
   const [tasks, setTasks] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -34,6 +34,7 @@ export default function VantEducationWidgets({ theme, isDark, user, onGoToEducat
   }, [user?.id,user?.isGuest]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (embedded) setOpen({ calendar: true, tracker: true, docs: true }); }, [embedded]);
   useEffect(() => {
     if (!dragging) return;
     const move = (event) => setPositions((current) => ({ ...current, [dragging.id]: { x: Math.max(-window.innerWidth + 320, Math.min(0, dragging.startX + event.clientX - dragging.clientX)), y: Math.max(-window.innerHeight + 180, Math.min(0, dragging.startY + event.clientY - dragging.clientY)) } }));
@@ -80,7 +81,7 @@ export default function VantEducationWidgets({ theme, isDark, user, onGoToEducat
   function widget(id,title,Icon,content) {
     if (!open[id]) return null;
     const pos = positions[id] || {x:0,y:0};
-    return <section key={id} style={{...panelBase, position:"fixed", right:18, bottom:18 + (id==="calendar"?0:id==="tracker"?70:140), transform:`translate(${pos.x}px,${pos.y}px)`, zIndex:80, border:"1px solid "+colors.border, background: isDark?"rgba(25,22,38,.97)":"rgba(255,255,255,.97)", color:colors.text}}>
+    return <section key={id} style={{...panelBase, width: embedded ? "100%" : panelBase.width, position: embedded ? "relative" : "fixed", right: embedded ? "auto" : 18, bottom: embedded ? "auto" : 18 + (id==="calendar"?0:id==="tracker"?70:140), transform: embedded ? "none" : `translate(${pos.x}px,${pos.y}px)`, zIndex: embedded ? 1 : 80, border:"1px solid "+colors.border, background: isDark?"rgba(25,22,38,.97)":"rgba(255,255,255,.97)", color:colors.text}}>
       <header onMouseDown={(event)=>{ if(event.target.closest("button")) return; setDragging({id,clientX:event.clientX,clientY:event.clientY,startX:pos.x,startY:pos.y}); }} style={{display:"flex",alignItems:"center",gap:8,padding:"11px 12px",borderBottom:"1px solid "+colors.border,cursor:"grab",userSelect:"none",background:colors.soft}}>
         <Grip size={14} color={colors.faint}/><Icon size={16} color={colors.accent}/><strong style={{fontSize:12.5,flex:1}}>{title}</strong>
         <button title={minimized[id]?"Expand":"Minimize"} onClick={()=>setMinimized((current)=>({...current,[id]:!current[id]}))} style={iconButton}><Minus size={14}/></button>
@@ -98,6 +99,7 @@ export default function VantEducationWidgets({ theme, isDark, user, onGoToEducat
 
   if (!user?.id || user.isGuest) return null;
   return <>
+    <div style={embedded ? {display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",alignItems:"start",gap:14,width:"100%"} : {display:"contents"}}>
     {widget("calendar","Student Calendar",CalendarDays,<>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
         <button style={iconButton} onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()-1,1))}><ChevronLeft size={14}/></button>
@@ -125,9 +127,10 @@ export default function VantEducationWidgets({ theme, isDark, user, onGoToEducat
       <button onClick={onGoToEducation} style={{...linkButton,marginTop:9}}><FolderOpen size={12}/> Open document library</button>
       <button onClick={onGoToTools} style={{...linkButton,marginTop:5}}><PencilLine size={12}/> Go to writing tools</button>
     </>)}
-    <div style={{position:"fixed",right:18,bottom:18,zIndex:79,display:"flex",gap:7,flexDirection:"column",alignItems:"flex-end",pointerEvents:"none"}}>
-      {([["calendar","Calendar",CalendarDays],["tracker","Study stats",BookOpen],["docs","Doc cabinet",FolderOpen]]).filter(([id])=>!open[id]).map(([id,label,Icon])=><button key={id} onClick={()=>openWidget(id)} style={{pointerEvents:"auto",display:"flex",alignItems:"center",gap:7,padding:"10px 12px",borderRadius:999,border:"1px solid "+colors.border,background:colors.card,color:colors.text,boxShadow:"0 6px 24px rgba(0,0,0,.15)",fontSize:11.5,fontWeight:650,cursor:"pointer"}}><Icon size={15} color={colors.accent}/>{label}</button>)}
     </div>
+    {!embedded && <div style={{position:"fixed",right:18,bottom:18,zIndex:79,display:"flex",gap:7,flexDirection:"column",alignItems:"flex-end",pointerEvents:"none"}}>
+      {([["calendar","Calendar",CalendarDays],["tracker","Study stats",BookOpen],["docs","Doc cabinet",FolderOpen]]).filter(([id])=>!open[id]).map(([id,label,Icon])=><button key={id} onClick={()=>openWidget(id)} style={{pointerEvents:"auto",display:"flex",alignItems:"center",gap:7,padding:"10px 12px",borderRadius:999,border:"1px solid "+colors.border,background:colors.card,color:colors.text,boxShadow:"0 6px 24px rgba(0,0,0,.15)",fontSize:11.5,fontWeight:650,cursor:"pointer"}}><Icon size={15} color={colors.accent}/>{label}</button>)}
+    </div>}
   </>;
 
 }
