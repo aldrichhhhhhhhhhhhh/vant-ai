@@ -3358,7 +3358,7 @@ function StudyAssistantTool({ onBack, theme, isDark }) {
 
 
 
-function NotesStudyGuideTool({ onBack, theme, isDark }) {
+function NotesStudyGuideTool({ onBack, onCreateFlashcards, theme, isDark }) {
   const [notes, setNotes] = useState("");
   const [focus, setFocus] = useState("");
   const [subject, setSubject] = useState("");
@@ -3520,7 +3520,7 @@ function NotesStudyGuideTool({ onBack, theme, isDark }) {
                 <div style={{ width: 36, height: 36, borderRadius: 11, display: "grid", placeItems: "center", background: acBg("violet", isDark), color: ac("violet", isDark) }}><Sparkles size={18} /></div>
                 <div><h2 style={{ fontSize: 16, margin: 0, fontWeight: 650 }}>Your study workspace</h2><p style={{ color: theme.textMuted, fontSize: 12, margin: "4px 0 0" }}>{result ? selectedStyle.title : "Your organized material will appear here"}</p></div>
               </div>
-              {result && <button type="button" onClick={copyResult} style={{ border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}><Copy size={14} /> {copied ? "Copied" : "Copy all"}</button>}
+              {result && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={() => onCreateFlashcards?.(notes, subject)} disabled={!notes.trim()} style={{ border: 0, background: "linear-gradient(110deg, " + ac("violet", isDark) + ", " + ac("cyan", isDark) + ")", color: isDark ? "#171323" : "#FFFFFF", padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 650, display: "flex", alignItems: "center", gap: 6 }}><GraduationCap size={14} /> Make flashcards from notes</button><button type="button" onClick={copyResult} style={{ border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "8px 11px", borderRadius: 9, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}><Copy size={14} /> {copied ? "Copied" : "Copy all"}</button></div>}
             </div>
             {!result && !loading && <div style={{ minHeight: 330, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24, border: "1px dashed " + theme.borderStrong, borderRadius: 14, background: theme.surface }}>
               <div style={{ width: 54, height: 54, borderRadius: 17, display: "grid", placeItems: "center", background: acBg("cyan", isDark), color: ac("cyan", isDark), marginBottom: 15 }}><BookOpen size={25} /></div>
@@ -3567,7 +3567,7 @@ function NotesStudyGuideTool({ onBack, theme, isDark }) {
   );
 }
 
-function StudyResourceTool({ mode, onBack, theme, isDark }) {
+function StudyResourceTool({ mode, onBack, theme, isDark, initialNotes = "", initialTopic = "" }) {
   const configs = {
     practice: { title: "Flashcard & Practice-Quiz Generator", intro: "Create flashcards or a practice quiz from a topic or your own class notes.", accent: "violet", button: "Generate study practice" },
     planner: { title: "Study Planner & Assignment Tracker", intro: "Plan study sessions, track assignment deadlines, and organize your workload.", accent: "green", button: "Build my study plan" },
@@ -3579,11 +3579,11 @@ function StudyResourceTool({ mode, onBack, theme, isDark }) {
     research: { title: "Research Paper Organizer", intro: "Organize your research question, sources, notes, evidence, and paper sections.", accent: "amber", button: "Organize research" },
   };
   const config = configs[mode] || configs.practice;
-  const [topic, setTopic] = useState("");
+  const [topic, setTopic] = useState(initialTopic);
   const [level, setLevel] = useState("High school");
   const [quantity, setQuantity] = useState("12");
   const [format, setFormat] = useState("Flashcards");
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(initialNotes);
   const [examDate, setExamDate] = useState("");
   const [hours, setHours] = useState("5");
   const [result, setResult] = useState("");
@@ -3748,6 +3748,7 @@ function InteractivePracticeView({ studyData, theme, isDark, accent, topic }) {
 function ToolsPage({ theme, isDark }) {
   const [view, setView] = useState("hub");
   const [category, setCategory] = useState("logistics");
+  const [practiceSeed, setPracticeSeed] = useState({ notes: "", topic: "" });
   if (view === "ops") return <OpsAssistantTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "weight") return <ChargeableWeightTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "freight") return <FreightCostTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
@@ -3757,8 +3758,8 @@ function ToolsPage({ theme, isDark }) {
   if (view === "scorecard") return <VendorScorecardTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "po") return <PoTrackerTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
   if (view === "study") return <StudyAssistantTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
-  if (view === "notes") return <NotesStudyGuideTool onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
-  if (["practice", "planner", "essay", "citation", "math", "presentation", "research"].includes(view)) return <StudyResourceTool key={view} mode={view} onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
+  if (view === "notes") return <NotesStudyGuideTool onBack={() => setView("hub")} onCreateFlashcards={(sourceNotes, sourceSubject) => { setPracticeSeed({ notes: sourceNotes, topic: sourceSubject || "My class notes" }); setView("practice"); }} theme={theme} isDark={isDark} />;
+  if (["practice", "planner", "essay", "citation", "math", "presentation", "research"].includes(view)) return <StudyResourceTool key={view} mode={view} initialNotes={view === "practice" ? practiceSeed.notes : ""} initialTopic={view === "practice" ? practiceSeed.topic : ""} onBack={() => setView("hub")} theme={theme} isDark={isDark} />;
 
   const categoryButton = (id, label, Icon, accentKey) => (
     <button key={id} type="button" onClick={() => setCategory(id)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 14px", borderRadius: 11, border: `1px solid ${category === id ? ac(accentKey, isDark) : theme.border}`, background: category === id ? acBg(accentKey, isDark) : theme.surface, color: category === id ? ac(accentKey, isDark) : theme.textMuted, cursor: "pointer", fontSize: 13.5, fontWeight: category === id ? 600 : 500 }}>
