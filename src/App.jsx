@@ -3589,14 +3589,16 @@ function StudyResourceTool({ mode, onBack, theme, isDark }) {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [studyData, setStudyData] = useState(null);
+  const [saveMessage, setSaveMessage] = useState("");
   const fieldStyle = { width: "100%", boxSizing: "border-box", padding: "11px 12px", borderRadius: 10, border: `1px solid ${theme.borderStrong}`, background: theme.inputBg, color: theme.text, fontSize: 14, outline: "none" };
 
   async function generate() {
     if (!topic.trim() || loading) return;
-    setLoading(true); setError(""); setResult("");
+    setLoading(true); setError(""); setResult(""); setStudyData(null); setSaveMessage("");
     let task = "";
-    if (mode === "practice" && format === "Flashcards") task = `Create ${quantity} useful study flashcards about: ${topic.trim()}. Level: ${level}. Use a numbered list, with each card clearly labeled "Front:" and "Back:". Keep each answer concise, test one idea per card, and include key terms and common misconceptions when relevant.`;
-    if (mode === "practice" && format === "Practice quiz") task = `Create a ${quantity}-question practice quiz about: ${topic.trim()}. Level: ${level}. Question style: ${notes.trim() ? "use the student's stated notes and preferences" : "a mix of recall and understanding"}. Put all questions first, then a clearly labeled "Answer key" afterward with brief explanations. Do not reveal answers immediately after each question.`;
+    if (mode === "practice" && format === "Flashcards") task = `Create ${quantity} useful study flashcards about: ${topic.trim()}. Level: ${level}. Return only JSON with shape {"type":"flashcards","title":"title","cards":[{"front":"question","back":"answer","topic":"topic"}]}. Include exactly ${quantity} cards, one idea per card. Use provided notes: ${notes.trim() || "No notes supplied; use general knowledge."}. No Markdown fences.`;
+    if (mode === "practice" && format === "Practice quiz") task = `Create a ${quantity}-question quiz about: ${topic.trim()}. Level: ${level}. Return only JSON with shape {"type":"quiz","title":"title","questions":[{"question":"question","options":[{"id":"A","text":"choice"},{"id":"B","text":"choice"},{"id":"C","text":"choice"},{"id":"D","text":"choice"}],"correctAnswer":"A","explanation":"why","topic":"topic"}]}. Include exactly ${quantity} questions, four options each, one correct option id. Use provided notes: ${notes.trim() || "No notes supplied; use general knowledge."}. No Markdown fences.`;
     if (mode === "planner") task = `Create a realistic study plan and assignment tracker for these topics, goals, and assignments: ${topic.trim()}. Level: ${level}. Target date: ${examDate || "not specified"}. Available study time: ${hours} hours per week. Notes and constraints: ${notes.trim() || "none provided"}. Organize work by priority and due date when supplied. Include manageable study sessions, assignment/task checkboxes, suggested milestones, short breaks, active recall, practice, and review. Never invent missing due dates. If no target date is provided, make a flexible one-week starter plan and a blank assignment tracking checklist.`;
     if (mode === "notes") task = `Summarize these notes and create a study guide. Topic: ${topic.trim()}. Level: ${level}. Source notes:\n${notes.trim() || "No notes were provided; create a general guide on the topic and label it as general background."}\nOrganize key ideas, important terms with simple definitions, processes or steps, likely review questions, common misconceptions, and a short recap. Clearly distinguish source-note content from any general background.`;
     if (mode === "essay") task = `Help plan and improve an essay. Topic or assignment prompt: ${topic.trim()}. Level: ${level}. Student draft, rubric, required sources, or instructions:\n${notes.trim() || "No additional instructions supplied."}\nProvide a working thesis or thesis-development prompts, a logical outline, main arguments, evidence needed for each argument, transitions, and a revision checklist. Do not invent quotations, sources, or rubric requirements. Help the student develop their own work rather than misrepresent authorship.`;
@@ -3607,8 +3609,18 @@ function StudyResourceTool({ mode, onBack, theme, isDark }) {
     const fullPrompt = `${task}\n\nFormat the answer like a polished VANT Main Chat response using standard readable Markdown: clear headings where helpful, short paragraphs, bullets, numbered steps, and tables only when they genuinely improve clarity. Use bold for key terms and preserve useful structure. Avoid decorative divider lines and dense walls of text. Be accurate, tailor difficulty to the selected level, and do not invent details from course materials that were not provided.`;
     try {
       const answer = await askVant("You are VANT Study Tools, a patient and accurate learning assistant. Make every tool response feel as polished and readable as VANT Main Chat. Use standard Markdown structure when useful: clear headings, short paragraphs, bullets, numbered steps, and occasional tables when they genuinely clarify information. Never fabricate facts, citations, source details, or assignment requirements. Clearly state missing information and uncertainty.", [{ role: "user", content: fullPrompt }]);
-      if (typeof answer === "string" && answer.trim()) setResult(answer.trim());
-      else setError("VANT couldn't generate this study material. Please try again.");
+      if (typeof answer === "string" && answer.trim()) {
+        if (mode === "practice") {
+          try {
+            const cleaned = answer.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+            const parsed = JSON.parse(cleaned);
+            if (format === "Flashcards" && parsed.type === "flashcards" && Array.isArray(parsed.cards) && parsed.cards.length) setStudyData(parsed);
+            else if (format === "Practice quiz" && parsed.type === "quiz" && Array.isArray(parsed.questions) && parsed.questions.length && parsed.questions.every((q) => Array.isArray(q.options) && q.options.length >= 2 && q.options.some((o) => o.id === q.correctAnswer))) setStudyData(parsed);
+            else throw new Error("Invalid interactive study format");
+            setResult(JSON.stringify(parsed, null, 2));
+          } catch { setError("VANT returned a format we could not turn into interactive study material. Please try again."); }
+        } else setResult(answer.trim());
+      } else setError("VANT could not generate this study material. Please try again.");
     } catch {
       setError("Something went wrong generating this study material. Please try again.");
     } finally { setLoading(false); }
@@ -3660,17 +3672,74 @@ function StudyResourceTool({ mode, onBack, theme, isDark }) {
           </div>
         </div>
         {error && <p role="alert" style={{ color: ac("red", isDark), marginTop: 16 }}>{error}</p>}
-        {result && <section style={{ marginTop: 20, padding: 22, border: `1px solid ${theme.border}`, borderRadius: 16, background: theme.surfaceCard }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        {result && <section style={{ marginTop: 20, padding: 22, border: "1px solid " + theme.border, borderRadius: 16, background: theme.surfaceCard }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
             <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Your result</h2>
-            <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: `1px solid ${theme.borderStrong}`, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {mode === "practice" && <button type="button" onClick={() => { try { const key = "vant-study-materials-v1"; const old = JSON.parse(localStorage.getItem(key) || "[]"); localStorage.setItem(key, JSON.stringify([{ id: Date.now(), title: (studyData && studyData.title) || topic.trim(), type: studyData ? studyData.type : mode, topic: topic.trim(), createdAt: new Date().toISOString(), content: result }, ...old].slice(0,100))); setSaveMessage("Saved on this device. Cloud sync and VANT Education are not connected yet."); } catch { setSaveMessage("Could not save to this device."); } }} style={{ border: "none", background: ac(config.accent, isDark), color: isDark ? "#171323" : "#FFFFFF", padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Save study material</button>}
+              <button type="button" onClick={() => { if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(result).catch(() => {}); }} style={{ border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "7px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Copy answer</button>
+            </div>
           </div>
-          <VantMarkdown source={result} theme={theme} isDark={isDark} />
+          {saveMessage && <p role="status" style={{ fontSize: 12, color: theme.textMuted }}>{saveMessage}</p>}
+          {studyData && <InteractivePracticeView studyData={studyData} theme={theme} isDark={isDark} accent={config.accent} topic={topic} />}
+          {!studyData && <VantMarkdown source={result} theme={theme} isDark={isDark} />}
         </section>}
         <p style={{ fontSize: 12, color: theme.textFaint, lineHeight: 1.6, marginTop: 16 }}>Review generated material against your class notes, source details, and teacher's instructions.</p>
       </div>
     </div>
   );
+}
+
+
+function InteractivePracticeView({ studyData, theme, isDark, accent, topic }) {
+  const [index, setIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [known, setKnown] = useState({});
+  const [answers, setAnswers] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const buttonStyle = { border: "1px solid " + theme.borderStrong, background: theme.surface, color: theme.text, padding: "9px 12px", borderRadius: 9, cursor: "pointer" };
+  if (studyData.type === "flashcards") {
+    const cards = studyData.cards;
+    const card = cards[Math.min(index, cards.length - 1)];
+    return <div>
+      <p style={{ color: theme.textMuted, fontSize: 13 }}>Click the card to flip it. Mark cards you know or want to review.</p>
+      <button type="button" onClick={() => setFlipped(!flipped)} style={{ width: "100%", minHeight: 220, padding: 26, borderRadius: 16, border: "1px solid " + ac(accent, isDark), background: acBg(accent, isDark), color: theme.text, textAlign: "left", cursor: "pointer" }}>
+        <span style={{ display: "block", color: ac(accent, isDark), fontSize: 11, letterSpacing: 1.2, marginBottom: 18 }}>{flipped ? "ANSWER" : "FLASHCARD " + (index + 1) + " OF " + cards.length}</span>
+        <span style={{ display: "block", fontSize: 20, lineHeight: 1.5, fontWeight: 600 }}>{flipped ? card.back : card.front}</span>
+        {card.topic && <span style={{ display: "block", color: theme.textMuted, fontSize: 12, marginTop: 18 }}>Topic: {card.topic}</span>}
+        <span style={{ display: "block", color: theme.textMuted, fontSize: 12, marginTop: 14 }}>Click to {flipped ? "see question" : "reveal answer"}</span>
+      </button>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+        <button type="button" disabled={index === 0} onClick={() => { setIndex(index - 1); setFlipped(false); }} style={{ ...buttonStyle, opacity: index === 0 ? 0.5 : 1 }}>Previous</button>
+        <span style={{ color: theme.textMuted, fontSize: 12 }}>{Object.values(known).filter(Boolean).length} known · {Object.values(known).filter((v) => v === false).length} to review</span>
+        <button type="button" disabled={index >= cards.length - 1} onClick={() => { setIndex(index + 1); setFlipped(false); }} style={{ ...buttonStyle, opacity: index >= cards.length - 1 ? 0.5 : 1 }}>Next</button>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <button type="button" onClick={() => setKnown({ ...known, [index]: true })} style={buttonStyle}>I know this</button>
+        <button type="button" onClick={() => setKnown({ ...known, [index]: false })} style={buttonStyle}>Review again</button>
+      </div>
+    </div>;
+  }
+  const questions = studyData.questions;
+  const score = questions.filter((q, i) => answers[i] === q.correctAnswer).length;
+  const weakTopics = [...new Set(questions.filter((q, i) => answers[i] !== q.correctAnswer).map((q) => q.topic || topic))];
+  return <div>
+    <p style={{ color: theme.textMuted, fontSize: 13 }}>Answer every question and submit to get your score, explanations, and topics to review.</p>
+    {questions.map((q, i) => <div key={i} style={{ padding: 15, border: "1px solid " + theme.border, borderRadius: 12, marginBottom: 12 }}>
+      <p style={{ fontWeight: 600, lineHeight: 1.5 }}>{i + 1}. {q.question}</p>
+      {q.options.map((o) => <label key={o.id} style={{ display: "flex", gap: 8, padding: 9, borderRadius: 8, background: submitted && o.id === q.correctAnswer ? acBg("green", isDark) : "transparent", cursor: submitted ? "default" : "pointer" }}>
+        <input type="radio" name={"vant-quiz-" + i} disabled={submitted} checked={answers[i] === o.id} onChange={() => setAnswers({ ...answers, [i]: o.id })} />
+        <span>{o.id}. {o.text}</span>
+      </label>)}
+      {submitted && <div style={{ marginTop: 8, fontSize: 13, color: theme.textMuted }}><strong style={{ color: answers[i] === q.correctAnswer ? ac("green", isDark) : ac("red", isDark) }}>{answers[i] === q.correctAnswer ? "Correct" : "Incorrect"} — answer: {q.correctAnswer}</strong><p>{q.explanation}</p>{q.topic && <p>Topic: {q.topic}</p>}</div>}
+    </div>)}
+    {!submitted ? <button type="button" disabled={Object.keys(answers).length !== questions.length} onClick={() => setSubmitted(true)} style={{ ...buttonStyle, background: ac(accent, isDark), opacity: Object.keys(answers).length !== questions.length ? 0.5 : 1 }}>Submit answers</button> : <div style={{ padding: 16, borderRadius: 12, background: acBg(accent, isDark) }}>
+      <h3>Score: {score} / {questions.length} ({Math.round(score / questions.length * 100)}%)</h3>
+      <strong>Topics to review</strong>
+      {weakTopics.length ? weakTopics.map((t) => <p key={t} style={{ margin: "6px 0" }}>• {t}</p>) : <p>Excellent work — no missed topics.</p>}
+      <button type="button" onClick={() => { setAnswers({}); setSubmitted(false); }} style={buttonStyle}>Try again</button>
+    </div>}
+  </div>;
 }
 
 function ToolsPage({ theme, isDark }) {
