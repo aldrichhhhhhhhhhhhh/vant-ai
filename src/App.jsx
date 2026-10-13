@@ -1561,13 +1561,14 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
       const value = match[0];
       const key = `${keyPrefix}-${index++}`;
 
-      if (value.startsWith("\\(") || value.startsWith("\\[") || value.startsWith("$") || (value.startsWith("$") && value.endsWith("$"))) {
-        const displayMode = value.startsWith("\\[") || value.startsWith("$");
-        const rawMath = value.startsWith("\\[") || value.startsWith("\\(") || value.startsWith("$")
-          ? value.slice(2, -2)
-          : value.slice(1, -1);
-        tokens.push(<span key={key} className={displayMode ? "vant-math-display" : "vant-math-inline"} dangerouslySetInnerHTML={{ __html: katex.renderToString(rawMath, { displayMode, throwOnError: false, trust: false, strict: "ignore" }) }} />);
-      } else if (match[3] && match[4]) {
+      if (value.startsWith("\\(") || value.startsWith("\\[") || value.startsWith("$$") || value.startsWith("$")) {
+        const isBracketDisplay = value.startsWith("\\[");
+        const isParenInline = value.startsWith("\\(");
+        const isDollarDisplay = value.startsWith("$$");
+        const displayMode = isBracketDisplay || isDollarDisplay;
+        const delimiterLength = isBracketDisplay || isParenInline || isDollarDisplay ? 2 : 1;
+        const rawMath = value.slice(delimiterLength, -delimiterLength);
+        tokens.push(<span key={key} className={displayMode ? "vant-math-display" : "vant-math-inline"} dangerouslySetInnerHTML={{ __html: katex.renderToString(rawMath, { displayMode, throwOnError: false, trust: false, strict: "ignore" }) }} />);      } else if (match[3] && match[4]) {
         tokens.push(
           <a key={key} href={match[4]} target="_blank" rel="noreferrer"
             style={{ color: isDark ? "#bda7ff" : "#5b36b8", textDecoration: "underline" }}>
@@ -1692,6 +1693,24 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
           i += 1;
         }
         blocks.push(<blockquote key={`quote-${blockIndex++}`} style={{ margin: "10px 0", padding: "8px 12px", borderLeft: `3px solid ${isDark ? "#9b7bea" : "#7651c8"}`, color: theme.textMuted, background: theme.surface }}>{quoteLines.map((quote, index) => <div key={index}>{renderInlineMarkdown(quote, theme, isDark, `quote-${blockIndex}-${index}`)}</div>)}</blockquote>);
+        continue;
+      }
+
+      if (trimmed.startsWith("\\[") || trimmed.startsWith("$$")) {
+        const closing = trimmed.startsWith("\\[") ? "\\]" : "$$";
+        const mathLines = [trimmed];
+        i += 1;
+        while (i < lines.length && !mathLines[mathLines.length - 1].includes(closing)) {
+          mathLines.push(lines[i]);
+          i += 1;
+        }
+        if (i < lines.length && mathLines[mathLines.length - 1] !== trimmed && !mathLines[mathLines.length - 1].endsWith(closing)) {
+          mathLines[mathLines.length - 1] += lines[i];
+        }
+        if (i < lines.length && mathLines[mathLines.length - 1].includes(closing)) i += 1;
+        const mathSource = mathLines.join("\n");
+        const innerMath = mathSource.startsWith("\\[") ? mathSource.slice(2, mathSource.lastIndexOf("\\]")) : mathSource.slice(2, mathSource.lastIndexOf("$$"));
+        blocks.push(<div key={\`math-block-\${blockIndex++}\`} className="vant-math-display" dangerouslySetInnerHTML={{ __html: katex.renderToString(innerMath.trim(), { displayMode: true, throwOnError: false, trust: false, strict: "ignore" }) }} />);
         continue;
       }
 
