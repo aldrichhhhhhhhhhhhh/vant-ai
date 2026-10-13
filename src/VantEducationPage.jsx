@@ -32,6 +32,62 @@ function categoryFor(type) {
   return "General";
 }
 
+function SavedMarkdown({ source, theme }) {
+  const lines = String(source || "").replace(/\r\n/g, "\n").split("\n");
+  const blocks = [];
+  let paragraph = [];
+  let list = [];
+  const flushParagraph = () => {
+    if (paragraph.length) { blocks.push({ type: "p", text: paragraph.join(" ") }); paragraph = []; }
+  };
+  const flushList = () => {
+    if (list.length) { blocks.push({ type: "list", items: list }); list = []; }
+  };
+  const inline = (text) => {
+    const parts = String(text).split(/(\*\*[^*]+\*\*|\*[^*]+\*|\x60[^\x60]+\x60)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) return <strong key={i}>{part.slice(2, -2)}</strong>;
+      if (part.startsWith("*") && part.endsWith("*")) return <em key={i}>{part.slice(1, -1)}</em>;
+      if (part.startsWith("`") && part.endsWith("`")) return <code key={i} style={{ fontFamily: "monospace", background: theme.surfaceStrong, borderRadius: 4, padding: "1px 4px" }}>{part.slice(1, -1)}</code>;
+      return part;
+    });
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) { flushParagraph(); flushList(); continue; }
+    if (/^\|.*\|$/.test(trimmed) && i + 1 < lines.length && /^\|?\s*:?-{3,}/.test(lines[i + 1].trim())) {
+      flushParagraph(); flushList();
+      const headers = trimmed.replace(/^\||\|$/g, "").split("|").map((v) => v.trim());
+      i += 1;
+      const rows = [];
+      while (i + 1 < lines.length && /^\s*\|.*\|\s*$/.test(lines[i + 1])) {
+        i += 1; rows.push(lines[i].trim().replace(/^\||\|$/g, "").split("|").map((v) => v.trim()));
+      }
+      blocks.push({ type: "table", headers, rows }); continue;
+    }
+    const heading = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) { flushParagraph(); flushList(); blocks.push({ type: "heading", level: heading[1].length, text: heading[2] }); continue; }
+    const item = trimmed.match(/^[-*+]\s+(.*)$/) || trimmed.match(/^\d+[.)]\s+(.*)$/);
+    if (item) { flushParagraph(); list.push(item[1].replace(/^\[([ xX])\]\s*/, (_, checked) => checked.trim() ? "☑ " : "☐ ")); continue; }
+    if (/^>\s?/.test(trimmed)) { flushParagraph(); flushList(); blocks.push({ type: "quote", text: trimmed.replace(/^>\s?/, "") }); continue; }
+    flushList(); paragraph.push(trimmed);
+  }
+  flushParagraph(); flushList();
+  return <div style={{ color: theme.text, fontSize: 14, lineHeight: 1.8, overflowWrap: "anywhere" }}>
+    {blocks.map((block, index) => {
+      if (block.type === "heading") {
+        const Tag = block.level === 1 ? "h1" : block.level === 2 ? "h2" : block.level === 3 ? "h3" : "h4";
+        return <Tag key={index} style={{ fontFamily: "Fraunces, Georgia, serif", fontWeight: 550, lineHeight: 1.3, margin: block.level === 1 ? "0 0 16px" : "22px 0 9px", fontSize: block.level === 1 ? 25 : block.level === 2 ? 21 : block.level === 3 ? 17 : 15 }}>{inline(block.text)}</Tag>;
+      }
+      if (block.type === "list") return <ul key={index} style={{ paddingLeft: 24, margin: "8px 0 16px" }}>{block.items.map((item, j) => <li key={j} style={{ paddingLeft: 3, marginBottom: 6 }}>{inline(item)}</li>)}</ul>;
+      if (block.type === "table") return <div key={index} style={{ overflowX: "auto", margin: "12px 0 18px" }}><table style={{ borderCollapse: "collapse", width: "100%", minWidth: 420, fontSize: 12.5 }}><thead><tr>{block.headers.map((cell, j) => <th key={j} style={{ textAlign: "left", padding: "10px 12px", border: "1px solid " + theme.border, background: theme.surfaceStrong }}>{inline(cell)}</th>)}</tr></thead><tbody>{block.rows.map((row, j) => <tr key={j}>{block.headers.map((_, k) => <td key={k} style={{ verticalAlign: "top", padding: "9px 12px", border: "1px solid " + theme.border }}>{inline(row[k] || "")}</td>)}</tr>)}</tbody></table></div>;
+      if (block.type === "quote") return <blockquote key={index} style={{ borderLeft: "3px solid #7C3AED", margin: "12px 0", padding: "4px 14px", color: theme.textMuted }}>{inline(block.text)}</blockquote>;
+      return <p key={index} style={{ margin: "0 0 13px" }}>{inline(block.text)}</p>;
+    })}
+  </div>;
+}
+
 function parseFlashcards(content) {
   if (!content) return null;
   const text = String(content).trim().replace(/^\x60{3}(?:json)?\s*/i, "").replace(/\s*\x60{3}$/i, "");
@@ -166,7 +222,7 @@ export default function VantEducationPage({ theme, isDark, user, onGoToTools, on
               <span style={{ color: theme.textMuted, fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{flashcardIndex + 1} / {interactiveCards.length}</span>
               <button type="button" disabled={flashcardIndex >= interactiveCards.length - 1} onClick={() => { setFlashcardIndex((index) => Math.min(interactiveCards.length - 1, index + 1)); setFlashcardFlipped(false); }} style={{ border: 0, borderRadius: 9, padding: "10px 14px", background: accent, color: "#FFFFFF", cursor: flashcardIndex >= interactiveCards.length - 1 ? "not-allowed" : "pointer", opacity: flashcardIndex >= interactiveCards.length - 1 ? .45 : 1 }}>Next →</button>
             </div>
-          </> : <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontFamily: "inherit", fontSize: 14, lineHeight: 1.8, color: theme.text, margin: 0 }}>{selected.content}</pre>}
+          </> : <SavedMarkdown source={selected.content} theme={theme} />}
         </div>
       </div>
     </div>;
