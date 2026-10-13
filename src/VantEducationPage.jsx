@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, Search, Plus, FileText, GraduationCap, Layers, ClipboardCheck, PencilLine, FolderOpen, FlaskConical, Presentation, Calculator, CalendarDays, Trash2, Pin, PinOff, ArrowLeft, Clock3, LibraryBig, RefreshCw, AlertCircle, Sparkles } from "lucide-react";
 import { supabase } from "./supabase";
+import VantEducationWidgets from "./VantEducationWidgets";
 
 const TYPE_META = {
   "notes-study-guide": { label: "Notes & guides", icon: BookOpen, color: "#7C3AED" },
@@ -37,7 +38,7 @@ function displayDate(value) {
   return Number.isNaN(date.getTime()) ? "Just saved" : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default function VantEducationPage({ theme, isDark, user, onGoToTools }) {
+export default function VantEducationPage({ theme, isDark, user, onGoToTools, onGoToEducation, showEducationWidgets = true }) {
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -151,6 +152,8 @@ export default function VantEducationPage({ theme, isDark, user, onGoToTools }) 
         </div>
         <button onClick={onGoToTools} style={{ display: "inline-flex", alignItems: "center", gap: 8, background: accent, color: "#FFFFFF", border: 0, borderRadius: 12, padding: "12px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 8px 20px #7C3AED22" }}><Plus size={16} /> Create study material</button>
       </div>
+
+      {showEducationWidgets && <section style={{ marginBottom: 24 }}><div style={{ marginBottom: 12 }}><h2 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 22, fontWeight: 500, margin: "0 0 5px" }}>Your study workspace</h2><p style={{ color: theme.textMuted, fontSize: 12.5, margin: 0 }}>Plan deadlines, track progress, and keep writing documents close at hand.</p></div><VantEducationWidgets theme={theme} isDark={isDark} user={user} embedded onGoToEducation={onGoToEducation} onGoToTools={onGoToTools} /></section>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 12, marginBottom: 22 }}>
         {[{ label: "SAVED MATERIALS", value: count, icon: LibraryBig, color: accent }, { label: "PINNED", value: pinnedCount, icon: Pin, color: "#B45309" }, { label: "ADDED THIS WEEK", value: recentCount, icon: Clock3, color: "#0F766E" }].map((stat) => {
