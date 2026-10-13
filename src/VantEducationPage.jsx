@@ -49,7 +49,7 @@ function SavedMarkdown({ source, theme }) {
     // Code spans are matched first so LaTeX inside backticks stays literal.
     const parts = String(text).split(/(\x60[^\x60]*\x60|\\\([^\n]*?\\\)|\\\[[\s\S]+?\\\]|\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\*\*[^*]+\*\*|\*[^*\n]+\*)/g);
     return parts.map((part, i) => {
-      if (part.startsWith("\x60") && part.endsWith("\x60")) {
+      if (part.startsWith("`") && part.endsWith("`")) {
         return <code key={i} style={{ fontFamily: "monospace", background: theme.surfaceStrong, borderRadius: 4, padding: "1px 4px" }}>{part.slice(1, -1)}</code>;
       }
       if (part.startsWith("\\(") || part.startsWith("\\[") || part.startsWith("$$") || part.startsWith("$")) {
@@ -70,12 +70,12 @@ function SavedMarkdown({ source, theme }) {
     const line = lines[i];
     const trimmed = line.trim();
     if (!trimmed) { flushParagraph(); flushList(); continue; }
-    if (trimmed.startsWith("\x60\x60\x60")) {
+    if (trimmed.startsWith("```")) {
       flushParagraph();
       flushList();
       const codeLines = [];
       i += 1;
-      while (i < lines.length && !lines[i].trim().startsWith("\x60\x60\x60")) {
+      while (i < lines.length && !lines[i].trim().startsWith("```")) {
         codeLines.push(lines[i]);
         i += 1;
       }
