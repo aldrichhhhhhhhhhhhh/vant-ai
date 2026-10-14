@@ -4383,6 +4383,38 @@ function AuthModal({ mode, setMode, theme, isDark, onClose, onAuth }) {
         <button type="button" onClick={() => { setMode("login"); setError(""); setMessage(""); }} style={{ padding: "7px 14px", borderRadius: 999, border: "none", cursor: "pointer", background: mode === "login" ? theme.surfaceStrong : "transparent", color: theme.text, fontSize: 13 }}>Log in</button>
       </div>
       <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 21, fontWeight: 500, margin: "0 0 14px", color: theme.text }}>{mode === "signup" ? "Create your account" : "Welcome back"}</h2>
+      <button
+        type="button"
+        onClick={async () => {
+          setError("");
+          setMessage("");
+          setBusy(true);
+          try {
+            const { error: oauthError } = await supabase.auth.signInWithOAuth({
+              provider: "google",
+              options: { redirectTo: window.location.origin },
+            });
+            if (oauthError) {
+              setError(oauthError.message || "Google sign-in couldn't start. Please try again.");
+              setBusy(false);
+            }
+          } catch (oauthError) {
+            setError(oauthError?.message || "Google sign-in couldn't start. Please try again.");
+            setBusy(false);
+          }
+        }}
+        disabled={busy}
+        aria-label="Continue with Google"
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "11px 14px", borderRadius: 999, background: theme.surfaceCard, color: theme.text, border: `1px solid ${theme.borderStrong}`, fontWeight: 600, fontSize: 13.5, cursor: busy ? "wait" : "pointer", opacity: busy ? 0.6 : 1, marginBottom: 14 }}
+      >
+        <span aria-hidden="true" style={{ fontFamily: "Arial, sans-serif", fontSize: 17, fontWeight: 700, color: "#4285F4" }}>G</span>
+        {busy ? "Connecting to Google…" : "Continue with Google"}
+      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, color: theme.textFaint, fontSize: 10, letterSpacing: 1.1 }}>
+        <span style={{ height: 1, flex: 1, background: theme.border }} />
+        <span>OR CONTINUE WITH EMAIL</span>
+        <span style={{ height: 1, flex: 1, background: theme.border }} />
+      </div>
       <form onSubmit={submit}>
         {mode === "signup" && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" autoComplete="name" style={fieldStyle} />}
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" autoComplete="email" style={fieldStyle} />
