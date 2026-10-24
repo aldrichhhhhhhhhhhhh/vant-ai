@@ -5137,6 +5137,7 @@ export default function VantWorkingPrototype() {
         }
       `}</style>
       <Sidebar active={active} onSelect={(next) => { setActive(next); setMobileSidebarOpen(false); }} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} onOpenSettings={() => setSettingsOpen(true)} mobileSidebarOpen={mobileSidebarOpen} onToggleMobileSidebar={() => setMobileSidebarOpen((open) => !open)} />
+      {mobileSidebarOpen && <button type="button" className="vant-mobile-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setMobileSidebarOpen(false)} />}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: theme.bg }}> 
         <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={(mode) => setAuthMode(mode || "signup")} onOpenSettings={() => setSettingsOpen(true)} onToggleMobileSidebar={() => setMobileSidebarOpen((open) => !open)} />
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", position: "relative" }}>
