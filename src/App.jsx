@@ -5094,22 +5094,48 @@ export default function VantWorkingPrototype() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#FAFAF9", color: "#191919", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-        <style>{FONT_IMPORT}</style>
-        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 5vw", borderBottom: "1px solid #E8E5DF" }}>
+      <div className="vant-guest-landing" style={{ minHeight: "100vh", minHeight: "100dvh", width: "100%", maxWidth: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", background: "#FAFAF9", color: "#191919", fontFamily: "'DM Sans', system-ui, sans-serif", overflowX: "clip" }}>
+        <style>{FONT_IMPORT + `
+          html, body, #root { width: 100%; max-width: 100%; margin: 0; }
+          .vant-guest-landing, .vant-guest-landing * { box-sizing: border-box; }
+          .vant-guest-header { width: 100%; min-width: 0; }
+          .vant-guest-main { width: 100%; min-width: 0; }
+          .vant-guest-card { width: 100%; min-width: 0; }
+          .vant-guest-intro { min-width: 0; }
+          @media (max-width: 760px) {
+            .vant-guest-landing { min-height: 100dvh; height: auto; overflow-x: clip; }
+            .vant-guest-header { padding: 16px 18px !important; gap: 12px; }
+            .vant-guest-header > span { flex: 0 0 auto; font-size: 23px !important; }
+            .vant-guest-header > div { gap: 8px !important; }
+            .vant-guest-header button { padding: 10px 14px !important; font-size: 14px; }
+            .vant-guest-main { flex: 0 0 auto !important; margin: 0 auto !important; padding: 34px 16px 28px !important; }
+            .vant-guest-heading { font-size: clamp(30px, 8vw, 36px) !important; }
+            .vant-guest-subtitle { font-size: clamp(14px, 4vw, 16px) !important; line-height: 1.5; }
+            .vant-guest-card { padding: 16px !important; border-radius: 20px !important; }
+            .vant-guest-intro { min-height: 150px !important; padding: 12px 4px !important; font-size: 15px; line-height: 1.5; }
+            .vant-guest-button { min-height: 48px; padding: 14px 16px !important; }
+            .vant-guest-limit { font-size: 12px !important; }
+          }
+          @media (max-width: 360px) {
+            .vant-guest-header { padding-left: 12px !important; padding-right: 12px !important; }
+            .vant-guest-header button { padding: 9px 11px !important; font-size: 13px; }
+            .vant-guest-main { padding-left: 12px !important; padding-right: 12px !important; }
+          }
+        `}</style>
+        <header className="vant-guest-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 5vw", borderBottom: "1px solid #E8E5DF" }}>
           <span style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 25, fontWeight: 600, color: "#D0A650" }}>VANT</span>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => setAuthMode("login")} style={{ border: "1px solid #D8D5CF", background: "transparent", borderRadius: 999, padding: "10px 18px", cursor: "pointer", color: "#191919" }}>Log in</button>
             <button onClick={() => setAuthMode("signup")} style={{ border: 0, background: "#191919", color: "#FFFFFF", borderRadius: 999, padding: "10px 18px", cursor: "pointer" }}>Sign up</button>
           </div>
         </header>
-        <main style={{ width: "100%", maxWidth: 880, margin: "auto", padding: "54px 24px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <main className="vant-guest-main" style={{ width: "100%", maxWidth: 880, margin: "auto", padding: "54px 24px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={{ textAlign: "center", marginBottom: 24 }}>
-            <h1 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 36, fontWeight: 500, margin: "0 0 10px" }}>Meet VANT.</h1>
-            <p style={{ color: "#6B6964", fontSize: 16, margin: 0 }}>Try a conversation first. No account needed.</p>
+            <h1 className="vant-guest-heading" style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 36, fontWeight: 500, margin: "0 0 10px" }}>Meet VANT.</h1>
+            <p className="vant-guest-subtitle" style={{ color: "#6B6964", fontSize: 16, margin: 0 }}>Try a conversation first. No account needed.</p>
           </div>
-          <div style={{ border: "1px solid #E5E3DE", borderRadius: 22, background: "#FFFFFF", padding: 20, boxShadow: "0 12px 40px rgba(25,25,25,0.05)" }}>
-            <div style={{ minHeight: 250, padding: "12px 8px", color: "#6B6964", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+          <div className="vant-guest-card" style={{ border: "1px solid #E5E3DE", borderRadius: 22, background: "#FFFFFF", padding: 20, boxShadow: "0 12px 40px rgba(25,25,25,0.05)" }}>
+            <div className="vant-guest-intro" style={{ minHeight: 250, padding: "12px 8px", color: "#6B6964", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
               {authReady ? "Start with a guest chat—your first five successful replies are on us." : "Preparing your guest session…"}
             </div>
             <button onClick={async () => {
@@ -5130,8 +5156,8 @@ export default function VantWorkingPrototype() {
                 console.error("VANT guest sign-in exception", err);
                 alert("Guest sign-in error: " + (err?.message || String(err)));
               }
-            }} style={{ width: "100%", border: 0, background: "#191919", color: "#FFFFFF", borderRadius: 999, padding: "15px 20px", fontWeight: 600, cursor: "pointer" }}>Continue as Guest</button>
-            <p style={{ color: "#77736A", fontSize: 12, lineHeight: 1.5, textAlign: "center", margin: "12px 0 0" }}>5 successful VANT replies per day · Resets at 00:00 Philippine time</p>
+            }} className="vant-guest-button" style={{ width: "100%", border: 0, background: "#191919", color: "#FFFFFF", borderRadius: 999, padding: "15px 20px", fontWeight: 600, cursor: "pointer" }}>Continue as Guest</button>
+            <p className="vant-guest-limit" style={{ color: "#77736A", fontSize: 12, lineHeight: 1.5, textAlign: "center", margin: "12px 0 0" }}>5 successful VANT replies per day · Resets at 00:00 Philippine time</p>
           </div>
         </main>
         {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
