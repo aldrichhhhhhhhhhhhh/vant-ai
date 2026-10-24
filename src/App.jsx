@@ -4288,9 +4288,9 @@ function IntegrationsPage({ theme, isDark, connected, onToggle }) {
 // ---------------------------------------------------------------------------
 function Overlay({ onClose, theme, children, width = 380, hideCloseButton = false, className = "" }) {
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: width, background: theme.surfaceCard, border: `1px solid ${theme.border}`, borderRadius: 18, padding: 24, position: "relative" }}>
-        <button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", cursor: "pointer", color: theme.textFaint }}><X size={16} /></button>
+    <div className={className || undefined} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div className={className ? `${className}-panel` : undefined} onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: width, background: theme.surfaceCard, border: `1px solid ${theme.border}`, borderRadius: 18, padding: 24, position: "relative" }}>
+        {!hideCloseButton && <button type="button" aria-label="Close dialog" onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", cursor: "pointer", color: theme.textFaint }}><X size={16} /></button>}
         {children}
       </div>
     </div>
