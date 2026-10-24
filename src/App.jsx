@@ -496,14 +496,14 @@ async function askVant(
 
 
 
-function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSettings }) {
+function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSettings, mobileSidebarOpen = false, onToggleMobileSidebar }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const sidebarText = isDark ? "#F5F3FF" : "#191919";
   const sidebarMuted = isDark ? "#C3BED4" : "#666666";
   const sidebarIcon = isDark ? "#AAA4C2" : "#77736A";
   const gold = isDark ? "#D0A650" : "#B9913F";
   return (
-    <aside style={{ width: 224, flexShrink: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", padding: "20px 14px", gap: 7, color: sidebarText }}>
+    <aside className={`vant-main-sidebar${mobileSidebarOpen ? " is-mobile-open" : ""}`} style={{ width: mobileSidebarOpen ? "min(76vw, 292px)" : 224, maxWidth: mobileSidebarOpen ? "calc(100vw - 64px)" : undefined, boxSizing: "border-box", flex: mobileSidebarOpen ? "0 0 min(76vw, 292px)" : "0 0 224px", minWidth: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", padding: mobileSidebarOpen ? "16px 12px" : "20px 14px", gap: 7, color: sidebarText }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 10px 22px", marginBottom: 10, borderBottom: `1px solid ${theme.border}` }}>
         <div style={{ width: 30, height: 30, borderRadius: 9, background: isDark ? "linear-gradient(135deg,#D0A650,#8E6C2B)" : "#D0A650", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isDark ? "0 4px 14px rgba(208,166,80,0.16)" : "none" }}>
           <span style={{ color: "#191919", fontFamily: "JetBrains Mono, monospace", fontWeight: 700, fontSize: 15 }}>V</span>
@@ -1463,7 +1463,7 @@ function ProjectsPage({ theme, isDark, projects, user, onProjectsChange, onOpenP
 // ---------------------------------------------------------------------------
 // AI Chat
 // ---------------------------------------------------------------------------
-function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNewConversation, onSelectConversation, onTogglePinConversation, onDeleteConversation, projectMode = false, projectName = "", onBackToProject }) {
+function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNewConversation, onSelectConversation, onTogglePinConversation, onDeleteConversation, projectMode = false, projectName = "", onBackToProject, mobileOpen = false }) {
     const pinned = conversations.filter((item) => item.pinned);
     const recent = conversations.filter((item) => !item.pinned);
     const renderItem = (item) => (
@@ -1474,7 +1474,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
       </div>
     );
     return (
-      <aside style={{ width: 270, flexShrink: 0, borderRight: `1px solid ${theme.border}`, background: isDark ? theme.sidebarBg : theme.surfaceCard, color: theme.text, display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <aside className={`vant-chat-history${mobileOpen ? " is-mobile-open" : ""}`} data-mobile-open={mobileOpen ? "true" : "false"} style={{ width: mobileOpen ? "min(84vw, 330px)" : 270, maxWidth: mobileOpen ? "calc(100vw - 56px)" : undefined, boxSizing: "border-box", flex: mobileOpen ? "0 0 min(84vw, 330px)" : "0 0 270px", minWidth: 0, borderRight: `1px solid ${theme.border}`, background: isDark ? theme.sidebarBg : theme.surfaceCard, color: theme.text, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div style={{ padding: "16px 14px 12px", borderBottom: `1px solid ${theme.border}` }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div>
@@ -1883,6 +1883,7 @@ function ChatPage({
 }) {
   const activeConversation = conversations.find((item) => item.id === activeConversationId) || null;
   const [started, setStarted] = useState(Boolean(activeConversation?.messages?.length));
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   useEffect(() => {
     if (activeConversation?.messages?.length) {
       setMessages(activeConversation.messages);
@@ -2521,7 +2522,7 @@ Respond naturally like a sharp work partner.
 
   if (!started) {
     return (
-      <div style={{ height: "100%", display: "flex", minWidth: 0, overflow: "hidden" }}>
+      <div className="vant-chat-page" style={{ height: "100%", display: "flex", minWidth: 0, overflow: "hidden" }}>
         <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} projectMode={projectMode} projectName={projectName} onBackToProject={onBackToProject} />
 
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden" }}>
@@ -2586,8 +2587,9 @@ Respond naturally like a sharp work partner.
   }
 
   return (
-    <div style={{ height: "100%", display: "flex", minWidth: 0 }}>
-      <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} />
+    <div className="vant-chat-page" style={{ height: "100%", display: "flex", minWidth: 0, overflow: "hidden" }}>
+      <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={(id) => { onSelectConversation(id); setMobileHistoryOpen(false); }} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} mobileOpen={mobileHistoryOpen} />
+      {mobileHistoryOpen && <button type="button" className="vant-mobile-history-backdrop" aria-label="Close chat history" onClick={() => setMobileHistoryOpen(false)} />}
       <div className="vant-chat-workspace" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
       <style>{`
         .vant-chat-workspace .vant-message-list { gap: 22px !important; padding: 28px clamp(20px, 4vw, 56px) 30px !important; scroll-behavior: smooth; }
@@ -2606,6 +2608,7 @@ Respond naturally like a sharp work partner.
       `}</style>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 24px", borderBottom: `1px solid ${theme.border}` }}>
         {projectMode && <button type="button" onClick={onBackToProject} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, borderRadius: 9, padding: "6px 9px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5 }}><ArrowLeft size={13} /> Project</button>}
+        <button type="button" className="vant-mobile-history-button" onClick={() => setMobileHistoryOpen(true)} aria-label="Return to chat history" title="Return to chat history" style={{ display: "none", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, borderRadius: 9, padding: "7px 9px", background: theme.surface, color: theme.text, cursor: "pointer", whiteSpace: "nowrap" }}><ArrowLeft size={15} /><span>History</span></button>
         <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>{projectMode ? `VANT · ${projectName}` : "VANT · Work Session"}</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
       </div>
@@ -3946,7 +3949,7 @@ function DashboardPage({ theme, isDark, connected, coworkTasks = [], onGoToInteg
       <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 26, fontWeight: 500, margin: "0 0 4px", color: theme.text }}>Here's what needs your attention</h1>
       <p style={{ color: theme.textMuted, fontSize: 15, margin: "0 0 26px" }}>Click a tile for details.</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: openPanel ? 16 : 20 }}>
+      <div className="vant-dashboard-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: openPanel ? 16 : 20 }}>
         {kpis.map((k) => (
           <button key={k.key} onClick={() => togglePanel(k.key)} style={{ textAlign: "left", background: openPanel === k.key ? theme.surfaceStrong : theme.surface, border: `1px solid ${openPanel === k.key ? theme.borderStrong : "transparent"}`, borderRadius: 14, padding: 16, cursor: "pointer" }}>
             <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textMuted, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -4038,7 +4041,7 @@ function DashboardPage({ theme, isDark, connected, coworkTasks = [], onGoToInteg
         </div>
       )}
 
-      <div style={{ background: theme.surface, borderRadius: 14, padding: 20, marginBottom: 20 }}>
+      <div className="vant-dashboard-productivity" style={{ background: theme.surface, borderRadius: 14, padding: 20, marginBottom: 20 }}>
         <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textMuted, margin: "0 0 16px" }}>PRODUCTIVITY · SEPT</p>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 14, height: 110 }}>
           {bars.map((h, i) => (
@@ -4283,20 +4286,21 @@ function IntegrationsPage({ theme, isDark, connected, onToggle }) {
 // ---------------------------------------------------------------------------
 // Account, Settings, and top bar
 // ---------------------------------------------------------------------------
-function Overlay({ onClose, theme, children, width = 380 }) {
+function Overlay({ onClose, theme, children, width = 380, hideCloseButton = false, className = "" }) {
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: width, background: theme.surfaceCard, border: `1px solid ${theme.border}`, borderRadius: 18, padding: 24, position: "relative" }}>
-        <button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", cursor: "pointer", color: theme.textFaint }}><X size={16} /></button>
+    <div className={className || undefined} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div className={className ? `${className}-panel` : undefined} onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: width, background: theme.surfaceCard, border: `1px solid ${theme.border}`, borderRadius: 18, padding: 24, position: "relative" }}>
+        {!hideCloseButton && <button type="button" aria-label="Close dialog" onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", cursor: "pointer", color: theme.textFaint }}><X size={16} /></button>}
         {children}
       </div>
     </div>
   );
 }
 
-function TopBar({ theme, isDark, user, pageLabel, onOpenAuth, onOpenSettings }) {
+function TopBar({ theme, isDark, user, pageLabel, onOpenAuth, onOpenSettings, onToggleMobileSidebar }) {
   return (
-    <div style={{ height: 56, flexShrink: 0, borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 12 }}>
+    <div className="vant-topbar" style={{ height: 56, flexShrink: 0, borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 12 }}>
+      <button type="button" className="vant-mobile-nav-toggle" onClick={onToggleMobileSidebar} aria-label="Toggle navigation" title="Toggle navigation" style={{ display: "none", alignItems: "center", justifyContent: "center", width: 38, height: 38, flexShrink: 0, border: `1px solid ${theme.border}`, borderRadius: 10, background: theme.surface, color: theme.text, cursor: "pointer" }}><MoreHorizontal size={20} /></button>
       <span style={{ fontSize: 13, color: theme.textFaint, fontFamily: "JetBrains Mono, monospace", letterSpacing: 1 }}>{pageLabel?.toUpperCase()}</span>
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
         {user?.isGuest === true ? (
@@ -4410,10 +4414,10 @@ function AuthModal({ mode, setMode, theme, isDark, onClose, onAuth }) {
         <span aria-hidden="true" style={{ fontFamily: "Arial, sans-serif", fontSize: 17, fontWeight: 700, color: "#4285F4" }}>G</span>
         {busy ? "Connecting to Google…" : "Continue with Google"}
       </button>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, color: theme.textFaint, fontSize: 10, letterSpacing: 1.1 }}>
-        <span style={{ height: 1, flex: 1, background: theme.border }} />
-        <span>OR CONTINUE WITH EMAIL</span>
-        <span style={{ height: 1, flex: 1, background: theme.border }} />
+      <div className="vant-auth-divider" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, color: theme.textFaint, fontSize: 10, letterSpacing: 0.5, width: "100%", minWidth: 0 }}>
+        <span aria-hidden="true" style={{ height: 1, flex: "1 1 0", minWidth: 8, background: theme.border }} />
+        <span style={{ flex: "0 0 auto", whiteSpace: "nowrap", textOverflow: "clip", overflow: "visible", fontSize: 10, letterSpacing: 0.5 }}>OR CONTINUE WITH EMAIL</span>
+        <span aria-hidden="true" style={{ height: 1, flex: "1 1 0", minWidth: 8, background: theme.border }} />
       </div>
       <form onSubmit={submit}>
         {mode === "signup" && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" autoComplete="name" style={fieldStyle} />}
@@ -4429,50 +4433,63 @@ function AuthModal({ mode, setMode, theme, isDark, onClose, onAuth }) {
 }
 
 function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, onClearData, floatingEducationWidgets, onToggleFloatingEducationWidgets }) {
-  return (
-    <Overlay onClose={onClose} theme={theme} width={420}>
-      <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 21, fontWeight: 500, margin: "0 0 18px", color: theme.text }}>Settings</h2>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>ACCOUNT</p>
-        {user ? (
-          <>
-            <p style={{ fontSize: 14, color: theme.text, margin: "0 0 2px" }}>{user.name}</p>
-            <p style={{ fontSize: 12.5, color: theme.textMuted, margin: "0 0 10px" }}>{user.email}</p>
-            <button onClick={onLogout} style={{ fontSize: 13, color: ac("red", isDark), background: "none", border: "none", cursor: "pointer", padding: 0 }}>Log out</button>
-          </>
-        ) : <p style={{ fontSize: 13.5, color: theme.textMuted }}>Not signed in.</p>}
+  const [section, setSection] = useState("general");
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [notice, setNotice] = useState("");
+  const sections = [
+    { id: "general", label: "General", icon: Settings, desc: "Workspace preferences and defaults" },
+    { id: "appearance", label: "Appearance", icon: Palette, desc: "Theme and visual preferences" },
+    { id: "account", label: "Account", icon: Users, desc: "Your profile and security" },
+    { id: "personalization", label: "Personalization", icon: Sparkles, desc: "Make VANT work your way" },
+    { id: "notifications", label: "Notifications", icon: ClipboardList, desc: "Reminders and workspace updates" },
+    { id: "privacy", label: "Privacy & data", icon: Puzzle, desc: "Data controls and connected services" },
+    { id: "about", label: "About VANT", icon: Globe, desc: "Product information and help" },
+  ];
+  const selected = sections.find(s => s.id === section) || sections[0];
+  const muted = { color: theme.textMuted, fontSize: 12, lineHeight: 1.55, margin: "5px 0 0" };
+  const card = { padding: 15, marginBottom: 12, border: "1px solid " + theme.border, borderRadius: 13, background: theme.surface };
+  const row = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "13px 0", borderBottom: "1px solid " + theme.border };
+  const action = { border: "1px solid " + theme.border, borderRadius: 9, padding: "8px 11px", color: theme.text, background: theme.surfaceCard, fontSize: 12, cursor: "pointer", flexShrink: 0 };
+  const comingSoon = () => setNotice("This control is part of the Settings foundation and will be connected in a future update.");
+  const toggle = (checked, onClick, label) => <button type="button" role="switch" aria-label={label} aria-checked={checked} onClick={onClick} style={{ width: 44, height: 26, padding: 3, border: 0, borderRadius: 99, background: checked ? "#B9913F" : theme.border, display: "flex", justifyContent: checked ? "flex-end" : "flex-start", alignItems: "center", cursor: "pointer", flexShrink: 0 }}><span style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 4px #0003" }} /></button>;
+  const item = (title, description, control, last = false) => <div style={{ ...row, borderBottom: last ? 0 : row.borderBottom }}><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, color: theme.text, fontWeight: 500 }}>{title}</div><p style={muted}>{description}</p></div>{control}</div>;
+  return <Overlay onClose={onClose} theme={theme} width={680} hideCloseButton className="vant-settings-overlay">
+    <div className="vant-settings-shell" style={{ margin: -24, color: theme.text }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "22px 24px 18px", borderBottom: "1px solid " + theme.border }}>
+        <div><div style={{ color: "#B9913F", fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 2, marginBottom: 5 }}>VANT WORKSPACE</div><h2 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 25, fontWeight: 500, margin: 0 }}>Settings</h2><p style={muted}>Manage your account, workspace, and preferences.</p></div>
+        <button type="button" onClick={onClose} aria-label="Close settings" style={{ ...action, width: 38, height: 38, padding: 0, display: "grid", placeItems: "center" }}><X size={18}/></button>
+      </header>
+      <div className="vant-settings-layout" style={{ display: "grid", gridTemplateColumns: "200px minmax(0,1fr)", minHeight: 430 }}>
+        <nav className="vant-settings-nav" aria-label="Settings categories" style={{ padding: 12, borderRight: "1px solid " + theme.border, display: "flex", flexDirection: "column", gap: 4 }}>
+          {sections.map(s => { const Icon = s.icon; const active = s.id === section; return <button type="button" key={s.id} onClick={() => { setSection(s.id); setNotice(""); setResetConfirm(false); }} aria-current={active ? "page" : undefined} style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left", padding: "11px 10px", borderRadius: 9, border: "1px solid " + (active ? theme.borderStrong : "transparent"), background: active ? theme.surfaceStrong : "transparent", color: active ? theme.text : theme.textMuted, cursor: "pointer", fontSize: 12.5, fontWeight: active ? 600 : 500 }}><Icon size={16} color={active ? "#B9913F" : theme.textFaint}/><span>{s.label}</span></button>; })}
+          <div style={{ flex: 1, minHeight: 10 }}/><p style={{ color: theme.textFaint, fontSize: 10, lineHeight: 1.5, padding: "0 8px" }}>Some options are placeholders until their services are connected.</p>
+        </nav>
+        <main className="vant-settings-content" style={{ padding: 22, minWidth: 0 }}>
+          <h3 style={{ fontSize: 18, margin: 0, fontWeight: 600 }}>{selected.label}</h3><p style={muted}>{selected.desc}</p>
+          {notice && <p role="status" style={{ ...muted, padding: 10, borderRadius: 9, background: theme.surfaceStrong, margin: "12px 0" }}>{notice}</p>}
+          {section === "general" && <>
+            <div style={{ ...card, marginTop: 16 }}><strong style={{ fontSize: 13 }}>Workspace</strong>
+              {item("Floating Education widgets", "Keep your Student Calendar, Study Tracker, and Doc Files Cabinet available across VANT.", toggle(floatingEducationWidgets, onToggleFloatingEducationWidgets, "Floating Education widgets"))}
+              {item("Default start page", "Choose which VANT section opens first.", <button style={action} onClick={comingSoon}>AI Chat　›</button>)}
+              {item("Language", "Choose your interface language.", <button style={action} onClick={comingSoon}>English　›</button>, true)}
+            </div>
+            <div style={card}><strong style={{ fontSize: 13 }}>Interaction</strong>{item("Keyboard shortcuts", "View shortcuts for common actions.", <button style={action} onClick={comingSoon}>View shortcuts</button>, true)}</div>
+          </>}
+          {section === "appearance" && <div style={{ ...card, marginTop: 16 }}><strong style={{ fontSize: 13 }}>Workspace theme</strong><p style={muted}>Choose the appearance for your workspace.</p><div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10, marginTop: 14 }}>{[{dark:false,label:"Light",bg:"#FAFAF9",fg:"#191919"},{dark:true,label:"Dark",bg:"#111019",fg:"#F5F3FF"}].map(v => <button key={v.label} onClick={() => { if(v.dark !== isDark) onToggleTheme(); }} aria-pressed={v.dark === isDark} style={{ textAlign:"left",padding:10,borderRadius:11,border:"1px solid "+(v.dark===isDark?"#B9913F":theme.border),background:theme.surfaceCard,color:theme.text,cursor:"pointer" }}><div style={{ height:62,borderRadius:7,background:v.bg,border:"1px solid "+theme.border,padding:9,display:"flex",gap:7 }}><div style={{ width:17,background:v.dark?"#292638":"#E7E5E4",borderRadius:4 }}/><div style={{ flex:1,paddingTop:7 }}><div style={{ height:6,width:"75%",background:v.fg,marginBottom:7,borderRadius:4 }}/><div style={{ height:5,width:"45%",background:v.fg,opacity:.4,borderRadius:4 }}/></div></div><div style={{display:"flex",justifyContent:"space-between",marginTop:9,fontSize:12,fontWeight:600}}>{v.label}{v.dark===isDark&&<Check size={14} color="#B9913F"/>}</div></button>)}</div>{item("Accent color", "More accent options will be available later.", <button style={action} onClick={comingSoon}>Gold　›</button>, true)}</div>}
+          {section === "account" && <div style={{ ...card, marginTop: 16 }}><strong style={{fontSize:13}}>Account details</strong><div style={{padding:13,marginTop:12,borderRadius:10,background:theme.surfaceCard,border:"1px solid "+theme.border}}><div style={{fontSize:13,fontWeight:600}}>{user?.name || "Guest user"}</div><p style={muted}>{user?.email || "Not signed in"}</p><p style={{...muted,marginTop:10}}>Status: {user && !user.isGuest ? "Signed in" : "Guest session"}</p></div>{user && !user.isGuest && <button onClick={onLogout} style={{...action,marginTop:12,color:ac("red",isDark)}}>Log out</button>}{item("Profile details","Manage your name and account information.",<button style={action} onClick={comingSoon}>Manage</button>)}{item("Password & security","Review sign-in and security options.",<button style={action} onClick={comingSoon}>Manage</button>,true)}</div>}
+          {section === "personalization" && <div style={{ ...card, marginTop: 16 }}><strong style={{fontSize:13}}>Your VANT experience</strong>{item("Floating Education widgets","Quick access to student tools.",toggle(floatingEducationWidgets,onToggleFloatingEducationWidgets,"Floating Education widgets"))}{item("Personalized AI responses","Adapt responses to your preferred workflow.",toggle(false,comingSoon,"Personalized AI responses"))}{item("Memory preferences","Manage future memory controls.",<button style={action} onClick={comingSoon}>Configure</button>,true)}</div>}
+          {section === "notifications" && <div style={{ ...card, marginTop: 16 }}><strong style={{fontSize:13}}>Notification preferences</strong><p style={muted}>Visual placeholders until notification delivery is connected.</p>{["Product updates","Workspace activity","Education reminders","Cowork task updates"].map((label,i)=>item(label,"Notification preference.",toggle(false,comingSoon,label),i===3))}</div>}
+          {section === "privacy" && <div style={{ ...card, marginTop: 16 }}><strong style={{fontSize:13}}>Privacy & data controls</strong><p style={muted}>More export and privacy tools will be connected later.</p>{item("Export my data","Prepare a copy of your VANT workspace data.",<button style={action} onClick={comingSoon}>Export</button>)}{item("Connected services","Review app integrations and permissions.",<button style={action} onClick={comingSoon}>Manage</button>,true)}<div style={{marginTop:18,paddingTop:14,borderTop:"1px solid "+theme.border}}><strong style={{fontSize:13,color:ac("red",isDark)}}>Reset VANT data</strong><p style={muted}>Resets saved theme, chats, tasks, and Cowork history.</p>{!resetConfirm ? <button style={{...action,marginTop:10,color:ac("red",isDark),background:acBg("red",isDark)}} onClick={()=>setResetConfirm(true)}>Reset my VANT data</button> : <div><p style={muted}>Are you sure? This cannot be undone.</p><button style={action} onClick={()=>setResetConfirm(false)}>Cancel</button><button style={{...action,marginLeft:8,color:ac("red",isDark)}} onClick={onClearData}>Confirm reset</button></div>}</div></div>}
+          {section === "about" && <div style={{ ...card, marginTop: 16 }}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{width:44,height:44,display:"grid",placeItems:"center",borderRadius:12,background:"rgba(185,145,63,.14)",color:"#B9913F",fontFamily:"Fraunces,serif",fontSize:24}}>V</div><div><strong style={{fontFamily:"Fraunces,serif",fontSize:18}}>VANT</strong><p style={muted}>Your AI work platform</p></div></div>{item("Version","Current web workspace.",<span style={{fontSize:12,color:theme.textMuted}}>Web app</span>)}{item("Help center","Guides and answers to common questions.",<button style={action} onClick={comingSoon}>Coming soon</button>)}{item("Terms & privacy","Review VANT policies.",<button style={action} onClick={comingSoon}>View policies</button>,true)}</div>}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginTop:18,color:theme.textFaint,fontSize:10.5}}><span>VANT · Built for work that moves.</span><button style={action} onClick={onClose}>Done</button></div>
+        </main>
       </div>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>APPEARANCE</p>
-        <button onClick={onToggleTheme} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>
-          {isDark ? <Sun size={14} /> : <Moon size={14} />} Switch to {isDark ? "Day" : "Dark"} theme
-        </button>
-      </div>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>PERSONALIZATION</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 13, border: "1px solid " + theme.border, borderRadius: 14, background: theme.surface }}>
-          <div style={{ flex: 1 }}><div style={{ color: theme.text, fontSize: 13.5, fontWeight: 600 }}>Floating Education widgets</div><div style={{ color: theme.textMuted, fontSize: 11.5, lineHeight: 1.5, marginTop: 4 }}>Keep your Student Calendar, Study Tracker, and Doc Files Cabinet available across VANT for quick access. You can turn this off anytime.</div></div>
-          <button type="button" role="switch" aria-checked={floatingEducationWidgets} onClick={onToggleFloatingEducationWidgets} style={{ width: 46, height: 27, padding: 3, border: 0, borderRadius: 99, background: floatingEducationWidgets ? "#7C3AED" : theme.border, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: floatingEducationWidgets ? "flex-end" : "flex-start" }}><span style={{ width: 21, height: 21, borderRadius: "50%", background: "#FFFFFF", boxShadow: "0 1px 4px rgba(0,0,0,.22)" }} /></button>
-        </div>
-        <p style={{ color: theme.textFaint, fontSize: 10.5, margin: "7px 0 0" }}>Disabled by default. Your Education tools remain available inside VANT Education.</p>
-      </div>
-
-      <div>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>DATA</p>
-        <button onClick={onClearData} style={{ padding: "9px 16px", borderRadius: 999, background: acBg("red", isDark), border: "none", color: ac("red", isDark), fontSize: 13.5, cursor: "pointer" }}>
-          Reset my VANT data
-        </button>
-        <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 8 }}>Resets this account's saved theme, chats, tasks, and Cowork history.</p>
-      </div>
-    </Overlay>
-  );
+    </div>
+  </Overlay>;
 }
-
 export default function VantWorkingPrototype() {
   const [active, setActive] = useState("chat");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [projects, setProjects] = useState([]);
   const [projectChat, setProjectChat] = useState(null);
   const [projectConversationId, setProjectConversationId] = useState(null);
@@ -5047,7 +5064,7 @@ export default function VantWorkingPrototype() {
     />;
     if (active === "projects") {
       const selectedProject = projects.find((item) => item.id === projectChat);
-      if (selectedProject && projectConversationId) return <ChatPage key={"project-chat-" + projectConversationId} {...props} user={user} projectId={selectedProject.id} projectName={selectedProject.name} projectMode projectId={selectedProject.id} conversations={conversations.filter((item) => item.projectId === selectedProject.id)} activeConversationId={projectConversationId} onGoToIntegrations={() => setActive("integrations")} onNewConversation={() => createProjectConversation(selectedProject.id)} onCreateConversation={(options) => createConversationDraft({ ...options, projectId: selectedProject.id })} onSelectConversation={openProjectConversation} onSaveConversation={(id, messages, projectId) => saveConversation(id, messages, projectId || selectedProject.id)} onTogglePinConversation={togglePinConversation} onDeleteConversation={deleteConversation} onBackToProject={() => { setProjectConversationId(null); setActive("projects"); }} />;
+      if (selectedProject && projectConversationId) return <ChatPage key={"project-chat-" + projectConversationId} {...props} user={user} projectId={selectedProject.id} projectName={selectedProject.name} projectMode conversations={conversations.filter((item) => item.projectId === selectedProject.id)} activeConversationId={projectConversationId} onGoToIntegrations={() => setActive("integrations")} onNewConversation={() => createProjectConversation(selectedProject.id)} onCreateConversation={(options) => createConversationDraft({ ...options, projectId: selectedProject.id })} onSelectConversation={openProjectConversation} onSaveConversation={(id, messages, projectId) => saveConversation(id, messages, projectId || selectedProject.id)} onTogglePinConversation={togglePinConversation} onDeleteConversation={deleteConversation} onBackToProject={() => { setProjectConversationId(null); setActive("projects"); }} />;
       if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} user={user} chats={conversations.filter((item) => item.projectId === selectedProject.id)} onBack={() => { setProjectChat(null); setProjectConversationId(null); }} onCustomize={customizeProject} onNewChat={() => createProjectConversation(selectedProject.id)} onOpenChat={openProjectConversation} onAskVant={() => askProjectVant(selectedProject.id)} onProjectLeft={(projectId) => setProjects((current) => current.filter((item) => item.id !== projectId))} />;
       return <ProjectsPage {...props} projects={projects} user={user} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
     }
@@ -5077,22 +5094,48 @@ export default function VantWorkingPrototype() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#FAFAF9", color: "#191919", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-        <style>{FONT_IMPORT}</style>
-        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 5vw", borderBottom: "1px solid #E8E5DF" }}>
+      <div className="vant-guest-landing" style={{ minHeight: "100vh", minHeight: "100dvh", width: "100%", maxWidth: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", background: "#FAFAF9", color: "#191919", fontFamily: "'DM Sans', system-ui, sans-serif", overflowX: "clip" }}>
+        <style>{FONT_IMPORT + `
+          html, body, #root { width: 100%; max-width: 100%; margin: 0; }
+          .vant-guest-landing, .vant-guest-landing * { box-sizing: border-box; }
+          .vant-guest-header { width: 100%; min-width: 0; }
+          .vant-guest-main { width: 100%; min-width: 0; }
+          .vant-guest-card { width: 100%; min-width: 0; }
+          .vant-guest-intro { min-width: 0; }
+          @media (max-width: 760px) {
+            .vant-guest-landing { min-height: 100dvh; height: auto; overflow-x: clip; }
+            .vant-guest-header { padding: 16px 18px !important; gap: 12px; }
+            .vant-guest-header > span { flex: 0 0 auto; font-size: 23px !important; }
+            .vant-guest-header > div { gap: 8px !important; }
+            .vant-guest-header button { padding: 10px 14px !important; font-size: 14px; }
+            .vant-guest-main { flex: 0 0 auto !important; margin: 0 auto !important; padding: 34px 16px 28px !important; }
+            .vant-guest-heading { font-size: clamp(30px, 8vw, 36px) !important; }
+            .vant-guest-subtitle { font-size: clamp(14px, 4vw, 16px) !important; line-height: 1.5; }
+            .vant-guest-card { padding: 16px !important; border-radius: 20px !important; }
+            .vant-guest-intro { min-height: 150px !important; padding: 12px 4px !important; font-size: 15px; line-height: 1.5; }
+            .vant-guest-button { min-height: 48px; padding: 14px 16px !important; }
+            .vant-guest-limit { font-size: 12px !important; }
+          }
+          @media (max-width: 360px) {
+            .vant-guest-header { padding-left: 12px !important; padding-right: 12px !important; }
+            .vant-guest-header button { padding: 9px 11px !important; font-size: 13px; }
+            .vant-guest-main { padding-left: 12px !important; padding-right: 12px !important; }
+          }
+        `}</style>
+        <header className="vant-guest-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 5vw", borderBottom: "1px solid #E8E5DF" }}>
           <span style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 25, fontWeight: 600, color: "#D0A650" }}>VANT</span>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => setAuthMode("login")} style={{ border: "1px solid #D8D5CF", background: "transparent", borderRadius: 999, padding: "10px 18px", cursor: "pointer", color: "#191919" }}>Log in</button>
             <button onClick={() => setAuthMode("signup")} style={{ border: 0, background: "#191919", color: "#FFFFFF", borderRadius: 999, padding: "10px 18px", cursor: "pointer" }}>Sign up</button>
           </div>
         </header>
-        <main style={{ width: "100%", maxWidth: 880, margin: "auto", padding: "54px 24px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <main className="vant-guest-main" style={{ width: "100%", maxWidth: 880, margin: "auto", padding: "54px 24px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={{ textAlign: "center", marginBottom: 24 }}>
-            <h1 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 36, fontWeight: 500, margin: "0 0 10px" }}>Meet VANT.</h1>
-            <p style={{ color: "#6B6964", fontSize: 16, margin: 0 }}>Try a conversation first. No account needed.</p>
+            <h1 className="vant-guest-heading" style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 36, fontWeight: 500, margin: "0 0 10px" }}>Meet VANT.</h1>
+            <p className="vant-guest-subtitle" style={{ color: "#6B6964", fontSize: 16, margin: 0 }}>Try a conversation first. No account needed.</p>
           </div>
-          <div style={{ border: "1px solid #E5E3DE", borderRadius: 22, background: "#FFFFFF", padding: 20, boxShadow: "0 12px 40px rgba(25,25,25,0.05)" }}>
-            <div style={{ minHeight: 250, padding: "12px 8px", color: "#6B6964", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+          <div className="vant-guest-card" style={{ border: "1px solid #E5E3DE", borderRadius: 22, background: "#FFFFFF", padding: 20, boxShadow: "0 12px 40px rgba(25,25,25,0.05)" }}>
+            <div className="vant-guest-intro" style={{ minHeight: 250, padding: "12px 8px", color: "#6B6964", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
               {authReady ? "Start with a guest chat—your first five successful replies are on us." : "Preparing your guest session…"}
             </div>
             <button onClick={async () => {
@@ -5113,8 +5156,8 @@ export default function VantWorkingPrototype() {
                 console.error("VANT guest sign-in exception", err);
                 alert("Guest sign-in error: " + (err?.message || String(err)));
               }
-            }} style={{ width: "100%", border: 0, background: "#191919", color: "#FFFFFF", borderRadius: 999, padding: "15px 20px", fontWeight: 600, cursor: "pointer" }}>Continue as Guest</button>
-            <p style={{ color: "#77736A", fontSize: 12, lineHeight: 1.5, textAlign: "center", margin: "12px 0 0" }}>5 successful VANT replies per day · Resets at 00:00 Philippine time</p>
+            }} className="vant-guest-button" style={{ width: "100%", border: 0, background: "#191919", color: "#FFFFFF", borderRadius: 999, padding: "15px 20px", fontWeight: 600, cursor: "pointer" }}>Continue as Guest</button>
+            <p className="vant-guest-limit" style={{ color: "#77736A", fontSize: 12, lineHeight: 1.5, textAlign: "center", margin: "12px 0 0" }}>5 successful VANT replies per day · Resets at 00:00 Philippine time</p>
           </div>
         </main>
         {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
@@ -5131,9 +5174,10 @@ export default function VantWorkingPrototype() {
           .vant-sidebar-label { display: none; }
         }
       `}</style>
-      <Sidebar active={active} onSelect={setActive} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} onOpenSettings={() => setSettingsOpen(true)} />
+      <Sidebar active={active} onSelect={(next) => { setActive(next); setMobileSidebarOpen(false); }} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} onOpenSettings={() => setSettingsOpen(true)} mobileSidebarOpen={mobileSidebarOpen} onToggleMobileSidebar={() => setMobileSidebarOpen((open) => !open)} />
+      {mobileSidebarOpen && <button type="button" className="vant-mobile-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setMobileSidebarOpen(false)} />}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: theme.bg }}> 
-        <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={(mode) => setAuthMode(mode || "signup")} onOpenSettings={() => setSettingsOpen(true)} />
+        <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={(mode) => setAuthMode(mode || "signup")} onOpenSettings={() => setSettingsOpen(true)} onToggleMobileSidebar={() => setMobileSidebarOpen((open) => !open)} />
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", position: "relative" }}>
           {renderPage()}
           {user?.isGuest === true && active !== "chat" && (

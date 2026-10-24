@@ -114,14 +114,14 @@ export default function VantMemoryPage({ theme, isDark, user }) {
   }
 
   return (
-    <div style={{ height: "100%", overflowY: "auto", padding: "clamp(20px, 3vw, 34px)", maxWidth: 1100, margin: "0 auto", width: "100%" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 26 }}>
+    <div className="vant-memory-page" style={{ height: "100%", overflowY: "auto", padding: "clamp(20px, 3vw, 34px)", maxWidth: 1100, margin: "0 auto", width: "100%" }}>
+      <div className="vant-memory-hero" style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 26 }}>
         <div style={{ width: 48, height: 48, borderRadius: 15, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(208,166,80,0.13)", border: "1px solid rgba(208,166,80,0.24)", flexShrink: 0 }}>
           <BrainCircuit size={23} color={gold} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ color: gold, fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 1.8, marginBottom: 6 }}>PERSONAL CONTEXT</div>
-          <h1 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 29, fontWeight: 500, margin: "0 0 7px", color: theme.text }}>VANT Memory</h1>
+          <h1 className="vant-memory-title" style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 29, fontWeight: 500, margin: "0 0 7px", color: theme.text }}>VANT Memory</h1>
           <p style={{ color: theme.textMuted, fontSize: 13.5, lineHeight: 1.6, margin: 0, maxWidth: 660 }}>Give VANT context that lasts beyond one conversation. Save preferences, goals, important facts, and working instructions — and stay in control of what it remembers.</p>
         </div>
         <button type="button" onClick={startNew} style={{ ...button, background: "linear-gradient(135deg,#D0A650,#B9913F)", color: "#191919", border: "1px solid #B9913F", whiteSpace: "nowrap" }}><Plus size={15} /> Add memory</button>

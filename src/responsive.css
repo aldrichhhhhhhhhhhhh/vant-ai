@@ -1,0 +1,823 @@
+/* VANT responsive shell improvements — additive overrides, desktop-first source preserved. */
+:root {
+  color-scheme: light dark;
+  --vant-mobile-rail: 64px;
+}
+html, body, #root {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+}
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+#root > div {
+  min-height: 0 !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh;
+}
+#root button, #root input, #root textarea, #root select {
+  touch-action: manipulation;
+}
+#root input, #root textarea, #root select {
+  max-width: 100%;
+}
+#root img, #root video, #root canvas, #root svg {
+  max-width: 100%;
+}
+#root [role="dialog"] {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (max-width: 760px) {
+  #root > div > aside {
+    width: var(--vant-mobile-rail) !important;
+    min-width: var(--vant-mobile-rail) !important;
+    flex: 0 0 var(--vant-mobile-rail) !important;
+    padding: 12px 6px !important;
+    gap: 6px !important;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  #root > div > aside::-webkit-scrollbar { display: none; }
+  #root > div > aside > div:first-child {
+    justify-content: center !important;
+    padding: 2px 0 14px !important;
+    margin-bottom: 4px !important;
+  }
+  #root > div > aside > div:first-child > span { display: none !important; }
+  #root > div > aside nav button,
+  #root > div > aside > button {
+    justify-content: center !important;
+    gap: 0 !important;
+    padding: 10px 0 !important;
+    min-height: 44px !important;
+  }
+  #root > div > aside nav button > span,
+  #root > div > aside > button > span { display: none !important; }
+  #root > div > aside > div:nth-of-type(2) > button > span { display: none !important; }
+  #root > div > aside > div:nth-of-type(2) > button > svg:last-child { display: none !important; }
+  #root > div > aside > div:nth-of-type(2) > div { margin-left: 0 !important; padding-left: 0 !important; border-left: 0 !important; }
+  #root > div > aside > div:nth-of-type(2) > div button {
+    justify-content: center !important;
+    padding: 8px 0 !important;
+  }
+  #root > div > aside > div:nth-of-type(2) > div button > span:last-child { display: none !important; }
+  #root > div > div {
+    min-width: 0 !important;
+    width: calc(100% - var(--vant-mobile-rail)) !important;
+  }
+  #root > div > div > div:first-child {
+    height: auto !important;
+    min-height: 52px;
+    padding: 8px 10px !important;
+    gap: 6px !important;
+    flex-wrap: wrap;
+  }
+  #root > div > div > div:first-child > span {
+    font-size: 10px !important;
+    letter-spacing: .7px !important;
+    max-width: 36%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #root > div > div > div:first-child > div {
+    gap: 5px !important;
+    min-width: 0;
+  }
+  #root > div > div > div:first-child button {
+    min-height: 36px;
+    padding: 7px 10px !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+  }
+  #root > div > div > div:first-child > div > span {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px !important;
+  }
+  #root > div > div > div:nth-child(2) {
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  #root [style*="grid-template-columns"] {
+    min-width: 0;
+  }
+  #root [role="dialog"] {
+    width: calc(100vw - 20px) !important;
+    max-width: 440px;
+    padding: 18px !important;
+  }
+}
+@media (max-width: 390px) {
+  :root { --vant-mobile-rail: 56px; }
+  #root > div > div > div:first-child > span { max-width: 30%; }
+  #root > div > div > div:first-child > div > span { max-width: 78px; }
+  #root > div > div > div:first-child button { padding: 6px 8px !important; }
+}
+@media (max-height: 560px) {
+  #root > div > aside { padding-top: 8px !important; padding-bottom: 8px !important; }
+  #root > div > aside > div:first-child { padding-bottom: 8px !important; }
+  #root > div > aside nav { gap: 3px !important; }
+  #root > div > aside nav button { min-height: 38px !important; padding-top: 7px !important; padding-bottom: 7px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root *, #root *::before, #root *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+
+/* Pass 2: make the conversation workspace use the full phone viewport. */
+@media (max-width: 760px) {
+  #root .vant-chat-page {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+  #root .vant-chat-page > aside {
+    display: none !important;
+  }
+  #root .vant-chat-page > .vant-chat-workspace {
+    display: flex !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    min-width: 0 !important;
+  }
+  #root .vant-chat-workspace .vant-message-list {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 14px 10px 18px !important;
+  }
+  #root .vant-chat-workspace .vant-message-bubble {
+    max-width: 96% !important;
+    overflow-wrap: anywhere !important;
+  }
+  #root .vant-chat-workspace form {
+    min-width: 0 !important;
+    gap: 5px !important;
+    padding: 5px !important;
+  }
+  #root .vant-chat-workspace form textarea {
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 16px !important;
+  }
+  #root .vant-chat-workspace form button[type="submit"] {
+    flex: 0 0 40px !important;
+  }
+  #root .vant-chat-workspace > div:last-child {
+    padding: 8px 10px max(12px, env(safe-area-inset-bottom)) !important;
+  }
+  #root .vant-chat-page > div {
+    min-width: 0 !important;
+  }
+}
+
+
+/* Pass 3: narrow screens must render chat as one column. */
+@media (max-width: 760px) {
+  #root .vant-chat-page {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  #root .vant-chat-page > aside {
+    display: none !important;
+  }
+  #root .vant-chat-page > .vant-chat-workspace {
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type {
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+    min-width: 0 !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type > span:first-of-type {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+    font-size: 14px !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type > span:last-child {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
+  }
+  #root .vant-chat-workspace .vant-message-list {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 14px 12px 18px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  #root .vant-chat-workspace .vant-message-row,
+  #root .vant-chat-workspace .vant-response-actions {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+  }
+  #root .vant-chat-workspace .vant-message-bubble {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-wrap: anywhere !important;
+  }
+  #root .vant-chat-workspace form {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 8px 10px max(10px, env(safe-area-inset-bottom)) !important;
+    gap: 6px !important;
+  }
+  #root .vant-chat-workspace form textarea {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: 0 !important;
+    max-width: 100% !important;
+    font-size: 16px !important;
+  }
+}
+
+
+/* Pass 4: mobile navigation drawer and a direct route back to chat history. */
+@media (max-width: 760px) {
+  #root > div > .vant-main-sidebar {
+    display: none !important;
+  }
+  #root > div > .vant-main-sidebar.is-mobile-open {
+    display: flex !important;
+    position: fixed !important;
+    z-index: 1002 !important;
+    inset: 0 auto 0 0 !important;
+    width: min(82vw, 280px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 56px) !important;
+    height: 100dvh !important;
+    padding: 18px 12px !important;
+    box-shadow: 18px 0 60px rgba(0,0,0,.22) !important;
+    overflow-y: auto !important;
+    background: var(--vant-sidebar-bg, #fafaf9) !important;
+  }
+  #root .vant-mobile-nav-toggle {
+    display: inline-flex !important;
+  }
+  #root .vant-topbar {
+    padding: 0 10px !important;
+    gap: 8px !important;
+  }
+  #root .vant-topbar > span:first-of-type {
+    max-width: 30vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #root .vant-chat-page > aside.vant-chat-history {
+    display: none !important;
+  }
+  #root .vant-chat-page > aside.vant-chat-history.is-mobile-open {
+    display: flex !important;
+    position: fixed !important;
+    z-index: 1004 !important;
+    inset: 0 auto 0 0 !important;
+    width: min(86vw, 340px) !important;
+    max-width: calc(100vw - 48px) !important;
+    height: 100dvh !important;
+    box-shadow: 18px 0 60px rgba(0,0,0,.25) !important;
+    overflow-y: auto !important;
+  }
+  #root .vant-mobile-history-backdrop {
+    display: block !important;
+    position: fixed !important;
+    z-index: 1003 !important;
+    inset: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(10,10,14,.42) !important;
+    padding: 0 !important;
+  }
+  #root .vant-mobile-history-button {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type {
+    gap: 7px !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type > span:first-of-type {
+    font-size: 13px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+  }
+}
+@media (max-width: 390px) {
+  #root .vant-mobile-history-button {
+    padding: 7px !important;
+  }
+  #root .vant-mobile-history-button span {
+    display: none;
+  }
+}
+
+
+/* Pass 5: enforce compact drawer sizing regardless of the app-shell nesting. */
+@media (max-width: 760px) {
+  .vant-main-sidebar,
+  #root .vant-main-sidebar {
+    display: none !important;
+  }
+  .vant-main-sidebar.is-mobile-open,
+  #root .vant-main-sidebar.is-mobile-open {
+    display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    width: min(76vw, 292px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 64px) !important;
+    flex: 0 0 min(76vw, 292px) !important;
+    box-sizing: border-box !important;
+    height: 100dvh !important;
+    padding: 16px 12px !important;
+    z-index: 1200 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+  .vant-main-sidebar.is-mobile-open > div:first-child {
+    justify-content: center !important;
+    padding: 4px 4px 16px !important;
+  }
+  .vant-main-sidebar.is-mobile-open > div:first-child > span {
+    display: none !important;
+  }
+  .vant-main-sidebar.is-mobile-open nav button {
+    min-height: 46px !important;
+    padding: 10px 12px !important;
+  }
+  .vant-main-sidebar.is-mobile-open nav button span {
+    font-size: 14px !important;
+  }
+  .vant-chat-history.is-mobile-open,
+  #root .vant-chat-history.is-mobile-open {
+    display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    width: min(84vw, 330px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 56px) !important;
+    flex: 0 0 min(84vw, 330px) !important;
+    box-sizing: border-box !important;
+    height: 100dvh !important;
+    z-index: 1202 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+  .vant-chat-history:not(.is-mobile-open) {
+    display: none !important;
+  }
+  .vant-chat-history.is-mobile-open > div:first-child {
+    padding: 18px 16px !important;
+  }
+  .vant-chat-history.is-mobile-open > div:nth-child(2) {
+    padding: 12px 12px !important;
+  }
+  .vant-chat-history.is-mobile-open button {
+    min-height: 34px;
+  }
+  .vant-mobile-history-backdrop {
+    position: fixed !important;
+    z-index: 1201 !important;
+    inset: 0 !important;
+  }
+}
+@media (max-width: 390px) {
+  .vant-main-sidebar.is-mobile-open,
+  #root .vant-main-sidebar.is-mobile-open {
+    width: min(78vw, 272px) !important;
+    flex-basis: min(78vw, 272px) !important;
+  }
+  .vant-chat-history.is-mobile-open,
+  #root .vant-chat-history.is-mobile-open {
+    width: min(84vw, 310px) !important;
+    flex-basis: min(84vw, 310px) !important;
+  }
+}
+
+
+/* Pass 6: keep labels visible in the opened mobile navigation drawer. */
+@media (max-width: 760px) {
+  .vant-main-sidebar.is-mobile-open > div:first-child > span {
+    display: inline !important;
+  }
+  .vant-main-sidebar.is-mobile-open nav button span,
+  .vant-main-sidebar.is-mobile-open > div button span,
+  .vant-main-sidebar.is-mobile-open button span {
+    display: inline !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  .vant-main-sidebar.is-mobile-open nav button {
+    justify-content: flex-start !important;
+    text-align: left !important;
+    width: 100% !important;
+  }
+}
+
+
+/* Pass 7: the original icon-rail selectors use #root > div > aside,
+   so the open drawer needs equally specific, state-aware overrides. */
+@media (max-width: 760px) {
+  #root > div > aside.vant-main-sidebar.is-mobile-open {
+    width: min(76vw, 292px) !important;
+    min-width: 0 !important;
+    flex: 0 0 min(76vw, 292px) !important;
+    padding: 16px 12px !important;
+    gap: 7px !important;
+    overflow-x: hidden !important;
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open > div:first-child {
+    justify-content: flex-start !important;
+    padding: 2px 10px 22px !important;
+    margin-bottom: 10px !important;
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open > div:first-child > span {
+    display: inline !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button {
+    justify-content: flex-start !important;
+    gap: 12px !important;
+    padding: 10px 12px !important;
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button > span,
+  #root > div > aside.vant-main-sidebar.is-mobile-open > button > span,
+  #root > div > aside.vant-main-sidebar.is-mobile-open > div button > span {
+    display: inline !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open > div:nth-of-type(2) > div button > span:last-child {
+    display: inline !important;
+  }
+}
+
+
+/* VANT Motion UX — mobile only. Desktop behavior remains unchanged. */
+@media (max-width: 760px) {
+  @keyframes vant-mobile-drawer-in {
+    from { opacity: 0; transform: translate3d(-14px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes vant-mobile-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes vant-mobile-item-in {
+    from { opacity: 0; transform: translate3d(-5px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+
+  #root > div > aside.vant-main-sidebar.is-mobile-open,
+  #root .vant-chat-history.is-mobile-open {
+    animation: vant-mobile-drawer-in 240ms cubic-bezier(.2,.75,.25,1) both;
+    transform-origin: left center;
+    will-change: transform, opacity;
+  }
+  #root .vant-mobile-history-backdrop {
+    animation: vant-mobile-backdrop-in 180ms ease-out both;
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button {
+    transition: background-color 160ms ease, border-color 160ms ease,
+      transform 160ms ease, color 160ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:active {
+    transform: scale(.985);
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(1) { animation: vant-mobile-item-in 180ms 25ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(2) { animation: vant-mobile-item-in 180ms 40ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(3) { animation: vant-mobile-item-in 180ms 55ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(4) { animation: vant-mobile-item-in 180ms 70ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(5) { animation: vant-mobile-item-in 180ms 85ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(6) { animation: vant-mobile-item-in 180ms 100ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(7) { animation: vant-mobile-item-in 180ms 115ms both; }
+
+  #root .vant-mobile-nav-toggle,
+  #root .vant-mobile-history-button,
+  #root .vant-chat-workspace form button,
+  #root .vant-chat-history button {
+    transition: transform 150ms ease, background-color 150ms ease,
+      border-color 150ms ease, opacity 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #root .vant-mobile-nav-toggle:active,
+  #root .vant-mobile-history-button:active,
+  #root .vant-chat-workspace form button:active,
+  #root .vant-chat-history button:active {
+    transform: scale(.97);
+  }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  #root > div > aside.vant-main-sidebar.is-mobile-open,
+  #root .vant-chat-history.is-mobile-open,
+  #root .vant-mobile-history-backdrop,
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+
+/* Pass 2 — mobile chat composer comfort and focused-state polish. */
+@media (max-width: 760px) {
+  #root .vant-chat-workspace form {
+    align-items: flex-end !important;
+    border-radius: 20px !important;
+    transition: box-shadow 180ms ease, border-color 180ms ease,
+      background-color 180ms ease, transform 180ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #root .vant-chat-workspace form:focus-within {
+    box-shadow: 0 0 0 2px rgba(208, 166, 80, .22),
+      0 8px 24px rgba(0, 0, 0, .07) !important;
+  }
+  #root .vant-chat-workspace form textarea {
+    box-sizing: border-box !important;
+    min-height: 44px !important;
+    max-height: min(32dvh, 180px) !important;
+    padding: 12px 10px !important;
+    line-height: 1.45 !important;
+    letter-spacing: normal !important;
+    vertical-align: middle !important;
+    resize: none !important;
+    overflow-y: auto !important;
+    -webkit-appearance: none;
+    appearance: none;
+    caret-color: #D0A650;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+  #root .vant-chat-workspace form textarea::placeholder {
+    line-height: 1.45 !important;
+    opacity: .72;
+  }
+  #root .vant-chat-workspace form button {
+    min-height: 42px !important;
+    min-width: 40px !important;
+    border-radius: 14px !important;
+    transform-origin: center;
+  }
+  #root .vant-chat-workspace form button:focus-visible {
+    outline: 2px solid rgba(208, 166, 80, .85) !important;
+    outline-offset: 2px !important;
+  }
+  #root .vant-chat-workspace form button:active {
+    transform: scale(.96);
+  }
+  #root .vant-chat-workspace > div:last-child {
+    padding-bottom: max(14px, env(safe-area-inset-bottom)) !important;
+  }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  #root .vant-chat-workspace form,
+  #root .vant-chat-workspace form textarea,
+  #root .vant-chat-workspace form button {
+    transition: none !important;
+  }
+}
+
+
+/* Mobile navigation dismiss layer — tapping outside the drawer closes it. */
+@media (max-width: 760px) {
+  #root .vant-mobile-sidebar-backdrop {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1199 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(10, 10, 14, .38) !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent;
+    animation: vant-mobile-backdrop-in 180ms ease-out both;
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open {
+    z-index: 1200 !important;
+  }
+}
+@media (min-width: 761px) {
+  #root .vant-mobile-sidebar-backdrop {
+    display: none !important;
+  }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  #root .vant-mobile-sidebar-backdrop {
+    animation: none !important;
+  }
+}
+
+/* Mobile modal polish: lighter backdrop and a scrollable, viewport-aware panel. */
+@media (max-width: 760px) {
+  #root div[style*="z-index: 100"] {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    box-sizing: border-box !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding: max(16px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)) !important;
+    overflow-y: auto !important;
+    background: rgba(18, 18, 22, .20) !important;
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+  #root div[style*="z-index: 100"] > div {
+    width: 100% !important;
+    max-height: calc(100dvh - max(32px, env(safe-area-inset-top) + env(safe-area-inset-bottom) + 32px)) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box !important;
+    padding: 20px !important;
+    margin: auto 0 !important;
+  }
+}
+
+/* Settings workspace: responsive section navigation and content layout. */
+#root .vant-settings-shell { border-radius: 18px; overflow: hidden; }
+#root .vant-settings-layout, #root .vant-settings-content { min-width: 0; }
+@media (max-width: 760px) {
+  #root .vant-settings-shell { margin: -20px !important; border-radius: 16px; }
+  #root .vant-settings-shell > header { padding: 18px 16px 14px !important; }
+  #root .vant-settings-layout { grid-template-columns: minmax(0, 1fr) !important; min-height: 0 !important; }
+  #root .vant-settings-nav { flex-direction: row !important; overflow-x: auto !important; overflow-y: hidden !important; white-space: nowrap !important; border-right: 0 !important; border-bottom: 1px solid rgba(128,128,128,.2) !important; padding: 9px !important; gap: 5px !important; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  #root .vant-settings-nav::-webkit-scrollbar { display: none; }
+  #root .vant-settings-nav > button { flex: 0 0 auto !important; padding: 9px 11px !important; }
+  #root .vant-settings-nav > div { display: none !important; }
+  #root .vant-settings-content { padding: 16px !important; }
+}
+
+
+/* Settings modal sizing refinement: compact mobile footprint and single close control. */
+#root .vant-settings-overlay-panel { max-height: min(88dvh, 820px) !important; overflow-y: auto !important; overscroll-behavior: contain; }
+#root .vant-settings-shell { width: 100%; }
+@media (max-width: 760px) {
+  #root .vant-settings-overlay { padding: 12px !important; align-items: center !important; }
+  #root .vant-settings-overlay-panel { width: min(100%, 560px) !important; max-width: 560px !important; max-height: 82dvh !important; padding: 14px !important; margin: 0 auto !important; border-radius: 16px !important; }
+  #root .vant-settings-shell { margin: -14px !important; border-radius: 15px !important; }
+  #root .vant-settings-shell > header { padding: 16px 14px 13px !important; }
+  #root .vant-settings-shell > header h2 { font-size: 23px !important; }
+  #root .vant-settings-content { padding: 13px !important; }
+  #root .vant-settings-content > div { padding: 12px !important; }
+  #root .vant-settings-content > div > div { gap: 9px !important; }
+}
+
+
+/* Mobile layout audit — dashboard, Education library, and VANT Memory. */
+@media (max-width: 760px) {
+  #root .vant-dashboard-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+  #root .vant-dashboard-kpis > button {
+    min-width: 0 !important;
+    padding: 13px 12px !important;
+    overflow-wrap: anywhere !important;
+  }
+  #root .vant-dashboard-kpis > button p:first-child {
+    font-size: 9px !important;
+    letter-spacing: .7px !important;
+    line-height: 1.4 !important;
+    flex-wrap: wrap !important;
+  }
+  #root .vant-dashboard-kpis > button p:nth-child(2) {
+    font-size: 25px !important;
+  }
+  #root .vant-dashboard-productivity {
+    padding: 14px 12px !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  #root .vant-dashboard-productivity > div {
+    gap: 5px !important;
+  }
+  #root .vant-dashboard-productivity > div span {
+    font-size: 10px !important;
+  }
+
+  #root .vant-education-library-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+  #root .vant-education-library-nav {
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 12px !important;
+  }
+  #root .vant-education-library-nav button {
+    min-width: 0 !important;
+  }
+  #root .vant-education-library-nav button > span:first-child {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+  }
+  #root .vant-education-library-content {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  #root .vant-education-library-content input,
+  #root .vant-education-library-content select,
+  #root .vant-education-library-content button {
+    max-width: 100% !important;
+  }
+
+  #root .vant-memory-page {
+    padding: 18px 14px 26px !important;
+    overflow-x: hidden !important;
+  }
+  #root .vant-memory-hero {
+    display: grid !important;
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+    align-items: start !important;
+    gap: 10px 12px !important;
+    margin-bottom: 20px !important;
+  }
+  #root .vant-memory-hero > div:first-child {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 12px !important;
+  }
+  #root .vant-memory-hero > div:nth-child(2) {
+    min-width: 0 !important;
+  }
+  #root .vant-memory-title {
+    font-size: clamp(25px, 7vw, 30px) !important;
+    line-height: 1.14 !important;
+    letter-spacing: -.35px !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+  #root .vant-memory-hero > button {
+    grid-column: 2 !important;
+    justify-self: start !important;
+    white-space: normal !important;
+    min-height: 40px !important;
+    padding: 9px 13px !important;
+  }
+  #root .vant-memory-page > div[style*="grid-template-columns"] {
+    min-width: 0 !important;
+  }
+  #root .vant-memory-page input,
+  #root .vant-memory-page select {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+}
+@media (max-width: 390px) {
+  #root .vant-dashboard-kpis { gap: 8px !important; }
+  #root .vant-dashboard-kpis > button { padding: 11px 9px !important; }
+  #root .vant-memory-page { padding-left: 12px !important; padding-right: 12px !important; }
+}
