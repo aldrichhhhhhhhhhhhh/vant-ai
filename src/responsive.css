@@ -349,3 +349,92 @@ body {
     display: none;
   }
 }
+
+
+/* Pass 5: enforce compact drawer sizing regardless of the app-shell nesting. */
+@media (max-width: 760px) {
+  .vant-main-sidebar,
+  #root .vant-main-sidebar {
+    display: none !important;
+  }
+  .vant-main-sidebar.is-mobile-open,
+  #root .vant-main-sidebar.is-mobile-open {
+    display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    width: min(76vw, 292px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 64px) !important;
+    flex: 0 0 min(76vw, 292px) !important;
+    box-sizing: border-box !important;
+    height: 100dvh !important;
+    padding: 16px 12px !important;
+    z-index: 1200 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+  .vant-main-sidebar.is-mobile-open > div:first-child {
+    justify-content: center !important;
+    padding: 4px 4px 16px !important;
+  }
+  .vant-main-sidebar.is-mobile-open > div:first-child > span {
+    display: none !important;
+  }
+  .vant-main-sidebar.is-mobile-open nav button {
+    min-height: 46px !important;
+    padding: 10px 12px !important;
+  }
+  .vant-main-sidebar.is-mobile-open nav button span {
+    font-size: 14px !important;
+  }
+  .vant-chat-history.is-mobile-open,
+  #root .vant-chat-history.is-mobile-open {
+    display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    width: min(84vw, 330px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 56px) !important;
+    flex: 0 0 min(84vw, 330px) !important;
+    box-sizing: border-box !important;
+    height: 100dvh !important;
+    z-index: 1202 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+  .vant-chat-history:not(.is-mobile-open) {
+    display: none !important;
+  }
+  .vant-chat-history.is-mobile-open > div:first-child {
+    padding: 18px 16px !important;
+  }
+  .vant-chat-history.is-mobile-open > div:nth-child(2) {
+    padding: 12px 12px !important;
+  }
+  .vant-chat-history.is-mobile-open button {
+    min-height: 34px;
+  }
+  .vant-mobile-history-backdrop {
+    position: fixed !important;
+    z-index: 1201 !important;
+    inset: 0 !important;
+  }
+}
+@media (max-width: 390px) {
+  .vant-main-sidebar.is-mobile-open,
+  #root .vant-main-sidebar.is-mobile-open {
+    width: min(78vw, 272px) !important;
+    flex-basis: min(78vw, 272px) !important;
+  }
+  .vant-chat-history.is-mobile-open,
+  #root .vant-chat-history.is-mobile-open {
+    width: min(84vw, 310px) !important;
+    flex-basis: min(84vw, 310px) !important;
+  }
+}
