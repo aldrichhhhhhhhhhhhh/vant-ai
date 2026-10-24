@@ -685,3 +685,17 @@ body {
     margin: auto 0 !important;
   }
 }
+
+/* Settings workspace: responsive section navigation and content layout. */
+#root .vant-settings-shell { border-radius: 18px; overflow: hidden; }
+#root .vant-settings-layout, #root .vant-settings-content { min-width: 0; }
+@media (max-width: 760px) {
+  #root .vant-settings-shell { margin: -20px !important; border-radius: 16px; }
+  #root .vant-settings-shell > header { padding: 18px 16px 14px !important; }
+  #root .vant-settings-layout { grid-template-columns: minmax(0, 1fr) !important; min-height: 0 !important; }
+  #root .vant-settings-nav { flex-direction: row !important; overflow-x: auto !important; overflow-y: hidden !important; white-space: nowrap !important; border-right: 0 !important; border-bottom: 1px solid rgba(128,128,128,.2) !important; padding: 9px !important; gap: 5px !important; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  #root .vant-settings-nav::-webkit-scrollbar { display: none; }
+  #root .vant-settings-nav > button { flex: 0 0 auto !important; padding: 9px 11px !important; }
+  #root .vant-settings-nav > div { display: none !important; }
+  #root .vant-settings-content { padding: 16px !important; }
+}
