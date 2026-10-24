@@ -656,3 +656,16 @@ body {
     animation: none !important;
   }
 }
+
+/* Keep settings and other dialogs usable on short mobile viewports. */
+@media (max-width: 760px) {
+  #root div[style*="z-index: 100"] > div[style*="max-width: 420px"] {
+    width: 100% !important;
+    max-height: calc(100dvh - 32px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box !important;
+    padding: 20px !important;
+  }
+}
