@@ -564,3 +564,61 @@ body {
     transform: none !important;
   }
 }
+
+
+/* Pass 2 — mobile chat composer comfort and focused-state polish. */
+@media (max-width: 760px) {
+  #root .vant-chat-workspace form {
+    align-items: flex-end !important;
+    border-radius: 20px !important;
+    transition: box-shadow 180ms ease, border-color 180ms ease,
+      background-color 180ms ease, transform 180ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #root .vant-chat-workspace form:focus-within {
+    box-shadow: 0 0 0 2px rgba(208, 166, 80, .22),
+      0 8px 24px rgba(0, 0, 0, .07) !important;
+  }
+  #root .vant-chat-workspace form textarea {
+    box-sizing: border-box !important;
+    min-height: 44px !important;
+    max-height: min(32dvh, 180px) !important;
+    padding: 12px 10px !important;
+    line-height: 1.45 !important;
+    letter-spacing: normal !important;
+    vertical-align: middle !important;
+    resize: none !important;
+    overflow-y: auto !important;
+    -webkit-appearance: none;
+    appearance: none;
+    caret-color: #D0A650;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+  #root .vant-chat-workspace form textarea::placeholder {
+    line-height: 1.45 !important;
+    opacity: .72;
+  }
+  #root .vant-chat-workspace form button {
+    min-height: 42px !important;
+    min-width: 40px !important;
+    border-radius: 14px !important;
+    transform-origin: center;
+  }
+  #root .vant-chat-workspace form button:focus-visible {
+    outline: 2px solid rgba(208, 166, 80, .85) !important;
+    outline-offset: 2px !important;
+  }
+  #root .vant-chat-workspace form button:active {
+    transform: scale(.96);
+  }
+  #root .vant-chat-workspace > div:last-child {
+    padding-bottom: max(14px, env(safe-area-inset-bottom)) !important;
+  }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  #root .vant-chat-workspace form,
+  #root .vant-chat-workspace form textarea,
+  #root .vant-chat-workspace form button {
+    transition: none !important;
+  }
+}
