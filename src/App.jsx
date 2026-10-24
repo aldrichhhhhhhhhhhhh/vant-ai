@@ -503,7 +503,7 @@ function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSetting
   const sidebarIcon = isDark ? "#AAA4C2" : "#77736A";
   const gold = isDark ? "#D0A650" : "#B9913F";
   return (
-    <aside className={`vant-main-sidebar${mobileSidebarOpen ? " is-mobile-open" : ""}`} style={{ width: 224, flexShrink: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", padding: "20px 14px", gap: 7, color: sidebarText }}>
+    <aside className={`vant-main-sidebar${mobileSidebarOpen ? " is-mobile-open" : ""}`} style={{ width: mobileSidebarOpen ? "min(76vw, 292px)" : 224, maxWidth: mobileSidebarOpen ? "calc(100vw - 64px)" : undefined, boxSizing: "border-box", flex: mobileSidebarOpen ? "0 0 min(76vw, 292px)" : "0 0 224px", minWidth: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", padding: mobileSidebarOpen ? "16px 12px" : "20px 14px", gap: 7, color: sidebarText }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 10px 22px", marginBottom: 10, borderBottom: `1px solid ${theme.border}` }}>
         <div style={{ width: 30, height: 30, borderRadius: 9, background: isDark ? "linear-gradient(135deg,#D0A650,#8E6C2B)" : "#D0A650", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isDark ? "0 4px 14px rgba(208,166,80,0.16)" : "none" }}>
           <span style={{ color: "#191919", fontFamily: "JetBrains Mono, monospace", fontWeight: 700, fontSize: 15 }}>V</span>
@@ -1474,7 +1474,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
       </div>
     );
     return (
-      <aside className={`vant-chat-history${mobileOpen ? " is-mobile-open" : ""}`} data-mobile-open={mobileOpen ? "true" : "false"} style={{ width: 270, flexShrink: 0, borderRight: `1px solid ${theme.border}`, background: isDark ? theme.sidebarBg : theme.surfaceCard, color: theme.text, display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <aside className={`vant-chat-history${mobileOpen ? " is-mobile-open" : ""}`} data-mobile-open={mobileOpen ? "true" : "false"} style={{ width: mobileOpen ? "min(84vw, 330px)" : 270, maxWidth: mobileOpen ? "calc(100vw - 56px)" : undefined, boxSizing: "border-box", flex: mobileOpen ? "0 0 min(84vw, 330px)" : "0 0 270px", minWidth: 0, borderRight: `1px solid ${theme.border}`, background: isDark ? theme.sidebarBg : theme.surfaceCard, color: theme.text, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div style={{ padding: "16px 14px 12px", borderBottom: `1px solid ${theme.border}` }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div>
