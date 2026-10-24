@@ -714,3 +714,110 @@ body {
   #root .vant-settings-content > div { padding: 12px !important; }
   #root .vant-settings-content > div > div { gap: 9px !important; }
 }
+
+
+/* Mobile layout audit — dashboard, Education library, and VANT Memory. */
+@media (max-width: 760px) {
+  #root .vant-dashboard-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+  #root .vant-dashboard-kpis > button {
+    min-width: 0 !important;
+    padding: 13px 12px !important;
+    overflow-wrap: anywhere !important;
+  }
+  #root .vant-dashboard-kpis > button p:first-child {
+    font-size: 9px !important;
+    letter-spacing: .7px !important;
+    line-height: 1.4 !important;
+    flex-wrap: wrap !important;
+  }
+  #root .vant-dashboard-kpis > button p:nth-child(2) {
+    font-size: 25px !important;
+  }
+  #root .vant-dashboard-productivity {
+    padding: 14px 12px !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  #root .vant-dashboard-productivity > div {
+    gap: 5px !important;
+  }
+  #root .vant-dashboard-productivity > div span {
+    font-size: 10px !important;
+  }
+
+  #root .vant-education-library-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+  #root .vant-education-library-nav {
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 12px !important;
+  }
+  #root .vant-education-library-nav button {
+    min-width: 0 !important;
+  }
+  #root .vant-education-library-nav button > span:first-child {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+  }
+  #root .vant-education-library-content {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  #root .vant-education-library-content input,
+  #root .vant-education-library-content select,
+  #root .vant-education-library-content button {
+    max-width: 100% !important;
+  }
+
+  #root .vant-memory-page {
+    padding: 18px 14px 26px !important;
+    overflow-x: hidden !important;
+  }
+  #root .vant-memory-hero {
+    display: grid !important;
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+    align-items: start !important;
+    gap: 10px 12px !important;
+    margin-bottom: 20px !important;
+  }
+  #root .vant-memory-hero > div:first-child {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 12px !important;
+  }
+  #root .vant-memory-hero > div:nth-child(2) {
+    min-width: 0 !important;
+  }
+  #root .vant-memory-title {
+    font-size: clamp(25px, 7vw, 30px) !important;
+    line-height: 1.14 !important;
+    letter-spacing: -.35px !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+  #root .vant-memory-hero > button {
+    grid-column: 2 !important;
+    justify-self: start !important;
+    white-space: normal !important;
+    min-height: 40px !important;
+    padding: 9px 13px !important;
+  }
+  #root .vant-memory-page > div[style*="grid-template-columns"] {
+    min-width: 0 !important;
+  }
+  #root .vant-memory-page input,
+  #root .vant-memory-page select {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+}
+@media (max-width: 390px) {
+  #root .vant-dashboard-kpis { gap: 8px !important; }
+  #root .vant-dashboard-kpis > button { padding: 11px 9px !important; }
+  #root .vant-memory-page { padding-left: 12px !important; padding-right: 12px !important; }
+}
