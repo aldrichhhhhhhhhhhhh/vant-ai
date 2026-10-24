@@ -2521,7 +2521,7 @@ Respond naturally like a sharp work partner.
 
   if (!started) {
     return (
-      <div style={{ height: "100%", display: "flex", minWidth: 0, overflow: "hidden" }}>
+      <div className="vant-chat-page" style={{ height: "100%", display: "flex", minWidth: 0, overflow: "hidden" }}>
         <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} projectMode={projectMode} projectName={projectName} onBackToProject={onBackToProject} />
 
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden" }}>
@@ -2586,7 +2586,7 @@ Respond naturally like a sharp work partner.
   }
 
   return (
-    <div style={{ height: "100%", display: "flex", minWidth: 0 }}>
+    <div className="vant-chat-page" style={{ height: "100%", display: "flex", minWidth: 0, overflow: "hidden" }}>
       <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} />
       <div className="vant-chat-workspace" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
       <style>{`
@@ -5047,7 +5047,7 @@ export default function VantWorkingPrototype() {
     />;
     if (active === "projects") {
       const selectedProject = projects.find((item) => item.id === projectChat);
-      if (selectedProject && projectConversationId) return <ChatPage key={"project-chat-" + projectConversationId} {...props} user={user} projectId={selectedProject.id} projectName={selectedProject.name} projectMode projectId={selectedProject.id} conversations={conversations.filter((item) => item.projectId === selectedProject.id)} activeConversationId={projectConversationId} onGoToIntegrations={() => setActive("integrations")} onNewConversation={() => createProjectConversation(selectedProject.id)} onCreateConversation={(options) => createConversationDraft({ ...options, projectId: selectedProject.id })} onSelectConversation={openProjectConversation} onSaveConversation={(id, messages, projectId) => saveConversation(id, messages, projectId || selectedProject.id)} onTogglePinConversation={togglePinConversation} onDeleteConversation={deleteConversation} onBackToProject={() => { setProjectConversationId(null); setActive("projects"); }} />;
+      if (selectedProject && projectConversationId) return <ChatPage key={"project-chat-" + projectConversationId} {...props} user={user} projectId={selectedProject.id} projectName={selectedProject.name} projectMode conversations={conversations.filter((item) => item.projectId === selectedProject.id)} activeConversationId={projectConversationId} onGoToIntegrations={() => setActive("integrations")} onNewConversation={() => createProjectConversation(selectedProject.id)} onCreateConversation={(options) => createConversationDraft({ ...options, projectId: selectedProject.id })} onSelectConversation={openProjectConversation} onSaveConversation={(id, messages, projectId) => saveConversation(id, messages, projectId || selectedProject.id)} onTogglePinConversation={togglePinConversation} onDeleteConversation={deleteConversation} onBackToProject={() => { setProjectConversationId(null); setActive("projects"); }} />;
       if (selectedProject) return <ProjectWorkspace {...props} project={selectedProject} user={user} chats={conversations.filter((item) => item.projectId === selectedProject.id)} onBack={() => { setProjectChat(null); setProjectConversationId(null); }} onCustomize={customizeProject} onNewChat={() => createProjectConversation(selectedProject.id)} onOpenChat={openProjectConversation} onAskVant={() => askProjectVant(selectedProject.id)} onProjectLeft={(projectId) => setProjects((current) => current.filter((item) => item.id !== projectId))} />;
       return <ProjectsPage {...props} projects={projects} user={user} onProjectsChange={createProject} onOpenProject={openProject} onDeleteProject={deleteProject} onCustomizeProject={customizeProject} projectSaving={projectSaving} />;
     }
