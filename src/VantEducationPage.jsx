@@ -322,8 +322,8 @@ export default function VantEducationPage({ theme, isDark, user, onGoToTools, on
         })}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(175px,220px) minmax(0,1fr)", gap: 18, alignItems: "start" }}>
-        <aside style={{ ...panel, padding: 12 }}>
+      <div className="vant-education-library-layout" style={{ display: "grid", gridTemplateColumns: "minmax(175px,220px) minmax(0,1fr)", gap: 18, alignItems: "start" }}>
+        <aside className="vant-education-library-nav" style={{ ...panel, padding: 12 }}>
           <p style={{ color: theme.textMuted, fontSize: 10, fontWeight: 750, letterSpacing: 1.2, padding: "8px 9px", margin: 0 }}>YOUR LIBRARY</p>
           {FOLDERS.map((name) => {
             const active = folder === name;
@@ -334,7 +334,7 @@ export default function VantEducationPage({ theme, isDark, user, onGoToTools, on
           })}
         </aside>
 
-        <section style={{ minWidth: 0 }}>
+        <section className="vant-education-library-content" style={{ minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
             <div style={{ position: "relative", flex: "1 1 220px" }}><Search size={16} style={{ position: "absolute", left: 12, top: 12, color: theme.textFaint }} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tools, notes, papers…" style={{ width: "100%", boxSizing: "border-box", border: "1px solid " + theme.border, borderRadius: 11, padding: "11px 12px 11px 36px", background: theme.surface, color: theme.text, outline: "none", fontSize: 13 }} /></div>
             <button onClick={loadMaterials} disabled={loading} style={{ border: "1px solid " + theme.border, background: theme.surface, color: theme.textMuted, borderRadius: 10, padding: 10, cursor: "pointer" }} title="Refresh library"><RefreshCw size={15} className={loading ? "v-pulse" : ""} /></button>
