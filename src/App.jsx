@@ -4286,7 +4286,7 @@ function IntegrationsPage({ theme, isDark, connected, onToggle }) {
 // ---------------------------------------------------------------------------
 // Account, Settings, and top bar
 // ---------------------------------------------------------------------------
-function Overlay({ onClose, theme, children, width = 380 }) {
+function Overlay({ onClose, theme, children, width = 380, hideCloseButton = false, className = "" }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: width, background: theme.surfaceCard, border: `1px solid ${theme.border}`, borderRadius: 18, padding: 24, position: "relative" }}>
@@ -4453,7 +4453,7 @@ function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, 
   const comingSoon = () => setNotice("This control is part of the Settings foundation and will be connected in a future update.");
   const toggle = (checked, onClick, label) => <button type="button" role="switch" aria-label={label} aria-checked={checked} onClick={onClick} style={{ width: 44, height: 26, padding: 3, border: 0, borderRadius: 99, background: checked ? "#B9913F" : theme.border, display: "flex", justifyContent: checked ? "flex-end" : "flex-start", alignItems: "center", cursor: "pointer", flexShrink: 0 }}><span style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 4px #0003" }} /></button>;
   const item = (title, description, control, last = false) => <div style={{ ...row, borderBottom: last ? 0 : row.borderBottom }}><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, color: theme.text, fontWeight: 500 }}>{title}</div><p style={muted}>{description}</p></div>{control}</div>;
-  return <Overlay onClose={onClose} theme={theme} width={800}>
+  return <Overlay onClose={onClose} theme={theme} width={680} hideCloseButton className="vant-settings-overlay">
     <div className="vant-settings-shell" style={{ margin: -24, color: theme.text }}>
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "22px 24px 18px", borderBottom: "1px solid " + theme.border }}>
         <div><div style={{ color: "#B9913F", fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 2, marginBottom: 5 }}>VANT WORKSPACE</div><h2 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 25, fontWeight: 500, margin: 0 }}>Settings</h2><p style={muted}>Manage your account, workspace, and preferences.</p></div>
