@@ -660,6 +660,12 @@ body {
 /* Mobile modal polish: lighter backdrop and a scrollable, viewport-aware panel. */
 @media (max-width: 760px) {
   #root div[style*="z-index: 100"] {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    box-sizing: border-box !important;
     align-items: flex-start !important;
     justify-content: center !important;
     padding: max(16px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom)) !important;
