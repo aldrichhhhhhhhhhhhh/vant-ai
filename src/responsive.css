@@ -497,3 +497,70 @@ body {
     display: inline !important;
   }
 }
+
+
+/* VANT Motion UX — mobile only. Desktop behavior remains unchanged. */
+@media (max-width: 760px) {
+  @keyframes vant-mobile-drawer-in {
+    from { opacity: 0; transform: translate3d(-14px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes vant-mobile-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes vant-mobile-item-in {
+    from { opacity: 0; transform: translate3d(-5px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+
+  #root > div > aside.vant-main-sidebar.is-mobile-open,
+  #root .vant-chat-history.is-mobile-open {
+    animation: vant-mobile-drawer-in 240ms cubic-bezier(.2,.75,.25,1) both;
+    transform-origin: left center;
+    will-change: transform, opacity;
+  }
+  #root .vant-mobile-history-backdrop {
+    animation: vant-mobile-backdrop-in 180ms ease-out both;
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button {
+    transition: background-color 160ms ease, border-color 160ms ease,
+      transform 160ms ease, color 160ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:active {
+    transform: scale(.985);
+  }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(1) { animation: vant-mobile-item-in 180ms 25ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(2) { animation: vant-mobile-item-in 180ms 40ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(3) { animation: vant-mobile-item-in 180ms 55ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(4) { animation: vant-mobile-item-in 180ms 70ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(5) { animation: vant-mobile-item-in 180ms 85ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(6) { animation: vant-mobile-item-in 180ms 100ms both; }
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button:nth-child(7) { animation: vant-mobile-item-in 180ms 115ms both; }
+
+  #root .vant-mobile-nav-toggle,
+  #root .vant-mobile-history-button,
+  #root .vant-chat-workspace form button,
+  #root .vant-chat-history button {
+    transition: transform 150ms ease, background-color 150ms ease,
+      border-color 150ms ease, opacity 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #root .vant-mobile-nav-toggle:active,
+  #root .vant-mobile-history-button:active,
+  #root .vant-chat-workspace form button:active,
+  #root .vant-chat-history button:active {
+    transform: scale(.97);
+  }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  #root > div > aside.vant-main-sidebar.is-mobile-open,
+  #root .vant-chat-history.is-mobile-open,
+  #root .vant-mobile-history-backdrop,
+  #root > div > aside.vant-main-sidebar.is-mobile-open nav button {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
