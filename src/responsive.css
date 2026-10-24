@@ -438,3 +438,23 @@ body {
     flex-basis: min(84vw, 310px) !important;
   }
 }
+
+
+/* Pass 6: keep labels visible in the opened mobile navigation drawer. */
+@media (max-width: 760px) {
+  .vant-main-sidebar.is-mobile-open > div:first-child > span {
+    display: inline !important;
+  }
+  .vant-main-sidebar.is-mobile-open nav button span,
+  .vant-main-sidebar.is-mobile-open > div button span,
+  .vant-main-sidebar.is-mobile-open button span {
+    display: inline !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  .vant-main-sidebar.is-mobile-open nav button {
+    justify-content: flex-start !important;
+    text-align: left !important;
+    width: 100% !important;
+  }
+}
