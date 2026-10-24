@@ -699,3 +699,18 @@ body {
   #root .vant-settings-nav > div { display: none !important; }
   #root .vant-settings-content { padding: 16px !important; }
 }
+
+
+/* Settings modal sizing refinement: compact mobile footprint and single close control. */
+#root .vant-settings-overlay-panel { max-height: min(88dvh, 820px) !important; overflow-y: auto !important; overscroll-behavior: contain; }
+#root .vant-settings-shell { width: 100%; }
+@media (max-width: 760px) {
+  #root .vant-settings-overlay { padding: 12px !important; align-items: center !important; }
+  #root .vant-settings-overlay-panel { width: min(100%, 560px) !important; max-width: 560px !important; max-height: 82dvh !important; padding: 14px !important; margin: 0 auto !important; border-radius: 16px !important; }
+  #root .vant-settings-shell { margin: -14px !important; border-radius: 15px !important; }
+  #root .vant-settings-shell > header { padding: 16px 14px 13px !important; }
+  #root .vant-settings-shell > header h2 { font-size: 23px !important; }
+  #root .vant-settings-content { padding: 13px !important; }
+  #root .vant-settings-content > div { padding: 12px !important; }
+  #root .vant-settings-content > div > div { gap: 9px !important; }
+}
