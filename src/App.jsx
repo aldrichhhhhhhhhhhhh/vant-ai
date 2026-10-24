@@ -4414,10 +4414,10 @@ function AuthModal({ mode, setMode, theme, isDark, onClose, onAuth }) {
         <span aria-hidden="true" style={{ fontFamily: "Arial, sans-serif", fontSize: 17, fontWeight: 700, color: "#4285F4" }}>G</span>
         {busy ? "Connecting to Google…" : "Continue with Google"}
       </button>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, color: theme.textFaint, fontSize: 10, letterSpacing: 1.1 }}>
-        <span style={{ height: 1, flex: 1, background: theme.border }} />
-        <span>OR CONTINUE WITH EMAIL</span>
-        <span style={{ height: 1, flex: 1, background: theme.border }} />
+      <div className="vant-auth-divider" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, color: theme.textFaint, fontSize: 10, letterSpacing: 0.5, width: "100%", minWidth: 0 }}>
+        <span aria-hidden="true" style={{ height: 1, flex: "1 1 0", minWidth: 8, background: theme.border }} />
+        <span style={{ flex: "0 0 auto", whiteSpace: "nowrap", textOverflow: "clip", overflow: "visible", fontSize: 10, letterSpacing: 0.5 }}>OR CONTINUE WITH EMAIL</span>
+        <span aria-hidden="true" style={{ height: 1, flex: "1 1 0", minWidth: 8, background: theme.border }} />
       </div>
       <form onSubmit={submit}>
         {mode === "signup" && <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" autoComplete="name" style={fieldStyle} />}
