@@ -3949,7 +3949,7 @@ function DashboardPage({ theme, isDark, connected, coworkTasks = [], onGoToInteg
       <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 26, fontWeight: 500, margin: "0 0 4px", color: theme.text }}>Here's what needs your attention</h1>
       <p style={{ color: theme.textMuted, fontSize: 15, margin: "0 0 26px" }}>Click a tile for details.</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: openPanel ? 16 : 20 }}>
+      <div className="vant-dashboard-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: openPanel ? 16 : 20 }}>
         {kpis.map((k) => (
           <button key={k.key} onClick={() => togglePanel(k.key)} style={{ textAlign: "left", background: openPanel === k.key ? theme.surfaceStrong : theme.surface, border: `1px solid ${openPanel === k.key ? theme.borderStrong : "transparent"}`, borderRadius: 14, padding: 16, cursor: "pointer" }}>
             <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textMuted, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -4041,7 +4041,7 @@ function DashboardPage({ theme, isDark, connected, coworkTasks = [], onGoToInteg
         </div>
       )}
 
-      <div style={{ background: theme.surface, borderRadius: 14, padding: 20, marginBottom: 20 }}>
+      <div className="vant-dashboard-productivity" style={{ background: theme.surface, borderRadius: 14, padding: 20, marginBottom: 20 }}>
         <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textMuted, margin: "0 0 16px" }}>PRODUCTIVITY · SEPT</p>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 14, height: 110 }}>
           {bars.map((h, i) => (
