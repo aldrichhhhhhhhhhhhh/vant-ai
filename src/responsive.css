@@ -268,3 +268,84 @@ body {
     font-size: 16px !important;
   }
 }
+
+
+/* Pass 4: mobile navigation drawer and a direct route back to chat history. */
+@media (max-width: 760px) {
+  #root > div > .vant-main-sidebar {
+    display: none !important;
+  }
+  #root > div > .vant-main-sidebar.is-mobile-open {
+    display: flex !important;
+    position: fixed !important;
+    z-index: 1002 !important;
+    inset: 0 auto 0 0 !important;
+    width: min(82vw, 280px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 56px) !important;
+    height: 100dvh !important;
+    padding: 18px 12px !important;
+    box-shadow: 18px 0 60px rgba(0,0,0,.22) !important;
+    overflow-y: auto !important;
+    background: var(--vant-sidebar-bg, #fafaf9) !important;
+  }
+  #root .vant-mobile-nav-toggle {
+    display: inline-flex !important;
+  }
+  #root .vant-topbar {
+    padding: 0 10px !important;
+    gap: 8px !important;
+  }
+  #root .vant-topbar > span:first-of-type {
+    max-width: 30vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #root .vant-chat-page > aside.vant-chat-history {
+    display: none !important;
+  }
+  #root .vant-chat-page > aside.vant-chat-history.is-mobile-open {
+    display: flex !important;
+    position: fixed !important;
+    z-index: 1004 !important;
+    inset: 0 auto 0 0 !important;
+    width: min(86vw, 340px) !important;
+    max-width: calc(100vw - 48px) !important;
+    height: 100dvh !important;
+    box-shadow: 18px 0 60px rgba(0,0,0,.25) !important;
+    overflow-y: auto !important;
+  }
+  #root .vant-mobile-history-backdrop {
+    display: block !important;
+    position: fixed !important;
+    z-index: 1003 !important;
+    inset: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: rgba(10,10,14,.42) !important;
+    padding: 0 !important;
+  }
+  #root .vant-mobile-history-button {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type {
+    gap: 7px !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type > span:first-of-type {
+    font-size: 13px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+  }
+}
+@media (max-width: 390px) {
+  #root .vant-mobile-history-button {
+    padding: 7px !important;
+  }
+  #root .vant-mobile-history-button span {
+    display: none;
+  }
+}
