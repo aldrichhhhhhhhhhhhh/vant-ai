@@ -191,3 +191,80 @@ body {
     min-width: 0 !important;
   }
 }
+
+
+/* Pass 3: narrow screens must render chat as one column. */
+@media (max-width: 760px) {
+  #root .vant-chat-page {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  #root .vant-chat-page > aside {
+    display: none !important;
+  }
+  #root .vant-chat-page > .vant-chat-workspace {
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type {
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+    min-width: 0 !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type > span:first-of-type {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+    font-size: 14px !important;
+  }
+  #root .vant-chat-workspace > div:first-of-type > span:last-child {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
+  }
+  #root .vant-chat-workspace .vant-message-list {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 14px 12px 18px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  #root .vant-chat-workspace .vant-message-row,
+  #root .vant-chat-workspace .vant-response-actions {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+  }
+  #root .vant-chat-workspace .vant-message-bubble {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-wrap: anywhere !important;
+  }
+  #root .vant-chat-workspace form {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    padding: 8px 10px max(10px, env(safe-area-inset-bottom)) !important;
+    gap: 6px !important;
+  }
+  #root .vant-chat-workspace form textarea {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: 0 !important;
+    max-width: 100% !important;
+    font-size: 16px !important;
+  }
+}
