@@ -4433,48 +4433,60 @@ function AuthModal({ mode, setMode, theme, isDark, onClose, onAuth }) {
 }
 
 function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, onClearData, floatingEducationWidgets, onToggleFloatingEducationWidgets }) {
-  return (
-    <Overlay onClose={onClose} theme={theme} width={420}>
-      <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 21, fontWeight: 500, margin: "0 0 18px", color: theme.text }}>Settings</h2>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>ACCOUNT</p>
-        {user ? (
-          <>
-            <p style={{ fontSize: 14, color: theme.text, margin: "0 0 2px" }}>{user.name}</p>
-            <p style={{ fontSize: 12.5, color: theme.textMuted, margin: "0 0 10px" }}>{user.email}</p>
-            <button onClick={onLogout} style={{ fontSize: 13, color: ac("red", isDark), background: "none", border: "none", cursor: "pointer", padding: 0 }}>Log out</button>
-          </>
-        ) : <p style={{ fontSize: 13.5, color: theme.textMuted }}>Not signed in.</p>}
+  const [section, setSection] = useState("general");
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [notice, setNotice] = useState("");
+  const sections = [
+    { id: "general", label: "General", icon: Settings, desc: "Workspace preferences and defaults" },
+    { id: "appearance", label: "Appearance", icon: Palette, desc: "Theme and visual preferences" },
+    { id: "account", label: "Account", icon: Users, desc: "Your profile and security" },
+    { id: "personalization", label: "Personalization", icon: Sparkles, desc: "Make VANT work your way" },
+    { id: "notifications", label: "Notifications", icon: ClipboardList, desc: "Reminders and workspace updates" },
+    { id: "privacy", label: "Privacy & data", icon: Puzzle, desc: "Data controls and connected services" },
+    { id: "about", label: "About VANT", icon: Globe, desc: "Product information and help" },
+  ];
+  const selected = sections.find(s => s.id === section) || sections[0];
+  const muted = { color: theme.textMuted, fontSize: 12, lineHeight: 1.55, margin: "5px 0 0" };
+  const card = { padding: 15, marginBottom: 12, border: "1px solid " + theme.border, borderRadius: 13, background: theme.surface };
+  const row = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "13px 0", borderBottom: "1px solid " + theme.border };
+  const action = { border: "1px solid " + theme.border, borderRadius: 9, padding: "8px 11px", color: theme.text, background: theme.surfaceCard, fontSize: 12, cursor: "pointer", flexShrink: 0 };
+  const comingSoon = () => setNotice("This control is part of the Settings foundation and will be connected in a future update.");
+  const toggle = (checked, onClick, label) => <button type="button" role="switch" aria-label={label} aria-checked={checked} onClick={onClick} style={{ width: 44, height: 26, padding: 3, border: 0, borderRadius: 99, background: checked ? "#B9913F" : theme.border, display: "flex", justifyContent: checked ? "flex-end" : "flex-start", alignItems: "center", cursor: "pointer", flexShrink: 0 }}><span style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 4px #0003" }} /></button>;
+  const item = (title, description, control, last = false) => <div style={{ ...row, borderBottom: last ? 0 : row.borderBottom }}><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, color: theme.text, fontWeight: 500 }}>{title}</div><p style={muted}>{description}</p></div>{control}</div>;
+  return <Overlay onClose={onClose} theme={theme} width={800}>
+    <div className="vant-settings-shell" style={{ margin: -24, color: theme.text }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "22px 24px 18px", borderBottom: "1px solid " + theme.border }}>
+        <div><div style={{ color: "#B9913F", fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 2, marginBottom: 5 }}>VANT WORKSPACE</div><h2 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 25, fontWeight: 500, margin: 0 }}>Settings</h2><p style={muted}>Manage your account, workspace, and preferences.</p></div>
+        <button type="button" onClick={onClose} aria-label="Close settings" style={{ ...action, width: 38, height: 38, padding: 0, display: "grid", placeItems: "center" }}><X size={18}/></button>
+      </header>
+      <div className="vant-settings-layout" style={{ display: "grid", gridTemplateColumns: "200px minmax(0,1fr)", minHeight: 430 }}>
+        <nav className="vant-settings-nav" aria-label="Settings categories" style={{ padding: 12, borderRight: "1px solid " + theme.border, display: "flex", flexDirection: "column", gap: 4 }}>
+          {sections.map(s => { const Icon = s.icon; const active = s.id === section; return <button type="button" key={s.id} onClick={() => { setSection(s.id); setNotice(""); setResetConfirm(false); }} aria-current={active ? "page" : undefined} style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left", padding: "11px 10px", borderRadius: 9, border: "1px solid " + (active ? theme.borderStrong : "transparent"), background: active ? theme.surfaceStrong : "transparent", color: active ? theme.text : theme.textMuted, cursor: "pointer", fontSize: 12.5, fontWeight: active ? 600 : 500 }}><Icon size={16} color={active ? "#B9913F" : theme.textFaint}/><span>{s.label}</span></button>; })}
+          <div style={{ flex: 1, minHeight: 10 }}/><p style={{ color: theme.textFaint, fontSize: 10, lineHeight: 1.5, padding: "0 8px" }}>Some options are placeholders until their services are connected.</p>
+        </nav>
+        <main className="vant-settings-content" style={{ padding: 22, minWidth: 0 }}>
+          <h3 style={{ fontSize: 18, margin: 0, fontWeight: 600 }}>{selected.label}</h3><p style={muted}>{selected.desc}</p>
+          {notice && <p role="status" style={{ ...muted, padding: 10, borderRadius: 9, background: theme.surfaceStrong, margin: "12px 0" }}>{notice}</p>}
+          {section === "general" && <>
+            <div style={{ ...card, marginTop: 16 }}><strong style={{ fontSize: 13 }}>Workspace</strong>
+              {item("Floating Education widgets", "Keep your Student Calendar, Study Tracker, and Doc Files Cabinet available across VANT.", toggle(floatingEducationWidgets, onToggleFloatingEducationWidgets, "Floating Education widgets"))}
+              {item("Default start page", "Choose which VANT section opens first.", <button style={action} onClick={comingSoon}>AI Chat　›</button>)}
+              {item("Language", "Choose your interface language.", <button style={action} onClick={comingSoon}>English　›</button>, true)}
+            </div>
+            <div style={card}><strong style={{ fontSize: 13 }}>Interaction</strong>{item("Keyboard shortcuts", "View shortcuts for common actions.", <button style={action} onClick={comingSoon}>View shortcuts</button>, true)}</div>
+          </>}
+          {section === "appearance" && <div style={{ ...card, marginTop: 16 }}><strong style={{ fontSize: 13 }}>Workspace theme</strong><p style={muted}>Choose the appearance for your workspace.</p><div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10, marginTop: 14 }}>{[{dark:false,label:"Light",bg:"#FAFAF9",fg:"#191919"},{dark:true,label:"Dark",bg:"#111019",fg:"#F5F3FF"}].map(v => <button key={v.label} onClick={() => { if(v.dark !== isDark) onToggleTheme(); }} aria-pressed={v.dark === isDark} style={{ textAlign:"left",padding:10,borderRadius:11,border:"1px solid "+(v.dark===isDark?"#B9913F":theme.border),background:theme.surfaceCard,color:theme.text,cursor:"pointer" }}><div style={{ height:62,borderRadius:7,background:v.bg,border:"1px solid "+theme.border,padding:9,display:"flex",gap:7 }}><div style={{ width:17,background:v.dark?"#292638":"#E7E5E4",borderRadius:4 }}/><div style={{ flex:1,paddingTop:7 }}><div style={{ height:6,width:"75%",background:v.fg,marginBottom:7,borderRadius:4 }}/><div style={{ height:5,width:"45%",background:v.fg,opacity:.4,borderRadius:4 }}/></div></div><div style={{display:"flex",justifyContent:"space-between",marginTop:9,fontSize:12,fontWeight:600}}>{v.label}{v.dark===isDark&&<Check size={14} color="#B9913F"/>}</div></button>)}</div>{item("Accent color", "More accent options will be available later.", <button style={action} onClick={comingSoon}>Gold　›</button>, true)}</div>}
+          {section === "account" && <div style={{ ...card, marginTop: 16 }}><strong style={{fontSize:13}}>Account details</strong><div style={{padding:13,marginTop:12,borderRadius:10,background:theme.surfaceCard,border:"1px solid "+theme.border}}><div style={{fontSize:13,fontWeight:600}}>{user?.name || "Guest user"}</div><p style={muted}>{user?.email || "Not signed in"}</p><p style={{...muted,marginTop:10}}>Status: {user && !user.isGuest ? "Signed in" : "Guest session"}</p></div>{user && !user.isGuest && <button onClick={onLogout} style={{...action,marginTop:12,color:ac("red",isDark)}}>Log out</button>}{item("Profile details","Manage your name and account information.",<button style={action} onClick={comingSoon}>Manage</button>)}{item("Password & security","Review sign-in and security options.",<button style={action} onClick={comingSoon}>Manage</button>,true)}</div>}
+          {section === "personalization" && <div style={{ ...card, marginTop: 16 }}><strong style={{fontSize:13}}>Your VANT experience</strong>{item("Floating Education widgets","Quick access to student tools.",toggle(floatingEducationWidgets,onToggleFloatingEducationWidgets,"Floating Education widgets"))}{item("Personalized AI responses","Adapt responses to your preferred workflow.",toggle(false,comingSoon,"Personalized AI responses"))}{item("Memory preferences","Manage future memory controls.",<button style={action} onClick={comingSoon}>Configure</button>,true)}</div>}
+          {section === "notifications" && <div style={{ ...card, marginTop: 16 }}><strong style={{fontSize:13}}>Notification preferences</strong><p style={muted}>Visual placeholders until notification delivery is connected.</p>{["Product updates","Workspace activity","Education reminders","Cowork task updates"].map((label,i)=>item(label,"Notification preference.",toggle(false,comingSoon,label),i===3))}</div>}
+          {section === "privacy" && <div style={{ ...card, marginTop: 16 }}><strong style={{fontSize:13}}>Privacy & data controls</strong><p style={muted}>More export and privacy tools will be connected later.</p>{item("Export my data","Prepare a copy of your VANT workspace data.",<button style={action} onClick={comingSoon}>Export</button>)}{item("Connected services","Review app integrations and permissions.",<button style={action} onClick={comingSoon}>Manage</button>,true)}<div style={{marginTop:18,paddingTop:14,borderTop:"1px solid "+theme.border}}><strong style={{fontSize:13,color:ac("red",isDark)}}>Reset VANT data</strong><p style={muted}>Resets saved theme, chats, tasks, and Cowork history.</p>{!resetConfirm ? <button style={{...action,marginTop:10,color:ac("red",isDark),background:acBg("red",isDark)}} onClick={()=>setResetConfirm(true)}>Reset my VANT data</button> : <div><p style={muted}>Are you sure? This cannot be undone.</p><button style={action} onClick={()=>setResetConfirm(false)}>Cancel</button><button style={{...action,marginLeft:8,color:ac("red",isDark)}} onClick={onClearData}>Confirm reset</button></div>}</div></div>}
+          {section === "about" && <div style={{ ...card, marginTop: 16 }}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{width:44,height:44,display:"grid",placeItems:"center",borderRadius:12,background:"rgba(185,145,63,.14)",color:"#B9913F",fontFamily:"Fraunces,serif",fontSize:24}}>V</div><div><strong style={{fontFamily:"Fraunces,serif",fontSize:18}}>VANT</strong><p style={muted}>Your AI work platform</p></div></div>{item("Version","Current web workspace.",<span style={{fontSize:12,color:theme.textMuted}}>Web app</span>)}{item("Help center","Guides and answers to common questions.",<button style={action} onClick={comingSoon}>Coming soon</button>)}{item("Terms & privacy","Review VANT policies.",<button style={action} onClick={comingSoon}>View policies</button>,true)}</div>}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginTop:18,color:theme.textFaint,fontSize:10.5}}><span>VANT · Built for work that moves.</span><button style={action} onClick={onClose}>Done</button></div>
+        </main>
       </div>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>APPEARANCE</p>
-        <button onClick={onToggleTheme} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>
-          {isDark ? <Sun size={14} /> : <Moon size={14} />} Switch to {isDark ? "Day" : "Dark"} theme
-        </button>
-      </div>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>PERSONALIZATION</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 13, border: "1px solid " + theme.border, borderRadius: 14, background: theme.surface }}>
-          <div style={{ flex: 1 }}><div style={{ color: theme.text, fontSize: 13.5, fontWeight: 600 }}>Floating Education widgets</div><div style={{ color: theme.textMuted, fontSize: 11.5, lineHeight: 1.5, marginTop: 4 }}>Keep your Student Calendar, Study Tracker, and Doc Files Cabinet available across VANT for quick access. You can turn this off anytime.</div></div>
-          <button type="button" role="switch" aria-checked={floatingEducationWidgets} onClick={onToggleFloatingEducationWidgets} style={{ width: 46, height: 27, padding: 3, border: 0, borderRadius: 99, background: floatingEducationWidgets ? "#7C3AED" : theme.border, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: floatingEducationWidgets ? "flex-end" : "flex-start" }}><span style={{ width: 21, height: 21, borderRadius: "50%", background: "#FFFFFF", boxShadow: "0 1px 4px rgba(0,0,0,.22)" }} /></button>
-        </div>
-        <p style={{ color: theme.textFaint, fontSize: 10.5, margin: "7px 0 0" }}>Disabled by default. Your Education tools remain available inside VANT Education.</p>
-      </div>
-
-      <div>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>DATA</p>
-        <button onClick={onClearData} style={{ padding: "9px 16px", borderRadius: 999, background: acBg("red", isDark), border: "none", color: ac("red", isDark), fontSize: 13.5, cursor: "pointer" }}>
-          Reset my VANT data
-        </button>
-        <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 8 }}>Resets this account's saved theme, chats, tasks, and Cowork history.</p>
-      </div>
-    </Overlay>
-  );
+    </div>
+  </Overlay>;
 }
-
 export default function VantWorkingPrototype() {
   const [active, setActive] = useState("chat");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
