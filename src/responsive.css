@@ -1,0 +1,139 @@
+/* VANT responsive shell improvements — additive overrides, desktop-first source preserved. */
+:root {
+  color-scheme: light dark;
+  --vant-mobile-rail: 64px;
+}
+html, body, #root {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+}
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+#root > div {
+  min-height: 0 !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh;
+}
+#root button, #root input, #root textarea, #root select {
+  touch-action: manipulation;
+}
+#root input, #root textarea, #root select {
+  max-width: 100%;
+}
+#root img, #root video, #root canvas, #root svg {
+  max-width: 100%;
+}
+#root [role="dialog"] {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (max-width: 760px) {
+  #root > div > aside {
+    width: var(--vant-mobile-rail) !important;
+    min-width: var(--vant-mobile-rail) !important;
+    flex: 0 0 var(--vant-mobile-rail) !important;
+    padding: 12px 6px !important;
+    gap: 6px !important;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  #root > div > aside::-webkit-scrollbar { display: none; }
+  #root > div > aside > div:first-child {
+    justify-content: center !important;
+    padding: 2px 0 14px !important;
+    margin-bottom: 4px !important;
+  }
+  #root > div > aside > div:first-child > span { display: none !important; }
+  #root > div > aside nav button,
+  #root > div > aside > button {
+    justify-content: center !important;
+    gap: 0 !important;
+    padding: 10px 0 !important;
+    min-height: 44px !important;
+  }
+  #root > div > aside nav button > span,
+  #root > div > aside > button > span { display: none !important; }
+  #root > div > aside > div:nth-of-type(2) > button > span { display: none !important; }
+  #root > div > aside > div:nth-of-type(2) > button > svg:last-child { display: none !important; }
+  #root > div > aside > div:nth-of-type(2) > div { margin-left: 0 !important; padding-left: 0 !important; border-left: 0 !important; }
+  #root > div > aside > div:nth-of-type(2) > div button {
+    justify-content: center !important;
+    padding: 8px 0 !important;
+  }
+  #root > div > aside > div:nth-of-type(2) > div button > span:last-child { display: none !important; }
+  #root > div > div {
+    min-width: 0 !important;
+    width: calc(100% - var(--vant-mobile-rail)) !important;
+  }
+  #root > div > div > div:first-child {
+    height: auto !important;
+    min-height: 52px;
+    padding: 8px 10px !important;
+    gap: 6px !important;
+    flex-wrap: wrap;
+  }
+  #root > div > div > div:first-child > span {
+    font-size: 10px !important;
+    letter-spacing: .7px !important;
+    max-width: 36%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #root > div > div > div:first-child > div {
+    gap: 5px !important;
+    min-width: 0;
+  }
+  #root > div > div > div:first-child button {
+    min-height: 36px;
+    padding: 7px 10px !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+  }
+  #root > div > div > div:first-child > div > span {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px !important;
+  }
+  #root > div > div > div:nth-child(2) {
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  #root [style*="grid-template-columns"] {
+    min-width: 0;
+  }
+  #root [role="dialog"] {
+    width: calc(100vw - 20px) !important;
+    max-width: 440px;
+    padding: 18px !important;
+  }
+}
+@media (max-width: 390px) {
+  :root { --vant-mobile-rail: 56px; }
+  #root > div > div > div:first-child > span { max-width: 30%; }
+  #root > div > div > div:first-child > div > span { max-width: 78px; }
+  #root > div > div > div:first-child button { padding: 6px 8px !important; }
+}
+@media (max-height: 560px) {
+  #root > div > aside { padding-top: 8px !important; padding-bottom: 8px !important; }
+  #root > div > aside > div:first-child { padding-bottom: 8px !important; }
+  #root > div > aside nav { gap: 3px !important; }
+  #root > div > aside nav button { min-height: 38px !important; padding-top: 7px !important; padding-bottom: 7px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root *, #root *::before, #root *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
