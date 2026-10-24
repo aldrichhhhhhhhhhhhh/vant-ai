@@ -1,35 +1,42 @@
 # VANT Responsive UI/UX — Audit and Implementation Plan
 
-## Scope
-Adaptive VANT: preserve the existing desktop experience and adapt it for tablet and phone layouts. Phone navigation uses a slide-out sidebar drawer. This phase is read-only until the audit plan is agreed; no production changes or deployment are authorized by this plan.
+## Current status
+Phase 1 responsive shell overrides have been implemented on `feature/responsive-ui-ux-audit` and deployed to a Vercel preview. Production has not been changed. The first pass uses a compact icon rail on phone widths rather than a slide-out drawer; this is intentionally a safe additive change before deeper navigation refactoring.
 
-## Confirmed findings from `src/App.jsx` on `main`
-- The top-level authenticated application shell sets `height: 100vh`, `minHeight: 640`, and `overflow: hidden` (near line 5126). This can force a 640px minimum on short phone viewports and can interact poorly with mobile browser chrome/keyboard.
-- The primary `Sidebar` uses a fixed 224px width and `flexShrink: 0` (near line 506), and the shell always renders it (near line 5134). At narrow widths, the sidebar consumes a large fraction of the viewport; there is no slide-out drawer or menu button in the current app shell.
-- The current media query at max-width 760px only hides `.vant-sidebar-label`, but the primary navigation labels in `Sidebar` have no such class. As written, the rule does not collapse the primary labels.
-- The `TopBar` applies fixed 24px horizontal padding and does not currently expose a mobile navigation control (near line 4299).
-- The top-level page viewport is an independently scrolling `overflow: auto` container (near line 5137), so keyboard/viewport behavior should be reviewed alongside the fixed-height shell.
-- Several elements use intentional overflow handling (e.g. code/math/table renderers), while Education widgets include fixed-width floating panels (see `src/VantEducationWidgets.jsx` around the panel base style). These need scoped, component-level responsive treatment rather than broad global CSS.
-- The anonymous entry/auth screen also includes fixed vertical spacing and overlays; validate it separately from the authenticated shell.
-- The repo’s `package.json` runs `scripts/restore-app.cjs` before dev/build. Keep the restoration mechanism intact and verify a reproducible build from a clean checkout.
+## Implemented in this pass
+- Added `src/responsive.css` and imported it from `src/main.jsx`.
+- Applied mobile rail widths at 760px and 390px breakpoints while preserving the desktop sidebar width.
+- Reduced top-bar padding and account-control spacing on narrow screens.
+- Added dynamic viewport sizing (`100dvh`) and removed the effective forced 640px minimum for the app shell.
+- Constrained dialogs to the viewport and allowed them to scroll.
+- Added touch-action and reduced-motion refinements.
+- No application feature logic, API, engine, Supabase schema/auth policy, or production alias was changed.
 
-## Prioritized work
-### P0 — Verify build source and establish preview workflow
-1. Confirm `src/App.jsx` is the canonical current entry and examine the restore script's no-op path when the file exists.
-2. Confirm Vercel preview deployment branch settings and make sure changes stay on this feature branch.
-3. Set up reproducible local/preview build checks without touching production.
+## Validation completed
+- Vercel preview deployment reached `READY`.
+- Preview HTML fetch returned HTTP 200.
+- Vercel build log confirms `npm run build`, `scripts/restore-app.cjs`, and `vite build` ran. The restore script preserved the committed 343 KB `src/App.jsx`.
+- This confirms the build/deploy pipeline, not visual behavior. Real browser/device testing at target widths is still required.
 
-### P1 — Shared shell and navigation
-1. Remove the 640px forced minimum for the app shell; use a mobile-safe dynamic viewport strategy with a fallback.
-2. Add an accessible menu trigger to the top bar on tablet/phone.
-3. Reuse the existing Sidebar component in a responsive drawer for narrow viewports; keep persistent sidebar behavior on desktop.
-4. Add backdrop dismissal, Escape dismissal, correct focus behavior, scroll containment, active item selection and close-on-navigation.
-5. Ensure the page content, header, and drawer fit the viewport without horizontal scrolling.
+## Confirmed findings from `src/App.jsx`
+- The app shell had `height: 100vh`, `minHeight: 640`, and `overflow: hidden`, which could force excess height on short phone viewports.
+- The primary Sidebar used a fixed 224px width and was always rendered.
+- An existing `max-width: 760px` rule targeted `.vant-sidebar-label`, but the primary navigation labels did not use that class.
+- TopBar used 24px horizontal padding and had no mobile navigation control.
+- The page viewport is independently scrollable.
+- Education widgets include fixed-width floating panels that need component-level responsive treatment.
+- The repository runs `scripts/restore-app.cjs` before build; this must remain intact.
+
+## Next implementation phases
+### P1 — Refine shared shell and navigation
+1. Visually validate the compact rail and restore visible labels/tooltips in an accessible way.
+2. Consider a true accessible drawer with a top-bar menu trigger, backdrop/Escape dismissal, focus handling, scroll containment and close-on-navigation.
+3. Verify short viewport and keyboard behavior without changing desktop navigation.
 
 ### P2 — AI Chat
-1. Validate chat history and message list width on phones.
-2. Reflow the composer, attachment preview list, action controls and model/status affordances.
-3. Test virtual keyboard, safe areas, send/cancel, loading state and long responses.
+1. Validate chat history and message-list width on phones.
+2. Reflow composer, attachment previews, action controls and model/status affordances.
+3. Test virtual keyboard, safe areas, send/cancel, loading and long responses.
 
 ### P3 — Shared overlays and layout primitives
 1. Make auth/settings/project modal widths and max-heights responsive.
@@ -37,18 +44,17 @@ Adaptive VANT: preserve the existing desktop experience and adapt it for tablet 
 3. Preserve intentional inner horizontal scrolling for tables, code and equations without causing body overflow.
 
 ### P4 — Other product areas
-1. Education: cards/grid, saved materials, flashcards, quiz/planner and fixed-width floating widgets.
-2. Projects: project lists, workspace panel, members/roles and team chat.
+1. Education: cards/grid, saved materials, flashcards, quiz/planner and floating widgets.
+2. Projects: lists, workspace panel, members/roles and team chat.
 3. Tools, Dashboard, CoWork, Integrations, and Memory: stacked cards, responsive forms, chart/table widths and long labels.
 
 ### P5 — Verification and release
-Test at 320, 360, 390, 430, 768, 1024, 1280 and 1440 CSS pixels, including portrait/landscape and short viewports. Check no document-level horizontal scroll, no unreachable controls behind keyboard, usable navigation, overlay dismissal, attachments, auth, Education saves and existing desktop behavior. Deploy a preview first; production only after review and explicit release decision.
+Test at 320, 360, 390, 430, 768, 1024, 1280 and 1440 CSS pixels, including portrait/landscape and short viewports. Check document-level horizontal scroll, keyboard reachability, navigation, overlay dismissal, attachments, auth, Education saves and existing desktop behavior. Preview first; production only after review and explicit release decision.
 
 ## Proposed breakpoints
-Use the current code as the starting point, then verify:
-- Phone: < 768px — drawer navigation, single-column flows.
-- Tablet: 768–1023px — responsive drawer / compact workspace where needed.
-- Desktop: >= 1024px — retain the persistent sidebar and existing layout wherever feasible.
+- Phone: < 768px — compact navigation and single-column flows.
+- Tablet: 768–1023px — compact workspace where needed.
+- Desktop: >= 1024px — preserve persistent sidebar and existing layout wherever feasible.
 
 ## Not in scope
 No API, Supabase schema, auth policy, engine, feature behavior or production deployment changes unless separately necessary and agreed.
