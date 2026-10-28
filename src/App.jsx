@@ -12,6 +12,7 @@ import { MessageSquare, LayoutDashboard, Briefcase, Plug, Wrench, Send, Plus, Tr
 import VantMemoryPage from "./VantMemoryPage";
 import VantEducationPage from "./VantEducationPage";
 import VantEducationWidgets from "./VantEducationWidgets";
+import CoworkMAA from "./CoworkMAA";
 
 const FONT_IMPORT = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
@@ -5067,7 +5068,7 @@ export default function VantWorkingPrototype() {
     if (active === "education") return <VantEducationPage {...props} user={user} onGoToTools={() => setActive("tools")} onGoToEducation={() => setActive("education")} showEducationWidgets={true} />;
     if (active === "tools") return <ToolsPage {...props} user={user} />;
     if (active === "dashboard") return <DashboardPage {...props} connected={connected} coworkTasks={appState.cowork_tasks} onGoToIntegrations={() => setActive("integrations")} />;
-    if (active === "cowork") return <CoworkPage {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
+    if (active === "cowork") return <CoworkMAA {...props} initialTasks={appState.cowork_tasks} initialHistory={appState.cowork_history} stateReady={stateReady} onPersist={persistAppState} />;
     return <IntegrationsPage {...props} connected={connected} onToggle={toggleIntegration} />;
   }
 

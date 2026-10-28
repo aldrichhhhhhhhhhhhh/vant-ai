@@ -435,7 +435,15 @@ export default async function handler(req, res) {
     model = MODEL,
     max_tokens = null,
     stream = false,
+    agent_temperature = null,
   } = req.body || {};
+
+  // CoWork agents may request a per-agent temperature; validate it server-side.
+  // Unspecified values preserve VANT Chat's existing temperature behavior.
+  if (agent_temperature !== null && agent_temperature !== undefined &&
+      (typeof agent_temperature !== "number" || !Number.isFinite(agent_temperature) || agent_temperature < 0 || agent_temperature > 1)) {
+    return json(res, 400, { error: "invalid_agent_temperature", message: "agent_temperature must be a number between 0 and 1." });
+  }
 
   if (isGuest) {
     // Guest access is text-only and limited to 4,000 characters per user turn.
@@ -581,7 +589,7 @@ export default async function handler(req, res) {
       : 8192;
 
   const engineOptions = {
-    temperature: 0.6,
+    temperature: agent_temperature ?? 0.6,
     top_p: 0.7,
     max_tokens: requestedMaxTokens,
     reasoning_effort: "low",
