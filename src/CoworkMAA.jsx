@@ -516,13 +516,14 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
 
       {view === "history" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {history.length === 0 && <div style={{ ...panel, color: theme.textFaint, fontSize: 13 }}>No runs yet. Submit a business task to start your first M.A.A. workflow.</div>}
-        {history.map((item) => {
+        {(Array.isArray(history) ? history : []).filter((item) => item && typeof item === "object").map((item) => {
+          const agentNames = Array.isArray(item.agentNames) ? item.agentNames.filter((name) => typeof name === "string") : [];
           const expanded = expandedHistoryId === item.id;
-          const topic = item.goal || item.objective || "Untitled CoWork run";
-          const report = item.summary || "No final report was saved for this run.";
+          const topic = String(item.goal || item.objective || item.title || "Untitled CoWork run");
+          const report = String(item.summary || item.report || "No final report was saved for this run.");
           const plain = report.replace(/[#>*_\x60|]/g, " ").replace(/\s+/g, " ").trim();
           const description = plain.length > 220 ? plain.slice(0, 217) + "…" : plain;
-          const finalizedByMote = (item.agentNames || []).some((name) => /mote/i.test(name));
+          const finalizedByMote = agentNames.some((name) => /mote/i.test(name));
           const downloadPdf = () => {
             const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
             if (!printWindow) { window.alert("Please allow pop-ups to export this report as PDF."); return; }
@@ -533,7 +534,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
               .replace(/^# (.*)$/gm, "<h1>$1</h1>")
               .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
               .replace(/\n/g, "<br/>");
-            printWindow.document.write("<!doctype html><html><head><title>"+esc(topic)+"</title><meta charset='utf-8'><style>body{font:12px Arial,sans-serif;color:#222;line-height:1.6;max-width:780px;margin:36px auto;padding:0 24px}h1{font-size:24px;border-bottom:2px solid #d4af55;padding-bottom:10px}h2{font-size:16px;margin-top:22px} .meta{color:#666;font-size:11px;margin-bottom:24px}.footer{margin-top:30px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#777}@media print{body{margin:18mm auto;padding:0}}</style></head><body><h1>"+esc(topic)+"</h1><div class='meta'>"+esc(new Date(item.completedAt || item.startedAt || Date.now()).toLocaleString())+" · "+esc(item.agentNames?.join(", ") || "CoWork")+"</div><div>"+reportHtml+"</div><div class='footer'>VANT CoWork · "+(finalizedByMote?"Finalized by Mote.EXE":"Prepared by CoWork")+" · Human review required before acting on recommendations.</div><script>window.onload=function(){window.focus();window.print();};<\/script></body></html>");
+            printWindow.document.write("<!doctype html><html><head><title>"+esc(topic)+"</title><meta charset='utf-8'><style>body{font:12px Arial,sans-serif;color:#222;line-height:1.6;max-width:780px;margin:36px auto;padding:0 24px}h1{font-size:24px;border-bottom:2px solid #d4af55;padding-bottom:10px}h2{font-size:16px;margin-top:22px} .meta{color:#666;font-size:11px;margin-bottom:24px}.footer{margin-top:30px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#777}@media print{body{margin:18mm auto;padding:0}}</style></head><body><h1>"+esc(topic)+"</h1><div class='meta'>"+esc(new Date(item.completedAt || item.startedAt || Date.now()).toLocaleString())+" · "+esc(agentNames.join(", ") || "CoWork")+"</div><div>"+reportHtml+"</div><div class='footer'>VANT CoWork · "+(finalizedByMote?"Finalized by Mote.EXE":"Prepared by CoWork")+" · Human review required before acting on recommendations.</div><script>window.onload=function(){window.focus();window.print();};<\/script></body></html>");
             printWindow.document.close();
           };
           return <div key={item.id} style={{ ...panel, padding: 0, overflow: "hidden" }}>
@@ -542,7 +543,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
                 <div style={{ width: 38, height: 38, borderRadius: 11, background: isDark ? "rgba(212,175,85,.14)" : "rgba(212,175,85,.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><FileText size={18} color={accent} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong style={{ display: "block", fontSize: 14 }}>{topic}</strong>
-                  <p style={{ color: theme.textFaint, fontSize: 11, margin: "5px 0 8px" }}>{new Date(item.completedAt || item.startedAt || Date.now()).toLocaleString()} · {(item.agentNames || []).join(", ") || "CoWork"}</p>
+                  <p style={{ color: theme.textFaint, fontSize: 11, margin: "5px 0 8px" }}>{new Date(item.completedAt || item.startedAt || Date.now()).toLocaleString()} · {agentNames.join(", ") || "CoWork"}</p>
                   <p style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, margin: 0 }}>{description || "No description was saved for this run."}</p>
                   <p style={{ color: theme.textFaint, fontSize: 11, margin: "9px 0 0" }}>{finalizedByMote ? "Finalized by Mote.EXE" : "Prepared by CoWork"}</p>
                 </div>
