@@ -4445,8 +4445,8 @@ function SettingsModal({ theme, isDark, onSelectTheme, themeName, user, onClose,
   const comingSoon = () => setNotice("This control is part of the Settings foundation and will be connected in a future update.");
   const toggle = (checked, onClick, label) => <button type="button" role="switch" aria-label={label} aria-checked={checked} onClick={onClick} style={{ width: 44, height: 26, padding: 3, border: 0, borderRadius: 99, background: checked ? "#B9913F" : theme.border, display: "flex", justifyContent: checked ? "flex-end" : "flex-start", alignItems: "center", cursor: "pointer", flexShrink: 0 }}><span style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 4px #0003" }} /></button>;
   const item = (title, description, control, last = false) => <div style={{ ...row, borderBottom: last ? 0 : row.borderBottom }}><div style={{ minWidth: 0 }}><div style={{ fontSize: 13, color: theme.text, fontWeight: 500 }}>{title}</div><p style={muted}>{description}</p></div>{control}</div>;
-  return <Overlay onClose={onClose} theme={theme} width={800}>
-    <div className="vant-settings-shell" style={{ margin: -24, color: theme.text }}>
+  return <Overlay onClose={onClose} theme={theme} width={960}>
+    <div className="vant-settings-shell" style={{ margin: -24, color: theme.text, maxHeight: "84vh", overflowY: "auto", borderRadius: 20 }}>
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "22px 24px 18px", borderBottom: "1px solid " + theme.border }}>
         <div><div style={{ color: "#B9913F", fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: 2, marginBottom: 5 }}>VANT WORKSPACE</div><h2 style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 25, fontWeight: 500, margin: 0 }}>Settings</h2><p style={muted}>Manage your account, workspace, and preferences.</p></div>
         <button type="button" onClick={onClose} aria-label="Close settings" style={{ ...action, width: 38, height: 38, padding: 0, display: "grid", placeItems: "center" }}><X size={18}/></button>
