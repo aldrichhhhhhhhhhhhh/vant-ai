@@ -24,29 +24,25 @@ const FONT_IMPORT = `
 `;
 
 // ---------------------------------------------------------------------------
-// Theme system
-// ---------------------------------------------------------------------------
+// Theme system — named visual identities, not just a day/night switch.
 const THEMES = {
-  dark: {
-    // VANT dark mode: deep ink workspace, near-black navigation, restrained violet/cyan accents.
-    bg: "#111019", sidebarBg: "#100F18", surface: "rgba(255,255,255,0.035)", surfaceStrong: "rgba(255,255,255,0.075)",
-    surfaceCard: "#191626", border: "rgba(177,164,255,0.11)", borderStrong: "rgba(177,164,255,0.22)",
-    text: "#F5F3FF", textMuted: "#A6A1BC", textFaint: "#77718F", inputBg: "#171522",
-  },
-  light: {
-    // VANT light mode: warm porcelain surfaces with restrained signature gold and charcoal.
-    bg: "#FAFAF9", sidebarBg: "#FAFAF9", surface: "rgba(25,25,25,0.025)", surfaceStrong: "rgba(25,25,25,0.055)",
-    surfaceCard: "#FFFFFF", border: "#E5E5E3", borderStrong: "#D5D3CD",
-    text: "#191919", textMuted: "#666666", textFaint: "#8A8985", inputBg: "#FFFFFF",
-  },
+  classic: { label:"VANT Classic", group:"Signature", swatch:"#D4AF55", bg:"#F5F1E8", sidebarBg:"#0B0B0D", surface:"rgba(11,11,13,0.035)", surfaceStrong:"rgba(11,11,13,0.07)", surfaceCard:"#FFFFFF", border:"#E5DCC7", borderStrong:"#CDB77E", text:"#171717", textMuted:"#625E55", textFaint:"#898171", inputBg:"#FFFFFF" },
+  edu: { label:"VANT Edu", group:"Special Edition", swatch:"#A78BFA", bg:"#F7F5FF", sidebarBg:"#21163D", surface:"rgba(124,58,237,0.055)", surfaceStrong:"rgba(124,58,237,0.10)", surfaceCard:"#FFFFFF", border:"#E7DDFB", borderStrong:"#C4B5FD", text:"#241A38", textMuted:"#6F6384", textFaint:"#9185A6", inputBg:"#FFFFFF" },
+  light: { label:"VANT Theme 1", group:"Light", swatch:"#B9913F", bg:"#FAFAF9", sidebarBg:"#FAFAF9", surface:"rgba(25,25,25,0.025)", surfaceStrong:"rgba(25,25,25,0.055)", surfaceCard:"#FFFFFF", border:"#E5E5E3", borderStrong:"#D5D3CD", text:"#191919", textMuted:"#666666", textFaint:"#8A8985", inputBg:"#FFFFFF" },
+  warm: { label:"VANT Theme 2", group:"Light", swatch:"#C7A878", bg:"#F5F1E8", sidebarBg:"#EEE7D9", surface:"rgba(80,61,34,0.035)", surfaceStrong:"rgba(80,61,34,0.07)", surfaceCard:"#FFFCF6", border:"#E0D5C2", borderStrong:"#CBB99B", text:"#30291F", textMuted:"#746A5C", textFaint:"#9A8E7D", inputBg:"#FFFCF6" },
+  pink: { label:"VANT Theme 3", group:"Light", swatch:"#E9A9C2", bg:"#FFF7FA", sidebarBg:"#FFF0F5", surface:"rgba(190,70,119,0.035)", surfaceStrong:"rgba(190,70,119,0.07)", surfaceCard:"#FFFFFF", border:"#F2D9E3", borderStrong:"#E9B8CC", text:"#38242D", textMuted:"#805D6B", textFaint:"#A48792", inputBg:"#FFFFFF" },
+  zus: { label:"VANT Theme 4 · ZUS Coffee", group:"Collaboration", swatch:"#4777A8", bg:"#F4F7FA", sidebarBg:"#E8EFF5", surface:"rgba(44,91,136,0.04)", surfaceStrong:"rgba(44,91,136,0.08)", surfaceCard:"#FFFFFF", border:"#D5E0EA", borderStrong:"#AFC4D8", text:"#172A3B", textMuted:"#5D7184", textFaint:"#8496A6", inputBg:"#FFFFFF" },
+  sellspace: { label:"VANT × SELLSPACE", group:"Collaboration", swatch:"#087F68", bg:"#F3F8F6", sidebarBg:"#E5F1ED", surface:"rgba(8,127,104,0.04)", surfaceStrong:"rgba(8,127,104,0.085)", surfaceCard:"#FFFFFF", border:"#D1E7DF", borderStrong:"#8FC8B7", text:"#17352E", textMuted:"#55766D", textFaint:"#829D95", inputBg:"#FFFFFF" },
+  mote: { label:"VANT × MOTE.EXE", group:"Special Edition", swatch:"#D4AF55", bg:"#F4F1E9", sidebarBg:"#0B0B0D", surface:"rgba(212,175,85,0.045)", surfaceStrong:"rgba(212,175,85,0.09)", surfaceCard:"#FFFFFF", border:"#E4D8B5", borderStrong:"#D4AF55", text:"#171717", textMuted:"#655E4B", textFaint:"#8D846D", inputBg:"#FFFFFF" },
+  darkV1: { label:"VANT Dark Theme V1", group:"Dark", swatch:"#D4AF55", bg:"#101010", sidebarBg:"#050505", surface:"rgba(255,255,255,0.035)", surfaceStrong:"rgba(255,255,255,0.075)", surfaceCard:"#191919", border:"rgba(212,175,85,0.16)", borderStrong:"rgba(212,175,85,0.3)", text:"#F7F4EC", textMuted:"#B9B2A2", textFaint:"#837D70", inputBg:"#151515" },
+  dark: { label:"VANT Dark Theme 1", group:"Dark", swatch:"#A78BFA", bg:"#111019", sidebarBg:"#100F18", surface:"rgba(255,255,255,0.035)", surfaceStrong:"rgba(255,255,255,0.075)", surfaceCard:"#191626", border:"rgba(177,164,255,0.11)", borderStrong:"rgba(177,164,255,0.22)", text:"#F5F3FF", textMuted:"#A6A1BC", textFaint:"#77718F", inputBg:"#171522" },
 };
-
 const ACCENTS = {
-  violet: { dark: "#a78bfa", light: "#7C3AED", bgDark: "rgba(167,139,250,0.16)", bgLight: "rgba(124,58,237,0.10)" },
-  cyan: { dark: "#67e8f9", light: "#0E7490", bgDark: "rgba(103,232,249,0.15)", bgLight: "rgba(14,116,144,0.10)" },
-  green: { dark: "#6ee7b7", light: "#047857", bgDark: "rgba(110,231,183,0.15)", bgLight: "rgba(4,120,87,0.10)" },
-  amber: { dark: "#fcd34d", light: "#B45309", bgDark: "rgba(252,211,77,0.15)", bgLight: "rgba(180,83,9,0.10)" },
-  red: { dark: "#fca5a5", light: "#B91C1C", bgDark: "rgba(252,165,165,0.15)", bgLight: "rgba(185,28,28,0.10)" },
+  violet: { dark:"#a78bfa", light:"#7C3AED", bgDark:"rgba(167,139,250,0.16)", bgLight:"rgba(124,58,237,0.10)" },
+  cyan: { dark:"#67e8f9", light:"#0E7490", bgDark:"rgba(103,232,249,0.15)", bgLight:"rgba(14,116,144,0.10)" },
+  green: { dark:"#6ee7b7", light:"#047857", bgDark:"rgba(110,231,183,0.15)", bgLight:"rgba(4,120,87,0.10)" },
+  amber: { dark:"#fcd34d", light:"#B45309", bgDark:"rgba(252,211,77,0.15)", bgLight:"rgba(180,83,9,0.10)" },
+  red: { dark:"#fca5a5", light:"#B91C1C", bgDark:"rgba(252,165,165,0.15)", bgLight:"rgba(185,28,28,0.10)" },
 };
 const ac = (key, isDark) => (isDark ? ACCENTS[key].dark : ACCENTS[key].light);
 const acBg = (key, isDark = true) => (isDark ? ACCENTS[key].bgDark : ACCENTS[key].bgLight);
@@ -4428,44 +4424,43 @@ function AuthModal({ mode, setMode, theme, isDark, onClose, onAuth }) {
   );
 }
 
-function SettingsModal({ theme, isDark, onToggleTheme, user, onClose, onLogout, onClearData, floatingEducationWidgets, onToggleFloatingEducationWidgets }) {
+function SettingsModal({ theme, isDark, onSelectTheme, user, onClose, onLogout, onClearData, floatingEducationWidgets, onToggleFloatingEducationWidgets, themeName }) {
+  const themeGroups = ["Signature", "Light", "Collaboration", "Special Edition", "Dark"];
   return (
-    <Overlay onClose={onClose} theme={theme} width={420}>
-      <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 21, fontWeight: 500, margin: "0 0 18px", color: theme.text }}>Settings</h2>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>ACCOUNT</p>
-        {user ? (
-          <>
-            <p style={{ fontSize: 14, color: theme.text, margin: "0 0 2px" }}>{user.name}</p>
-            <p style={{ fontSize: 12.5, color: theme.textMuted, margin: "0 0 10px" }}>{user.email}</p>
-            <button onClick={onLogout} style={{ fontSize: 13, color: ac("red", isDark), background: "none", border: "none", cursor: "pointer", padding: 0 }}>Log out</button>
-          </>
-        ) : <p style={{ fontSize: 13.5, color: theme.textMuted }}>Not signed in.</p>}
+    <Overlay onClose={onClose} theme={theme} width={520}>
+      <h2 style={{ fontFamily:"Fraunces, serif", fontSize:21, fontWeight:500, margin:"0 0 5px", color:theme.text }}>Settings</h2>
+      <p style={{ color:theme.textMuted, fontSize:12.5, lineHeight:1.6, margin:"0 0 20px" }}>Make VANT feel like your workspace. Choose a visual identity; it will be saved to your account.</p>
+      <div style={{ marginBottom:22 }}>
+        <p style={{ fontFamily:"JetBrains Mono, monospace", fontSize:11, letterSpacing:1, color:theme.textFaint, margin:"0 0 10px" }}>ACCOUNT</p>
+        {user ? <><p style={{ fontSize:14, color:theme.text, margin:"0 0 2px" }}>{user.name}</p><p style={{ fontSize:12.5, color:theme.textMuted, margin:"0 0 10px" }}>{user.email}</p><button onClick={onLogout} style={{ fontSize:13, color:ac("red",isDark), background:"none", border:"none", cursor:"pointer", padding:0 }}>Log out</button></> : <p style={{ fontSize:13.5, color:theme.textMuted }}>Not signed in.</p>}
       </div>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>APPEARANCE</p>
-        <button onClick={onToggleTheme} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 999, background: theme.surface, border: `1px solid ${theme.border}`, color: theme.text, fontSize: 13.5, cursor: "pointer" }}>
-          {isDark ? <Sun size={14} /> : <Moon size={14} />} Switch to {isDark ? "Day" : "Dark"} theme
-        </button>
+      <div style={{ marginBottom:22 }}>
+        <p style={{ fontFamily:"JetBrains Mono, monospace", fontSize:11, letterSpacing:1, color:theme.textFaint, margin:"0 0 10px" }}>VANT THEMES</p>
+        {themeGroups.map(group => <div key={group} style={{ marginBottom:13 }}>
+          <p style={{ fontSize:10, fontWeight:700, letterSpacing:1.1, color:theme.textFaint, margin:"0 0 7px", textTransform:"uppercase" }}>{group}</p>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:8 }}>
+            {Object.entries(THEMES).filter(([,item])=>item.group===group).map(([id,item]) => {
+              const selected = themeName===id;
+              return <button key={id} type="button" onClick={()=>onSelectTheme(id)} aria-pressed={selected} style={{ display:"flex", alignItems:"center", gap:10, minHeight:60, padding:"10px 11px", textAlign:"left", borderRadius:13, border:"1px solid "+(selected?item.swatch:theme.border), background:selected?item.swatch+"18":theme.surface, color:theme.text, cursor:"pointer", boxShadow:selected?"0 0 0 1px "+item.swatch+" inset":"none" }}>
+                <span aria-hidden="true" style={{ width:30, height:30, flexShrink:0, borderRadius:9, border:"1px solid "+item.swatch+"55", background:"linear-gradient(135deg,"+item.swatch+" 0 42%, "+item.bg+" 42% 72%, "+item.sidebarBg+" 72%)" }} />
+                <span style={{ minWidth:0, flex:1 }}><span style={{ display:"block", fontSize:11.5, lineHeight:1.35, fontWeight:700 }}>{item.label}</span><span style={{ display:"block", fontSize:10, marginTop:3, color:theme.textMuted }}>{selected?"Currently active":"Select theme"}</span></span>
+                {selected && <Check size={14} color={item.swatch} />}
+              </button>;
+            })}
+          </div>
+        </div>)}
       </div>
-
-      <div style={{ marginBottom: 22 }}>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>PERSONALIZATION</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 13, border: "1px solid " + theme.border, borderRadius: 14, background: theme.surface }}>
-          <div style={{ flex: 1 }}><div style={{ color: theme.text, fontSize: 13.5, fontWeight: 600 }}>Floating Education widgets</div><div style={{ color: theme.textMuted, fontSize: 11.5, lineHeight: 1.5, marginTop: 4 }}>Keep your Student Calendar, Study Tracker, and Doc Files Cabinet available across VANT for quick access. You can turn this off anytime.</div></div>
-          <button type="button" role="switch" aria-checked={floatingEducationWidgets} onClick={onToggleFloatingEducationWidgets} style={{ width: 46, height: 27, padding: 3, border: 0, borderRadius: 99, background: floatingEducationWidgets ? "#7C3AED" : theme.border, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: floatingEducationWidgets ? "flex-end" : "flex-start" }}><span style={{ width: 21, height: 21, borderRadius: "50%", background: "#FFFFFF", boxShadow: "0 1px 4px rgba(0,0,0,.22)" }} /></button>
+      <div style={{ marginBottom:22 }}>
+        <p style={{ fontFamily:"JetBrains Mono, monospace", fontSize:11, letterSpacing:1, color:theme.textFaint, margin:"0 0 10px" }}>PERSONALIZATION</p>
+        <div style={{ display:"flex", alignItems:"center", gap:12, padding:13, border:"1px solid "+theme.border, borderRadius:14, background:theme.surface }}>
+          <div style={{ flex:1 }}><div style={{ color:theme.text, fontSize:13.5, fontWeight:600 }}>Floating Education widgets</div><div style={{ color:theme.textMuted, fontSize:11.5, lineHeight:1.5, marginTop:4 }}>Keep your Student Calendar, Study Tracker, and Doc Files Cabinet available across VANT for quick access.</div></div>
+          <button type="button" role="switch" aria-checked={floatingEducationWidgets} onClick={onToggleFloatingEducationWidgets} style={{ width:46, height:27, padding:3, border:0, borderRadius:99, background:floatingEducationWidgets?"#7C3AED":theme.border, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:floatingEducationWidgets?"flex-end":"flex-start" }}><span style={{ width:21, height:21, borderRadius:"50%", background:"#FFFFFF", boxShadow:"0 1px 4px rgba(0,0,0,.22)" }} /></button>
         </div>
-        <p style={{ color: theme.textFaint, fontSize: 10.5, margin: "7px 0 0" }}>Disabled by default. Your Education tools remain available inside VANT Education.</p>
       </div>
-
       <div>
-        <p style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: 1, color: theme.textFaint, margin: "0 0 10px" }}>DATA</p>
-        <button onClick={onClearData} style={{ padding: "9px 16px", borderRadius: 999, background: acBg("red", isDark), border: "none", color: ac("red", isDark), fontSize: 13.5, cursor: "pointer" }}>
-          Reset my VANT data
-        </button>
-        <p style={{ color: theme.textFaint, fontSize: 11, marginTop: 8 }}>Resets this account's saved theme, chats, tasks, and Cowork history.</p>
+        <p style={{ fontFamily:"JetBrains Mono, monospace", fontSize:11, letterSpacing:1, color:theme.textFaint, margin:"0 0 10px" }}>DATA</p>
+        <button onClick={onClearData} style={{ padding:"9px 16px", borderRadius:999, background:acBg("red",isDark), border:"none", color:ac("red",isDark), fontSize:13.5, cursor:"pointer" }}>Reset my VANT data</button>
+        <p style={{ color:theme.textFaint, fontSize:11, marginTop:8 }}>Resets this account's saved theme, chats, tasks, and Cowork history.</p>
       </div>
     </Overlay>
   );
@@ -4735,7 +4730,7 @@ export default function VantWorkingPrototype() {
     }
 
     const nextState = {
-      theme: data?.theme === "light" ? "light" : "dark",
+      theme: typeof data?.theme === "string" && THEMES[data.theme] ? data.theme : "dark",
       cowork_tasks: Array.isArray(data?.cowork_tasks) ? data.cowork_tasks : [],
       cowork_history: Array.isArray(data?.cowork_history) ? data.cowork_history : [],
     };
@@ -4959,8 +4954,8 @@ export default function VantWorkingPrototype() {
     if (error) console.error("VANT: failed to save app_state", error);
   }
 
-  const isDark = themeName === "dark";
-  const theme = THEMES[themeName];
+  const theme = THEMES[themeName] || THEMES.dark;
+  const isDark = themeName === "dark" || themeName === "darkV1";
 
   async function handleAuth({ mode, name, email, password }) {
     if (mode === "signup") {
@@ -5154,7 +5149,7 @@ export default function VantWorkingPrototype() {
       </div>
       {authMode && <AuthModal mode={authMode} setMode={setAuthMode} theme={theme} isDark={isDark} onClose={() => setAuthMode(null)} onAuth={handleAuth} />}
       {user && !user.isGuest && floatingEducationWidgets && active !== "education" && <VantEducationWidgets theme={theme} isDark={isDark} user={user} onGoToEducation={() => setActive("education")} onGoToTools={() => setActive("tools")} />}
-      {settingsOpen && <SettingsModal theme={theme} isDark={isDark} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} floatingEducationWidgets={floatingEducationWidgets} onToggleFloatingEducationWidgets={toggleFloatingEducationWidgets} />}
+      {settingsOpen && <SettingsModal theme={theme} isDark={isDark} themeName={themeName} onSelectTheme={setThemeName} onToggleTheme={toggleTheme} user={user} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} onClearData={handleClearData} floatingEducationWidgets={floatingEducationWidgets} onToggleFloatingEducationWidgets={toggleFloatingEducationWidgets} />}
     </div>
   );
 }
