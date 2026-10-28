@@ -138,7 +138,9 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
     if (!stateReady) return;
     setTasks(Array.isArray(initialTasks) ? initialTasks : []);
     setHistory(Array.isArray(initialHistory) ? initialHistory : []);
-  }, [stateReady, initialTasks, initialHistory]);
+    // Hydrate once per mount; subsequent changes are owned by this workspace.
+    // Re-syncing on every parent state update would create a persistence loop.
+  }, [stateReady]);
 
   useEffect(() => {
     if (!stateReady) return;
@@ -167,7 +169,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
         setAgents((current) => {
           const next = current.map((agent) => {
             const row = saved.find((item) => item.role_key === agent.role_key);
-            return row ? { ...agent, id: row.id, profileId: row.id, name: agent.isBuiltin ? agent.name : row.name, description: row.description || agent.description, profile: normalizeProfile(row.profile, agent.defaultProfile) } : agent;
+            return row ? { ...agent, profileId: row.id, name: agent.isBuiltin ? agent.name : row.name, description: row.description || agent.description, profile: normalizeProfile(row.profile, agent.defaultProfile) } : agent;
           });
           saved.filter((row) => row.role_key === "custom").forEach((row) => {
             next.push({
@@ -253,7 +255,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
       }
       const { data, error } = await query.select("id").single();
       if (error) throw error;
-      setAgents((current) => current.map((item) => item.id === agent.id ? { ...merged, id: data.id, profileId: data.id } : item));
+      setAgents((current) => current.map((item) => item.id === agent.id ? { ...merged, id: agent.id, profileId: data.id } : item));
       setProfileNotice("Agent profile saved.");
     } catch (error) {
       setProfileNotice(error.message || "Could not save this agent profile.");
@@ -308,13 +310,19 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
     const runId = uid();
     const startedAt = new Date().toISOString();
     const steps = [];
-    const setStep = (id, patch) => setCurrentRun((current) => current?.id !== runId ? current : {
-      ...current,
-      steps: current.steps.map((step) => step.id === id ? { ...step, ...patch } : step)
-    });
+    const setStep = (id, patch) => {
+      const target = steps.find((step) => step.id === id);
+      if (target) Object.assign(target, patch);
+      setCurrentRun((current) => current?.id !== runId ? current : {
+        ...current,
+        steps: steps.map((step) => ({ ...step }))
+      });
+    };
     const appendStep = (step) => {
       steps.push(step);
-      setCurrentRun({ id: runId, objective, startedAt, phase: "planning", steps: [...steps], findings: [], report: "" });
+      setCurrentRun((current) => current?.id === runId
+        ? { ...current, steps: steps.map((item) => ({ ...item })) }
+        : { id: runId, objective, startedAt, phase: "planning", steps: steps.map((item) => ({ ...item })), findings: [], report: "" });
     };
 
     setCurrentRun({ id: runId, objective, startedAt, phase: "planning", steps: [], findings: [], report: "" });
@@ -447,7 +455,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
       )}
 
       {view === "workspace" && (
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(270px, 0.8fr)", gap: 14, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 14, alignItems: "start" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
             <form onSubmit={runWorkspace} style={{ ...panel, display: "flex", flexDirection: "column", gap: 11 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Sparkles size={16} color={accent} /><strong style={{ fontSize: 14 }}>Delegate a business task</strong></div>
