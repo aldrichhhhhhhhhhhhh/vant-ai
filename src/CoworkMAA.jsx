@@ -122,7 +122,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
   const [selected, setSelected] = useState(DEFAULT_SELECTED);
   const [editingAgent, setEditingAgent] = useState(null);
   const [customName, setCustomName] = useState("");
-  const [customRole, setCustomRole] = useState("custom");
+  const [customAvatar, setCustomAvatar] = useState("✦");
   const [customDescription, setCustomDescription] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
@@ -175,7 +175,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
             next.push({
               id: row.id, profileId: row.id, role_key: "custom", name: row.name,
               description: row.description || "User-created CoWork agent.",
-              icon: "✦", instruction: String(row.profile?.roleInstructions || "Analyze the task within your declared specialty and disclose uncertainty."),
+              icon: String(row.profile?.avatar || "✦").slice(0, 8), instruction: String(row.profile?.roleInstructions || "Analyze the task within your declared specialty and disclose uncertainty."),
               defaultProfile: normalizeProfile({}, {}), profile: normalizeProfile(row.profile, {}),
               isBuiltin: false
             });
@@ -239,7 +239,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
         name: merged.name,
         description: merged.description || "",
         role_key: merged.role_key,
-        profile: { ...merged.profile, roleInstructions: merged.isBuiltin ? undefined : merged.instruction }
+        profile: { ...merged.profile, avatar: merged.isBuiltin ? undefined : merged.icon, roleInstructions: merged.isBuiltin ? undefined : merged.instruction }
       };
       let query;
       if (merged.profileId) {
@@ -270,7 +270,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
     if (!name) return;
     const newAgent = {
       id: uid(), role_key: "custom", name, description: description || "Custom VANT CoWork agent.",
-      icon: "✦", instruction: "Analyze the task within your declared specialty. Be explicit about evidence, assumptions, and uncertainty.",
+      icon: customAvatar.trim().slice(0, 8) || "✦", instruction: "Analyze the task within your declared specialty. Be explicit about evidence, assumptions, and uncertainty.",
       defaultProfile: normalizeProfile({}, {}), profile: normalizeProfile({}, {}),
       isBuiltin: false
     };
@@ -278,6 +278,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
     setSelected((current) => current.length < 5 ? [...current, newAgent.id] : current);
     setCustomName("");
     setCustomDescription("");
+    setCustomAvatar("✦");
     setShowCreate(false);
     await saveProfile(newAgent);
   }
@@ -522,7 +523,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
       {activeAgent && <div onMouseDown={(event) => { if (event.target === event.currentTarget) setEditingAgent(null); }} style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.62)", display: "flex", justifyContent: "center", alignItems: "center", padding: 16 }}>
         <div style={{ width: "min(620px, 100%)", maxHeight: "90vh", overflowY: "auto", background: theme.surfaceCard || theme.surface, border: `1px solid ${theme.border}`, borderRadius: 18, padding: 22, color: theme.text }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}><Cpu size={19} color={accent} /><div style={{ flex: 1 }}><h2 style={{ margin: 0, fontSize: 18 }}>Customize {activeAgent.name}</h2><p style={{ color: theme.textFaint, fontSize: 12, margin: "4px 0 0" }}>Behavior preferences apply to this agent, not its permissions.</p></div><button onClick={() => setEditingAgent(null)} style={button}><X size={15} /></button></div>
-          <form onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const profile = { personality: form.get("personality"), approach: form.get("approach"), communication: form.get("communication"), challenge: Number(form.get("challenge")), creativity: Number(form.get("creativity")), detail: form.get("detail"), temperature: Number(form.get("temperature")), customInstructions: String(form.get("customInstructions") || "").slice(0, 3000) }; saveProfile(activeAgent, { profile, instruction: activeAgent.isBuiltin ? activeAgent.instruction : String(form.get("roleInstructions") || activeAgent.instruction).slice(0, 3000) }); }} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 13 }}>
+          <form onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const profile = { personality: form.get("personality"), approach: form.get("approach"), communication: form.get("communication"), challenge: Number(form.get("challenge")), creativity: Number(form.get("creativity")), detail: form.get("detail"), temperature: Number(form.get("temperature")), customInstructions: String(form.get("customInstructions") || "").slice(0, 3000) }; const updates = { profile }; if (!activeAgent.isBuiltin) { updates.name = String(form.get("agentName") || activeAgent.name).trim().slice(0, 80); updates.description = String(form.get("agentDescription") || activeAgent.description).trim().slice(0, 500); updates.icon = String(form.get("agentAvatar") || activeAgent.icon).trim().slice(0, 8) || "✦"; updates.instruction = String(form.get("roleInstructions") || activeAgent.instruction).slice(0, 3000); } saveProfile(activeAgent, updates); }} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 13 }}>
             <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Personality<select name="personality" defaultValue={activeAgent.profile.personality} style={field}>{PERSONALITIES.map((item) => <option key={item}>{item}</option>)}</select></label>
             <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Problem-solving approach<select name="approach" defaultValue={activeAgent.profile.approach} style={field}>{APPROACHES.map((item) => <option key={item}>{item}</option>)}</select></label>
             <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Communication<select name="communication" defaultValue={activeAgent.profile.communication} style={field}>{COMMUNICATION.map((item) => <option key={item}>{item}</option>)}</select></label>
@@ -530,7 +531,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
             <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Challenge assumptions: {activeAgent.profile.challenge}%<input name="challenge" type="range" min="0" max="100" step="5" defaultValue={activeAgent.profile.challenge} /></label>
             <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Creative exploration: {activeAgent.profile.creativity}%<input name="creativity" type="range" min="0" max="100" step="5" defaultValue={activeAgent.profile.creativity} /></label>
             <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Temperature: {activeAgent.profile.temperature.toFixed(2)}<input name="temperature" type="range" min="0" max="1" step="0.05" defaultValue={activeAgent.profile.temperature} /></label>
-            {!activeAgent.isBuiltin && <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted, gridColumn: "1 / -1" }}>Role instructions<textarea name="roleInstructions" defaultValue={activeAgent.instruction} maxLength={3000} style={{ ...field, minHeight: 80 }} /></label>}
+            {!activeAgent.isBuiltin && <><label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Agent name<input name="agentName" defaultValue={activeAgent.name} required maxLength={80} style={field} /></label><label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Avatar emoji / symbol<input name="agentAvatar" defaultValue={activeAgent.icon} maxLength={8} style={field} /></label><label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted, gridColumn: "1 / -1" }}>Specialty / description<input name="agentDescription" defaultValue={activeAgent.description} maxLength={500} style={field} /></label><label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted, gridColumn: "1 / -1" }}>Role instructions<textarea name="roleInstructions" defaultValue={activeAgent.instruction} maxLength={3000} style={{ ...field, minHeight: 80 }} /></label></>}
             <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted, gridColumn: "1 / -1" }}>Additional behavior instructions<textarea name="customInstructions" defaultValue={activeAgent.profile.customInstructions} maxLength={3000} placeholder="Describe how this agent should approach work…" style={{ ...field, minHeight: 80 }} /></label>
             <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "space-between", gap: 10 }}><span style={{ color: theme.textFaint, fontSize: 11.5, alignSelf: "center" }}>Temperature is used only when supported by the current model API.</span><button type="submit" style={{ ...button, background: accent, borderColor: accent, color: isDark ? "#11100D" : "#FFFFFF" }}><Save size={14} /> Save behavior</button></div>
           </form>
@@ -541,7 +542,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
         <form onSubmit={createAgent} style={{ width: "min(520px, 100%)", background: theme.surfaceCard || theme.surface, border: `1px solid ${theme.border}`, borderRadius: 18, padding: 22, color: theme.text, display: "grid", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}><Plus size={18} color={accent} /><h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>Create a personalized agent</h2><button type="button" onClick={() => setShowCreate(false)} style={button}><X size={14} /></button></div>
           <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Agent name<input value={customName} onChange={(event) => setCustomName(event.target.value)} required maxLength={80} style={field} placeholder="e.g. Shipment Auditor" /></label>
-          <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Specialty / description<input value={customDescription} onChange={(event) => setCustomDescription(event.target.value)} maxLength={500} style={field} placeholder="e.g. Reviews handover logs and SLA exceptions" /></label>
+          <label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Avatar emoji / symbol<input value={customAvatar} onChange={(event) => setCustomAvatar(event.target.value)} maxLength={8} style={field} placeholder="✦" /></label><label style={{ display: "grid", gap: 5, fontSize: 12, color: theme.textMuted }}>Specialty / description<input value={customDescription} onChange={(event) => setCustomDescription(event.target.value)} maxLength={500} style={field} placeholder="e.g. Reviews handover logs and SLA exceptions" /></label>
           <p style={{ color: theme.textFaint, fontSize: 11.5, margin: 0 }}>After creation, customize personality, approach, communication, challenge level, creativity, output detail, temperature, and role instructions.</p>
           <button type="submit" style={{ ...button, background: accent, color: isDark ? "#11100D" : "#FFFFFF", borderColor: accent, justifyContent: "center" }}><Plus size={14} /> Create agent</button>
         </form>
