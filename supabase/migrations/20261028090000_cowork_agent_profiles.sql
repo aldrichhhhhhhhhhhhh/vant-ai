@@ -18,6 +18,9 @@ create index if not exists cowork_agent_profiles_user_updated_idx
 
 alter table public.cowork_agent_profiles enable row level security;
 
+revoke all on table public.cowork_agent_profiles from anon;
+grant select, insert, update, delete on table public.cowork_agent_profiles to authenticated;
+
 drop policy if exists cowork_agent_profiles_select_own on public.cowork_agent_profiles;
 create policy cowork_agent_profiles_select_own
   on public.cowork_agent_profiles for select to authenticated
