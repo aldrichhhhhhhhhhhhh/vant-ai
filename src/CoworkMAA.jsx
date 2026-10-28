@@ -361,8 +361,14 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
       });
       await Promise.all(agentJobs);
 
-      if (!workingAgents.length && !planner) {
-        researchResults.push({ agent: selectedAgents[0].name, role_key: selectedAgents[0].role_key, output: "No analysis specialist was selected. Add a Data Analyst, Challenger, or Researcher for richer findings.", status: "done" });
+      if (!researchResults.length) {
+        const fallbackAgent = selectedAgents.find((agent) => agent.role_key === "planner") || selectedAgents[0];
+        researchResults.push({
+          agent: fallbackAgent.name,
+          role_key: fallbackAgent.role_key,
+          output: "This team created a plan but did not include an analysis specialist. Add a Data Analyst, Challenger, Researcher, or custom specialist to generate evidence-based findings.",
+          status: "done"
+        });
       }
 
       const coordinator = selectedAgents.find((agent) => agent.role_key === "mote") || selectedAgents.find((agent) => agent.role_key === "integrator");
