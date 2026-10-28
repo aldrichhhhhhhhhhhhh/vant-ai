@@ -525,7 +525,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
           const description = plain.length > 220 ? plain.slice(0, 217) + "…" : plain;
           const finalizedByMote = agentNames.some((name) => /mote/i.test(name));
           const downloadPdf = () => {
-            const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
+            const printWindow = window.open("", "_blank", "width=900,height=700");
             if (!printWindow) { window.alert("Please allow pop-ups to export this report as PDF."); return; }
             const esc = (value) => String(value || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
             const reportHtml = esc(report)
