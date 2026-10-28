@@ -5,6 +5,7 @@ import {
   Save, ShieldCheck, Sparkles, Trash2, Users, X, Zap
 } from "lucide-react";
 import { supabase } from "./supabase";
+import VantRichRenderer from "./VantRichRenderer";
 
 const BUILTIN_AGENTS = [
   {
@@ -496,7 +497,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
                   const status = statusStyle(step.status, theme);
                   return <div key={step.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: 10, borderRadius: 9, background: theme.surfaceCard || theme.surface }}>
                     {step.status === "running" ? <LoaderCircle size={15} color={status.color} className="v-pulse" /> : step.status === "done" ? <Check size={15} color={status.color} /> : <CircleAlert size={15} color={status.color} />}
-                    <div style={{ flex: 1 }}><strong style={{ display: "block", fontSize: 12.5 }}>{step.label}</strong><span style={{ color: theme.textFaint, fontSize: 11 }}>{step.agent} · {status.label}</span>{step.output && <details style={{ marginTop: 6 }}><summary style={{ cursor: "pointer", color: theme.textMuted, fontSize: 11.5 }}>View output</summary><pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 11.5, lineHeight: 1.5, color: theme.textMuted }}>{step.output}</pre></details>}</div>
+                    <div style={{ flex: 1 }}><strong style={{ display: "block", fontSize: 12.5 }}>{step.label}</strong><span style={{ color: theme.textFaint, fontSize: 11 }}>{step.agent} · {status.label}</span>{step.output && <details style={{ marginTop: 6 }}><summary style={{ cursor: "pointer", color: theme.textMuted, fontSize: 11.5 }}>View output</summary><div style={{ marginTop: 8 }}><VantRichRenderer source={step.output} theme={theme} isDark={isDark} compact /></div></details>}</div>
                   </div>;
                 })}
               </div>
@@ -506,7 +507,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
 
           <div style={{ ...panel, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><ClipboardCheck size={17} color={accent} /><strong style={{ fontSize: 14 }}>Decision-ready report</strong></div>
-            {currentRun?.report ? <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 12.5, color: theme.textMuted }}>{currentRun.report}</div> : <div style={{ textAlign: "center", padding: "34px 10px", color: theme.textFaint }}><FileText size={25} style={{ marginBottom: 10, opacity: 0.65 }} /><p style={{ fontSize: 12.5, lineHeight: 1.55 }}>Your final report will appear here after the selected agents have reviewed the task.</p><p style={{ fontSize: 11.5 }}>Recommendations only. No external actions are executed.</p></div>}
+            {currentRun?.report ? <VantRichRenderer source={currentRun.report} theme={theme} isDark={isDark} /> : <div style={{ textAlign: "center", padding: "34px 10px", color: theme.textFaint }}><FileText size={25} style={{ marginBottom: 10, opacity: 0.65 }} /><p style={{ fontSize: 12.5, lineHeight: 1.55 }}>Your final report will appear here after the selected agents have reviewed the task.</p><p style={{ fontSize: 11.5 }}>Recommendations only. No external actions are executed.</p></div>}
             {currentRun?.report && <div style={{ display: "flex", alignItems: "flex-start", gap: 7, marginTop: 14, padding: 10, borderRadius: 9, background: isDark ? "#252116" : "#FAF5E7", color: theme.textMuted, fontSize: 11.5 }}><ShieldCheck size={15} color={accent} /><span>Human review required before acting on recommendations. This prototype has no external execution tools.</span></div>}
           </div>
         </div>
@@ -516,7 +517,7 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
         {history.length === 0 && <div style={{ ...panel, color: theme.textFaint, fontSize: 13 }}>No runs yet. Submit a business task to start your first M.A.A. workflow.</div>}
         {history.map((item) => <div key={item.id} style={panel}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}><div style={{ flex: 1 }}><strong style={{ fontSize: 13.5 }}>{item.goal || item.objective}</strong><p style={{ color: theme.textFaint, fontSize: 11, margin: "5px 0 10px" }}>{new Date(item.completedAt || item.startedAt || Date.now()).toLocaleString()} · {item.agentNames?.join(", ") || "CoWork"}</p></div><button style={button} onClick={() => { setCurrentRun({ id: item.id, objective: item.goal, startedAt: item.startedAt, phase: "complete", steps: item.steps || [], findings: item.findings || [], plan: item.plan || [], report: item.summary || "" }); setView("workspace"); }}><FileText size={13} /> Open report</button></div>
-          <p style={{ color: theme.textMuted, whiteSpace: "pre-wrap", lineHeight: 1.55, fontSize: 12.5, margin: 0 }}>{item.summary}</p>
+          <VantRichRenderer source={item.summary} theme={theme} isDark={isDark} compact />
         </div>)}
       </div>}
 
