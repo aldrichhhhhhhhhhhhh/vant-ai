@@ -117,6 +117,7 @@ function statusStyle(status, theme) {
 
 export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHistory = [], stateReady = false, onPersist }) {
   const [view, setView] = useState("workspace");
+  const [expandedHistoryId, setExpandedHistoryId] = useState(null);
   const [goal, setGoal] = useState("");
   const [reportText, setReportText] = useState("");
   const [agents, setAgents] = useState(BUILTIN_AGENTS.map((a) => ({ ...a, id: a.role_key, profile: normalizeProfile({}, a.defaultProfile), isBuiltin: true })));
@@ -513,12 +514,48 @@ export default function CoworkMAA({ theme, isDark, initialTasks = [], initialHis
         </div>
       )}
 
-      {view === "history" && <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {view === "history" && <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {history.length === 0 && <div style={{ ...panel, color: theme.textFaint, fontSize: 13 }}>No runs yet. Submit a business task to start your first M.A.A. workflow.</div>}
-        {history.map((item) => <div key={item.id} style={panel}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}><div style={{ flex: 1 }}><strong style={{ fontSize: 13.5 }}>{item.goal || item.objective}</strong><p style={{ color: theme.textFaint, fontSize: 11, margin: "5px 0 10px" }}>{new Date(item.completedAt || item.startedAt || Date.now()).toLocaleString()} · {item.agentNames?.join(", ") || "CoWork"}</p></div><button style={button} onClick={() => { setCurrentRun({ id: item.id, objective: item.goal, startedAt: item.startedAt, phase: "complete", steps: item.steps || [], findings: item.findings || [], plan: item.plan || [], report: item.summary || "" }); setView("workspace"); }}><FileText size={13} /> Open report</button></div>
-          <VantRichRenderer source={item.summary} theme={theme} isDark={isDark} compact />
-        </div>)}
+        {history.map((item) => {
+          const expanded = expandedHistoryId === item.id;
+          const topic = item.goal || item.objective || "Untitled CoWork run";
+          const report = item.summary || "No final report was saved for this run.";
+          const plain = report.replace(/[#>*_\x60|]/g, " ").replace(/\s+/g, " ").trim();
+          const description = plain.length > 220 ? plain.slice(0, 217) + "…" : plain;
+          const finalizedByMote = (item.agentNames || []).some((name) => /mote/i.test(name));
+          const downloadPdf = () => {
+            const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
+            if (!printWindow) { window.alert("Please allow pop-ups to export this report as PDF."); return; }
+            const esc = (value) => String(value || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+            const reportHtml = esc(report)
+              .replace(/^###? (.*)$/gm, "<h2>$1</h2>")
+              .replace(/^## (.*)$/gm, "<h2>$1</h2>")
+              .replace(/^# (.*)$/gm, "<h1>$1</h1>")
+              .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+              .replace(/\n/g, "<br/>");
+            printWindow.document.write("<!doctype html><html><head><title>"+esc(topic)+"</title><meta charset='utf-8'><style>body{font:12px Arial,sans-serif;color:#222;line-height:1.6;max-width:780px;margin:36px auto;padding:0 24px}h1{font-size:24px;border-bottom:2px solid #d4af55;padding-bottom:10px}h2{font-size:16px;margin-top:22px} .meta{color:#666;font-size:11px;margin-bottom:24px}.footer{margin-top:30px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#777}@media print{body{margin:18mm auto;padding:0}}</style></head><body><h1>"+esc(topic)+"</h1><div class='meta'>"+esc(new Date(item.completedAt || item.startedAt || Date.now()).toLocaleString())+" · "+esc(item.agentNames?.join(", ") || "CoWork")+"</div><div>"+reportHtml+"</div><div class='footer'>VANT CoWork · "+(finalizedByMote?"Finalized by Mote.EXE":"Prepared by CoWork")+" · Human review required before acting on recommendations.</div><script>window.onload=function(){window.focus();window.print();};<\/script></body></html>");
+            printWindow.document.close();
+          };
+          return <div key={item.id} style={{ ...panel, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 11, background: isDark ? "rgba(212,175,85,.14)" : "rgba(212,175,85,.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><FileText size={18} color={accent} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong style={{ display: "block", fontSize: 14 }}>{topic}</strong>
+                  <p style={{ color: theme.textFaint, fontSize: 11, margin: "5px 0 8px" }}>{new Date(item.completedAt || item.startedAt || Date.now()).toLocaleString()} · {(item.agentNames || []).join(", ") || "CoWork"}</p>
+                  <p style={{ color: theme.textMuted, fontSize: 12.5, lineHeight: 1.55, margin: 0 }}>{description || "No description was saved for this run."}</p>
+                  <p style={{ color: theme.textFaint, fontSize: 11, margin: "9px 0 0" }}>{finalizedByMote ? "Finalized by Mote.EXE" : "Prepared by CoWork"}</p>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+                <button style={button} onClick={() => setExpandedHistoryId(expanded ? null : item.id)}><FileText size={13} /> {expanded ? "Hide report" : "View report"}</button>
+                <button style={button} onClick={downloadPdf}><FileText size={13} /> Download as PDF</button>
+                <button style={button} onClick={() => { setCurrentRun({ id: item.id, objective: topic, startedAt: item.startedAt, phase: "complete", steps: item.steps || [], findings: item.findings || [], plan: item.plan || [], report }); setView("workspace"); }}><History size={13} /> Open in workspace</button>
+              </div>
+            </div>
+            {expanded && <div style={{ padding: "14px 16px 18px", borderTop: "1px solid " + theme.border, background: theme.surfaceCard || theme.surface }}><VantRichRenderer source={report} theme={theme} isDark={isDark} /><div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}><button style={button} onClick={downloadPdf}><FileText size={13} /> Download report PDF</button></div></div>}
+          </div>;
+        })}
       </div>}
 
       {activeAgent && <div onMouseDown={(event) => { if (event.target === event.currentTarget) setEditingAgent(null); }} style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.62)", display: "flex", justifyContent: "center", alignItems: "center", padding: 16 }}>
