@@ -1,9 +1,8 @@
 import {useState,useEffect,useMemo,useRef,useCallback} from "react";
 import Papa from "papaparse";import katex from "katex";import "katex/dist/katex.min.css";
-import {supabase} from "./supabase.js";import askVant from "./askVant.js";import {BackBar,ToolCard,VantMarkdown,InteractivePracticeView} from "./EducationUiPrimitives.jsx";
+import {supabase} from "./supabase.js";import askVant from "./askVant.js";import {BackBar,ToolCard,VantMarkdown} from "./EducationUiPrimitives.jsx";
 import {BookOpen,GraduationCap,Layers,ClipboardCheck,CalendarDays,FileText,PencilLine,Pencil,Calculator,Presentation,FlaskConical,Target,Copy,FileSpreadsheet,FolderKanban,RefreshCw,ChevronRight,ChevronLeft,ArrowLeft,ArrowRight,Plus,Trash2,Check,X,Clock3,Search,Sparkles,ListChecks,ClipboardList,Package,Truck,Boxes,Download,Upload,Camera,Paperclip,Link2,Image as ImageIcon,CircleCheck,CircleHelp,Lightbulb,BookMarked,Settings,MoreHorizontal,Edit,Eye,EyeOff,Play,RotateCcw,FileCheck2,NotepadText,BookOpenCheck,CalendarRange,Clock,Save,Clipboard,CheckCircle2,AlertCircle,Mic,Table,FileType,PanelTop,Book,FilePlus,CalendarCheck,MoveRight,PenTool,BookText,BarChart,ChartColumn,Menu,User,Share2,Printer,ExternalLink,Info,TriangleAlert,WandSparkles,Briefcase} from "lucide-react";
 const ACCENT="#7C3AED";const ac=(key,isDark)=>({violet:isDark?"#C4B5FD":"#7C3AED",cyan:isDark?"#67E8F9":"#0E7490",green:isDark?"#6EE7B7":"#047857",amber:isDark?"#FCD34D":"#B45309",red:isDark?"#FCA5A5":"#B91C1C"}[key]||ACCENT);const acBg=(key,isDark)=>isDark?({violet:"rgba(167,139,250,.16)",cyan:"rgba(103,232,249,.15)",green:"rgba(110,231,183,.15)",amber:"rgba(252,211,77,.15)",red:"rgba(252,165,165,.15)"}[key]||"rgba(167,139,250,.16)"):( {violet:"rgba(124,58,237,.10)",cyan:"rgba(14,116,144,.10)",green:"rgba(4,120,87,.10)",amber:"rgba(180,83,9,.10)",red:"rgba(185,28,28,.10)"}[key]||"rgba(124,58,237,.10)");
-async function saveStudyMaterialToDevice({title,type,topic,content,sourceNotes="",userId}){if(!userId)return{ok:false,message:"Sign in to save materials to your private VANT Education library."};const item={user_id:userId,title:String(title||"Study material").trim().slice(0,200)||"Study material",material_type:String(type||"study-material"),topic:String(topic||"").trim(),content:String(content||"").trim(),source_notes:String(sourceNotes||"").trim(),folder:({"notes-study-guide":"Notes & Guides","study-assistant":"Notes & Guides",flashcards:"Flashcards",quiz:"Quizzes",practice:"Flashcards",planner:"Study Plans",essay:"Writing",citation:"Citations",math:"Math",presentation:"Presentations",research:"Research"})[String(type||"")]||"General"};const{error}=await supabase.from("study_materials").insert(item);if(error){console.error("VANT Education: save failed",error);return{ok:false,message:"Couldn't save to VANT Education. Please try again."}}return{ok:true,message:"Saved to VANT Education library."}}
 function cleanStudyFormatting(value) {
   return String(value || "")
     .replace(/\r/g, "")
@@ -42,121 +41,6 @@ async function saveStudyMaterialToDevice({ title, type, topic, content, sourceNo
   }
   return { ok: true, message: "Saved to your VANT Education library. You can reopen it anytime from the Education tab." };
 }
-
-
-export default async function askVant(
-  systemPrompt,
-  messages,
-  timeoutMs = 48000,
-  externalSignal = null
-) {
-  const controller = new AbortController();
-  const abortFromCaller = () => controller.abort();
-
-  if (externalSignal) {
-    if (externalSignal.aborted) controller.abort();
-    else externalSignal.addEventListener("abort", abortFromCaller, { once: true });
-  }
-
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  let accessToken = "";
-
-  try {
-    const { data } = await supabase.auth.getSession();
-    accessToken = data.session?.access_token || "";
-  } catch {
-    /* auth session may be unavailable */
-  }
-
-  if (!accessToken) {
-    clearTimeout(timer);
-    return "Your VANT session has expired. Please log in again.";
-  }
-
-  try {
-    const response = await fetch("/api/vant", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
-        system: systemPrompt,
-        messages,
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      let data = {};
-      try {
-        data = await response.json();
-      } catch {
-        /* ignore invalid error JSON */
-      }
-
-      clearTimeout(timer);
-
-      if (data?.error === "missing_api_key") {
-        return "The server isn't configured with an NVIDIA API key yet — set NVIDIA_API_KEY in your deployment's environment variables.";
-      }
-
-      if (data?.error === "vant_model_timeout") {
-        return "VANT's GPT-OSS engine timed out. Try the request again with a shorter message.";
-      }
-
-      if (data?.error === "vant_model_unavailable") {
-        return "VANT's GPT-OSS engine is temporarily unavailable. Please try again in a moment.";
-      }
-
-      if (data?.error === "vant_model_empty") {
-        return "VANT's GPT-OSS engine returned no answer. Please try again.";
-      }
-
-      const safeDetail =
-        typeof data?.detail === "string" && data.detail.trim()
-          ? data.detail.trim()
-          : typeof data?.error === "string" && data.error.trim()
-            ? data.error.trim()
-            : "Unknown server error.";
-
-      return `GPT-OSS engine error (HTTP ${response.status}): ${safeDetail}`;
-    }
-
-    let data = {};
-    try {
-      data = await response.json();
-    } catch {
-      clearTimeout(timer);
-      return "VANT's GPT-OSS engine returned an invalid response.";
-    }
-
-    clearTimeout(timer);
-    if (externalSignal) externalSignal.removeEventListener("abort", abortFromCaller);
-
-    const text =
-      typeof data?.content?.[0]?.text === "string"
-        ? data.content[0].text
-        : typeof data?.choices?.[0]?.message?.content === "string"
-          ? data.choices[0].message.content
-          : "";
-
-    return text.trim() || "VANT's GPT-OSS engine returned no answer.";
-  } catch (err) {
-    clearTimeout(timer);
-    if (externalSignal) externalSignal.removeEventListener("abort", abortFromCaller);
-
-    if (err?.name === "AbortError") {
-      if (externalSignal?.aborted) return "__VANT_USER_STOPPED__";
-      return "VANT's GPT-OSS engine timed out. Try a shorter request.";
-    }
-
-    console.error("VANT GPT-OSS request error:", err);
-    return "VANT's GPT-OSS engine could not reach the model service.";
-  }
-}
-
 
 
 export function StudyAssistantTool({ onBack, theme, isDark, user }) {
