@@ -3,7 +3,7 @@ export const config = {
 };
 
 import { createClient } from "@supabase/supabase-js";
-import { completeVant } from "./_vant-engine.js";
+import { completeVant, streamVant } from "./_vant-engine.js";
 
 const MODEL = "openai/gpt-oss-20b";
 const NVIDIA_URL =
@@ -583,10 +583,10 @@ export default async function handler(req, res) {
     Number.isFinite(Number(max_tokens));
 
   const requestedMaxTokens = hasExplicitMaxTokens
-    ? Math.max(64, Math.min(8192, Number(max_tokens)))
+    ? Math.max(64, Math.min(4096, Number(max_tokens)))
     : hasImage
       ? 900
-      : 8192;
+      : 2048;
 
   const engineOptions = {
     temperature: agent_temperature ?? 0.6,
@@ -596,32 +596,13 @@ export default async function handler(req, res) {
   };
 
   try {
-    // Main Chat now uses the same completion/continuation path as Projects.
-    // For streaming clients, preserve the existing SSE contract and only
-    // signal completion after the shared engine confirms a complete answer.
-    const result = await completeVant(apiKey, engineMessages, engineOptions);
-
+    // Stream directly from NVIDIA for streaming clients instead of waiting
+    // for the entire completion before sending the first byte to the browser.
     if (stream) {
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-      res.setHeader("Cache-Control", "no-cache, no-transform");
-      res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-Accel-Buffering", "no");
-      if (typeof res.flushHeaders === "function") res.flushHeaders();
-
-      res.write(`data: ${JSON.stringify({
-        choices: [{ delta: { content: result.text }, finish_reason: null }],
-      })}\n\n`);
-      res.write(`data: ${JSON.stringify({
-        choices: [{ delta: {}, finish_reason: result.finish_reason || "stop" }],
-        model: result.model,
-        completion_passes: result.completion_passes,
-        usage: result.usage,
-      })}\n\n`);
-      res.write("data: [DONE]\n\n");
-      return res.end();
+      return await streamVant(apiKey, engineMessages, res, engineOptions);
     }
 
+    const result = await completeVant(apiKey, engineMessages, engineOptions);
     return json(res, 200, {
       content: [{ type: "text", text: result.text }],
       model: result.model,

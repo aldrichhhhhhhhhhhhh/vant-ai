@@ -2,7 +2,7 @@ const NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const MODEL = "openai/gpt-oss-20b";
 const TOTAL_BUDGET_MS = 54_000;
 const MAX_PASSES = 2;
-const MAX_OUTPUT_TOKENS = 8192;
+const MAX_OUTPUT_TOKENS = 2048;
 
 function continuationMessages(baseMessages, answer) {
   if (!answer) return [...baseMessages];
