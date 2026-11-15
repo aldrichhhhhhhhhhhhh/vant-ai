@@ -94,6 +94,14 @@ function providerPayload(messages, options = {}) {
 }
 
 async function requestNim(apiKey, payload, timeoutMs) {
+  const requestStartedAt = Date.now();
+  console.info("VANT NVIDIA request started", {
+    model: payload.model,
+    stream: payload.stream,
+    max_tokens: payload.max_tokens,
+    timeout_ms: timeoutMs,
+    message_count: payload.messages?.length || 0,
+  });
   const response = await fetch(NVIDIA_URL, {
     method: "POST",
     headers: {
@@ -105,6 +113,11 @@ async function requestNim(apiKey, payload, timeoutMs) {
     signal: AbortSignal.timeout(Math.max(1000, timeoutMs)),
   });
 
+  console.info("VANT NVIDIA response headers received", {
+    status: response.status,
+    elapsed_ms: Date.now() - requestStartedAt,
+    stream: payload.stream,
+  });
   if (!response.ok) {
     let detail = `NVIDIA NIM returned HTTP ${response.status}.`;
     try {
@@ -134,17 +147,28 @@ async function readStreamPass(response, onDelta) {
   const decoder = new TextDecoder();
   let buffer = "";
   let text = "";
+  const streamStartedAt = Date.now();
   let finishReason = null;
   let usage = null;
 
+  let firstEventLogged = false;
+  let firstContentLogged = false;
   const consume = (block) => {
     const event = parseSseEvent(block);
     if (!event) return;
+    if (!firstEventLogged) {
+      firstEventLogged = true;
+      console.info("VANT NVIDIA first SSE event", { elapsed_ms: Date.now() - streamStartedAt });
+    }
     const choice = event.choices?.[0];
     const piece = typeof choice?.delta?.content === "string"
       ? choice.delta.content
       : typeof choice?.text === "string" ? choice.text : "";
     if (piece) {
+      if (!firstContentLogged) {
+        firstContentLogged = true;
+        console.info("VANT NVIDIA first visible content", { elapsed_ms: Date.now() - streamStartedAt });
+      }
       text += piece;
       onDelta?.(piece);
     }
