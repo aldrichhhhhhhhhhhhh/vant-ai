@@ -210,7 +210,7 @@ export async function completeVant(apiKey, messages, options = {}) {
         ...options,
         stream: false,
       }),
-      remaining
+      Math.min(remaining, options.timeout_ms ?? remaining)
     );
     const data = await response.json();
     const choice = data?.choices?.[0];
