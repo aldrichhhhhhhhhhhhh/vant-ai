@@ -210,7 +210,7 @@ export async function completeVant(apiKey, messages, options = {}) {
         ...options,
         stream: false,
       }),
-      remaining
+      Math.min(remaining, options.timeout_ms ?? remaining)
     );
     const data = await response.json();
     const choice = data?.choices?.[0];
@@ -273,7 +273,7 @@ export async function streamVant(apiKey, messages, res, options = {}) {
           ...options,
           stream: true,
         }),
-        remaining
+        Math.min(remaining, options.timeout_ms ?? remaining)
       );
       const result = await readStreamPass(response, (piece) => {
         send({ choices: [{ delta: { content: piece }, finish_reason: null }] });

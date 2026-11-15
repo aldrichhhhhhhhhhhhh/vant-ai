@@ -69,6 +69,14 @@ function isValidMessage(message) {
   return false;
 }
 
+function isGreetingTurn(messages) {
+  const latestUser = [...messages].reverse().find((message) => message?.role === "user");
+  const text = Array.isArray(latestUser?.content)
+    ? latestUser.content.filter((part) => part?.type === "text").map((part) => part.text || "").join(" ")
+    : String(latestUser?.content || "");
+  return /^(hi|hello|hey|yo|hiya|good morning|good afternoon|good evening|good day|howdy|thanks|thank you|what's up|whats up)[.!?,\s]*$/i.test(text.trim());
+}
+
 function containsImage(messages) {
   return messages.some(
     (message) =>
@@ -571,10 +579,23 @@ export default async function handler(req, res) {
      UNIFIED GPT-OSS ENGINE
      --------------------------------------------------------- */
 
-  const engineMessages = [
-    ...(system ? [{ role: "system", content: system }] : []),
-    ...validMessages,
-  ];
+  const greetingTurn = isGreetingTurn(validMessages);
+  const latestUserMessage = [...validMessages].reverse().find((message) => message?.role === "user");
+
+  // Greetings do not need the full conversation history or a long reasoning budget.
+  // Keep this path on GPT-OSS, but send the smallest useful prompt possible.
+  const engineMessages = greetingTurn
+    ? [
+        {
+          role: "system",
+          content: "You are VANT, a helpful professional AI assistant. Reply naturally to this greeting in one brief, friendly sentence.",
+        },
+        latestUserMessage,
+      ]
+    : [
+        ...(system ? [{ role: "system", content: system }] : []),
+        ...validMessages,
+      ];
 
   const hasExplicitMaxTokens =
     max_tokens !== null &&
@@ -582,17 +603,20 @@ export default async function handler(req, res) {
     max_tokens !== "" &&
     Number.isFinite(Number(max_tokens));
 
-  const requestedMaxTokens = hasExplicitMaxTokens
-    ? Math.max(64, Math.min(4096, Number(max_tokens)))
-    : hasImage
-      ? 900
-      : 2048;
+  const requestedMaxTokens = greetingTurn
+    ? 96
+    : hasExplicitMaxTokens
+      ? Math.max(64, Math.min(4096, Number(max_tokens)))
+      : hasImage
+        ? 900
+        : 2048;
 
   const engineOptions = {
-    temperature: agent_temperature ?? 0.6,
+    temperature: greetingTurn ? 0.3 : agent_temperature ?? 0.6,
     top_p: 0.7,
     max_tokens: requestedMaxTokens,
     reasoning_effort: "low",
+    timeout_ms: greetingTurn ? 30_000 : undefined,
   };
 
   try {
