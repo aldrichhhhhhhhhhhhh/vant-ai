@@ -493,14 +493,14 @@ async function askVant(
 
 
 
-function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSettings }) {
+function Sidebar({ active, onSelect, theme, isDark, onToggleTheme, onOpenSettings, mobileSidebarOpen = false, onToggleMobileSidebar }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const sidebarText = isDark ? "#F5F3FF" : "#191919";
   const sidebarMuted = isDark ? "#C3BED4" : "#666666";
   const sidebarIcon = isDark ? "#AAA4C2" : "#77736A";
   const gold = isDark ? "#D0A650" : "#B9913F";
   return (
-    <aside style={{ width: 224, flexShrink: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", padding: "20px 14px", gap: 7, color: sidebarText }}>
+    <aside className={`vant-main-sidebar${mobileSidebarOpen ? " is-mobile-open" : ""}`} style={{ width: 224, flexShrink: 0, background: theme.sidebarBg, borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", padding: "20px 14px", gap: 7, color: sidebarText }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 10px 22px", marginBottom: 10, borderBottom: `1px solid ${theme.border}` }}>
         <div style={{ width: 30, height: 30, borderRadius: 9, background: isDark ? "linear-gradient(135deg,#D0A650,#8E6C2B)" : "#D0A650", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isDark ? "0 4px 14px rgba(208,166,80,0.16)" : "none" }}>
           <span style={{ color: "#191919", fontFamily: "JetBrains Mono, monospace", fontWeight: 700, fontSize: 15 }}>V</span>
@@ -1460,7 +1460,7 @@ function ProjectsPage({ theme, isDark, projects, user, onProjectsChange, onOpenP
 // ---------------------------------------------------------------------------
 // AI Chat
 // ---------------------------------------------------------------------------
-function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNewConversation, onSelectConversation, onTogglePinConversation, onDeleteConversation, projectMode = false, projectName = "", onBackToProject }) {
+function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNewConversation, onSelectConversation, onTogglePinConversation, onDeleteConversation, projectMode = false, projectName = "", onBackToProject, mobileOpen = false }) {
     const pinned = conversations.filter((item) => item.pinned);
     const recent = conversations.filter((item) => !item.pinned);
     const renderItem = (item) => (
@@ -1471,7 +1471,7 @@ function HistoryPanel({ theme, isDark, conversations, activeConversationId, onNe
       </div>
     );
     return (
-      <aside style={{ width: 270, flexShrink: 0, borderRight: `1px solid ${theme.border}`, background: isDark ? theme.sidebarBg : theme.surfaceCard, color: theme.text, display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <aside className={`vant-chat-history${mobileOpen ? " is-mobile-open" : ""}`} style={{ width: 270, flexShrink: 0, borderRight: `1px solid ${theme.border}`, background: isDark ? theme.sidebarBg : theme.surfaceCard, color: theme.text, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div style={{ padding: "16px 14px 12px", borderBottom: `1px solid ${theme.border}` }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div>
@@ -1880,6 +1880,7 @@ function ChatPage({
 }) {
   const activeConversation = conversations.find((item) => item.id === activeConversationId) || null;
   const [started, setStarted] = useState(Boolean(activeConversation?.messages?.length));
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   useEffect(() => {
     if (activeConversation?.messages?.length) {
       setMessages(activeConversation.messages);
@@ -2518,10 +2519,12 @@ Respond naturally like a sharp work partner.
 
   if (!started) {
     return (
-      <div style={{ height: "100%", display: "flex", minWidth: 0, overflow: "hidden" }}>
-        <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} projectMode={projectMode} projectName={projectName} onBackToProject={onBackToProject} />
+      <div className="vant-chat-page" style={{ height: "100%", display: "flex", minWidth: 0, overflow: "hidden" }}>
+        <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={(id) => { onSelectConversation(id); setMobileHistoryOpen(false); }} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} projectMode={projectMode} projectName={projectName} onBackToProject={onBackToProject} mobileOpen={mobileHistoryOpen} />
+        {mobileHistoryOpen && <button type="button" className="vant-mobile-history-backdrop" aria-label="Close chat history" onClick={() => setMobileHistoryOpen(false)} />}
 
-        <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden" }}>
+        <div className="vant-chat-workspace" style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", boxSizing: "border-box", overflow: "hidden", position: "relative" }}>
+          <button type="button" className="vant-mobile-history-button" onClick={() => setMobileHistoryOpen(true)} aria-label="Open chat history" style={{ display: "none", position: "relative", alignSelf: "flex-start", flexShrink: 0, margin: "8px 10px 0", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, borderRadius: 9, padding: "7px 9px", background: theme.surface, color: theme.text, cursor: "pointer", whiteSpace: "nowrap" }}><ArrowLeft size={15} /><span>History</span></button>
           {projectMode && <div style={{ padding: "10px 24px", borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", gap: 9, color: theme.textMuted, fontSize: 12.5 }}><FolderKanban size={15} color={ac("violet", isDark)} /><span style={{ fontWeight: 600, color: theme.text }}>{projectName}</span><span>· Project Chat</span><button type="button" onClick={onBackToProject} style={{ marginLeft: "auto", border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, borderRadius: 9, padding: "6px 9px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><ArrowLeft size={13} /> Back to Project</button></div>}
           {!chatHistoryReady ? (
             <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", color: theme.textMuted, fontSize: 13 }}>
@@ -2583,8 +2586,9 @@ Respond naturally like a sharp work partner.
   }
 
   return (
-    <div style={{ height: "100%", display: "flex", minWidth: 0 }}>
-      <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={onSelectConversation} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} />
+    <div className="vant-chat-page" style={{ height: "100%", display: "flex", minWidth: 0 }}>
+      <HistoryPanel theme={theme} isDark={isDark} conversations={conversations} activeConversationId={activeConversationId} onNewConversation={onNewConversation} onSelectConversation={(id) => { onSelectConversation(id); setMobileHistoryOpen(false); }} onTogglePinConversation={onTogglePinConversation} onDeleteConversation={onDeleteConversation} mobileOpen={mobileHistoryOpen} />
+      {mobileHistoryOpen && <button type="button" className="vant-mobile-history-backdrop" aria-label="Close chat history" onClick={() => setMobileHistoryOpen(false)} />}
       <div className="vant-chat-workspace" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
       <style>{`
         .vant-chat-workspace .vant-message-list { gap: 22px !important; padding: 28px clamp(20px, 4vw, 56px) 30px !important; scroll-behavior: smooth; }
@@ -2602,6 +2606,7 @@ Respond naturally like a sharp work partner.
         @media (max-width: 700px) { .vant-chat-workspace .vant-message-list { padding: 18px 14px 22px !important; gap: 18px !important; } .vant-chat-workspace .vant-message-bubble { max-width: 94% !important; } }
       `}</style>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 24px", borderBottom: `1px solid ${theme.border}` }}>
+        <button type="button" className="vant-mobile-history-button" onClick={() => setMobileHistoryOpen(true)} aria-label="Open chat history" style={{ display: "none", alignItems: "center", gap: 5, border: `1px solid ${theme.border}`, borderRadius: 9, padding: "7px 9px", background: theme.surface, color: theme.text, cursor: "pointer", whiteSpace: "nowrap" }}><ArrowLeft size={15} /><span>History</span></button>
         {projectMode && <button type="button" onClick={onBackToProject} style={{ border: `1px solid ${theme.border}`, background: theme.surface, color: theme.textMuted, borderRadius: 9, padding: "6px 9px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5 }}><ArrowLeft size={13} /> Project</button>}
         <span style={{ fontSize: 15, fontWeight: 500, color: theme.text }}>{projectMode ? `VANT · ${projectName}` : "VANT · Work Session"}</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: ac("green", isDark), fontSize: 13 }}><span style={{ width: 6, height: 6, borderRadius: 999, background: ac("green", isDark) }} />Live</span>
@@ -4291,9 +4296,10 @@ function Overlay({ onClose, theme, children, width = 380 }) {
   );
 }
 
-function TopBar({ theme, isDark, user, pageLabel, onOpenAuth, onOpenSettings }) {
+function TopBar({ theme, isDark, user, pageLabel, onOpenAuth, onOpenSettings, onToggleMobileSidebar }) {
   return (
-    <div style={{ height: 56, flexShrink: 0, borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 12 }}>
+    <div className="vant-topbar" style={{ height: 56, flexShrink: 0, borderBottom: `1px solid ${theme.border}`, display: "flex", alignItems: "center", padding: "0 24px", gap: 12 }}>
+      <button type="button" className="vant-mobile-nav-toggle" onClick={onToggleMobileSidebar} aria-label="Toggle navigation" style={{ display: "none", alignItems: "center", justifyContent: "center", width: 38, height: 38, flexShrink: 0, border: `1px solid ${theme.border}`, borderRadius: 10, background: theme.surface, color: theme.text, cursor: "pointer" }}><MoreHorizontal size={20} /></button>
       <span style={{ fontSize: 13, color: theme.textFaint, fontFamily: "JetBrains Mono, monospace", letterSpacing: 1 }}>{pageLabel?.toUpperCase()}</span>
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
         {user?.isGuest === true ? (
@@ -4486,6 +4492,7 @@ function SettingsModal({ theme, isDark, onSelectTheme, themeName, user, onClose,
 
 export default function VantWorkingPrototype() {
   const [active, setActive] = useState("chat");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [projects, setProjects] = useState([]);
   const [projectChat, setProjectChat] = useState(null);
   const [projectConversationId, setProjectConversationId] = useState(null);
@@ -5136,17 +5143,42 @@ export default function VantWorkingPrototype() {
   }
 
   return (
-    <div style={{ height: "100vh", minHeight: 640, display: "flex", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif", overflow: "hidden", border: isDark ? "1px solid rgba(177,164,255,0.08)" : "1px solid rgba(32,26,52,0.08)", boxSizing: "border-box" }}>
+    <div className="vant-app-shell" style={{ height: "100vh", minHeight: 0, display: "flex", background: theme.bg, color: theme.text, fontFamily: "'DM Sans', system-ui, sans-serif", overflow: "hidden", border: isDark ? "1px solid rgba(177,164,255,0.08)" : "1px solid rgba(32,26,52,0.08)", boxSizing: "border-box" }}>
       <style>{FONT_IMPORT + `
         * { box-sizing: border-box; }
         button { -webkit-tap-highlight-color: transparent; }
         @media (max-width: 760px) {
           .vant-sidebar-label { display: none; }
         }
+        .vant-mobile-sidebar-backdrop, .vant-mobile-history-backdrop { display:none; }
+        @media (max-width: 760px) {
+          .vant-app-shell { width:100%; max-width:100vw; height:100dvh !important; min-height:0 !important; }
+          .vant-main-sidebar { display:none !important; }
+          .vant-main-sidebar.is-mobile-open { display:flex !important; position:fixed !important; inset:0 auto 0 0 !important; z-index:1200 !important; width:min(80vw,290px) !important; min-width:0 !important; flex:0 0 min(80vw,290px) !important; height:100dvh !important; padding:16px 12px !important; box-shadow:18px 0 50px rgba(0,0,0,.2); overflow-y:auto !important; }
+          .vant-mobile-sidebar-backdrop { display:block; position:fixed; inset:0; z-index:1199; border:0; background:rgba(0,0,0,.38); padding:0; }
+          .vant-mobile-nav-toggle { display:inline-flex !important; }
+          .vant-topbar { padding:0 10px !important; gap:7px !important; }
+          .vant-topbar > span:first-of-type { max-width:26vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10px !important; }
+          .vant-topbar > div { gap:5px !important; min-width:0; }
+          .vant-topbar button { padding:7px 9px !important; font-size:12px !important; white-space:nowrap; }
+          .vant-topbar > div > span { max-width:72px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px !important; }
+          .vant-chat-page { display:flex !important; flex-direction:column !important; width:100% !important; min-width:0 !important; height:100% !important; overflow:hidden !important; }
+          .vant-chat-history:not(.is-mobile-open) { display:none !important; }
+          .vant-chat-history.is-mobile-open { display:flex !important; position:fixed !important; inset:0 auto 0 0 !important; z-index:1202 !important; width:min(84vw,320px) !important; min-width:0 !important; flex:0 0 min(84vw,320px) !important; max-width:calc(100vw - 56px) !important; height:100dvh !important; box-shadow:18px 0 50px rgba(0,0,0,.22); overflow-y:auto !important; }
+          .vant-mobile-history-backdrop { display:block; position:fixed; inset:0; z-index:1201; border:0; background:rgba(0,0,0,.38); padding:0; }
+          .vant-chat-workspace { width:100% !important; min-width:0 !important; max-width:100% !important; flex:1 1 0 !important; min-height:0 !important; height:100% !important; overflow:hidden !important; }
+          .vant-mobile-history-button { display:inline-flex !important; }
+          .vant-chat-workspace .vant-message-list { min-width:0 !important; width:100% !important; padding:14px 10px 18px !important; overflow-x:hidden !important; }
+          .vant-chat-workspace .vant-message-bubble { max-width:100% !important; overflow-wrap:anywhere !important; }
+          .vant-chat-workspace form { min-width:0 !important; width:100% !important; gap:5px !important; padding:6px !important; }
+          .vant-chat-workspace form textarea { min-width:0 !important; width:0 !important; flex:1 1 auto !important; font-size:16px !important; }
+          .vant-chat-workspace > div:last-child { padding:8px 10px max(12px, env(safe-area-inset-bottom)) !important; }
+        }
       `}</style>
-      <Sidebar active={active} onSelect={setActive} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} onOpenSettings={() => setSettingsOpen(true)} />
+      <Sidebar active={active} onSelect={(next) => { setActive(next); setMobileSidebarOpen(false); }} theme={theme} isDark={isDark} onToggleTheme={toggleTheme} onOpenSettings={() => { setMobileSidebarOpen(false); setSettingsOpen(true); }} mobileSidebarOpen={mobileSidebarOpen} onToggleMobileSidebar={() => setMobileSidebarOpen((open) => !open)} />
+      {mobileSidebarOpen && <button type="button" className="vant-mobile-sidebar-backdrop" aria-label="Close navigation" onClick={() => setMobileSidebarOpen(false)} />}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: theme.bg }}> 
-        <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={(mode) => setAuthMode(mode || "signup")} onOpenSettings={() => setSettingsOpen(true)} />
+        <TopBar theme={theme} isDark={isDark} user={user} pageLabel={pageLabel} onOpenAuth={(mode) => setAuthMode(mode || "signup")} onOpenSettings={() => setSettingsOpen(true)} onToggleMobileSidebar={() => setMobileSidebarOpen((open) => !open)} />
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", position: "relative" }}>
           {renderPage()}
           {user?.isGuest === true && active !== "chat" && (
